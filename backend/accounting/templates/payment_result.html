@@ -1,0 +1,338 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نتیجه پرداخت</title>
+    
+    <!-- فونت Vazirmatn -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Vazirmatn', 'Tahoma', sans-serif;
+            background: linear-gradient(135deg, #0F0F0F 0%, #1A1A1A 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #1A1A1A;
+            border: 1px solid #374151;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            max-width: 480px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .app-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .app-logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            margin: 0 auto 12px;
+            display: block;
+            object-fit: cover;
+        }
+
+        .app-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin: 0;
+        }
+
+        .icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            animation: scaleIn 0.6s ease-out 0.2s both;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .success-icon {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+        }
+
+        .error-icon {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            color: white;
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #FFFFFF;
+            font-weight: 700;
+        }
+
+        .success-title {
+            color: #10B981;
+        }
+
+        .error-title {
+            color: #EF4444;
+        }
+
+        .message {
+            font-size: 16px;
+            color: #9CA3AF;
+            margin-bottom: 30px;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+
+        .details {
+            background: #2A2A2A;
+            border: 1px solid #374151;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            text-align: right;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #374151;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #9CA3AF;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: #FFFFFF;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px 40px;
+            border-radius: 16px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+            color: white;
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .countdown {
+            margin-top: 20px;
+            color: #9CA3AF;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .countdown-number {
+            color: #8B5CF6;
+            font-weight: 700;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .icon {
+                width: 80px;
+                height: 80px;
+                font-size: 40px;
+            }
+
+            .details {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Logo و نام برنامه -->
+        <div class="app-header">
+            <img src="./logo.png" alt="نوبت‌یار" class="app-logo" onerror="this.style.display='none'">
+            <h2 class="app-name">نوبت‌یار</h2>
+        </div>
+
+        {% if success %}
+        <div class="icon success-icon">✓</div>
+        <h1 class="success-title">پرداخت موفق</h1>
+        {% if message %}
+        <p class="message">{{ message }}</p>
+        {% else %}
+        <p class="message">
+            پرداخت شما با موفقیت انجام شد.<br>
+            از خرید شما متشکریم!
+        </p>
+        {% endif %}
+        {% else %}
+        <div class="icon error-icon">✗</div>
+        <h1 class="error-title">پرداخت ناموفق</h1>
+        {% if message %}
+        <p class="message">{{ message }}</p>
+        {% else %}
+        <p class="message">
+            متأسفانه پرداخت شما با خطا مواجه شد.<br>
+            لطفاً دوباره تلاش کنید.
+        </p>
+        {% endif %}
+        {% endif %}
+
+        {% if data %}
+        <div class="details">
+            {% if data.amount %}
+            <div class="detail-row">
+                <span class="detail-label">مبلغ:</span>
+                <span class="detail-value">{{ data.amount|floatformat:0 }} تومان</span>
+            </div>
+            {% endif %}
+            
+            {% if data.ref_number %}
+            <div class="detail-row">
+                <span class="detail-label">شماره پیگیری:</span>
+                <span class="detail-value">{{ data.ref_number }}</span>
+            </div>
+            {% endif %}
+            
+            {% if data.transaction_id %}
+            <div class="detail-row">
+                <span class="detail-label">شماره تراکنش:</span>
+                <span class="detail-value">{{ data.transaction_id }}</span>
+            </div>
+            {% endif %}
+            
+            {% if data.card_number %}
+            <div class="detail-row">
+                <span class="detail-label">شماره کارت:</span>
+                <span class="detail-value">{{ data.card_number }}</span>
+            </div>
+            {% endif %}
+            
+            {% if data.date %}
+            <div class="detail-row">
+                <span class="detail-label">تاریخ:</span>
+                <span class="detail-value">{{ data.date }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <button onclick="openApp()" class="btn btn-primary">بازگشت به اپلیکیشن</button>
+        
+        {% if success %}
+        <div class="countdown">
+            بازگشت خودکار به اپلیکیشن در <span class="countdown-number" id="countdown">15</span> ثانیه
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function openApp() {
+            const success = {% if success %}1{% else %}0{% endif %};
+            const refNumber = "{{ data.ref_number|default:'' }}";
+            const amount = "{{ data.amount|default:'' }}";
+            const transactionId = "{{ data.transaction_id|default:'' }}";
+            
+            const deepLink = `noobatyar://payment/result?success=${success}&ref=${refNumber}&amount=${amount}&txn=${transactionId}`;
+            
+            window.location.href = deepLink;
+            
+            setTimeout(() => {
+                if (document.hidden) return;
+                window.location.href = deepLink;
+            }, 2000);
+        }
+
+        {% if success %}
+        let countdown = 15;
+        const countdownElement = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(timer);
+                openApp();
+            }
+        }, 1000);
+        {% endif %}
+    </script>
+</body>
+</html>
