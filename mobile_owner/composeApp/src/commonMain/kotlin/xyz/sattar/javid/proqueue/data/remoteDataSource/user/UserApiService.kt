@@ -3,6 +3,7 @@ package xyz.sattar.javid.proqueue.data.remoteDataSource.user
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.client.request.patch
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -103,6 +104,19 @@ class UserApiService(private val httpClient: HttpClient) {
         return httpClient.post("auth/forgot-password/reset/") {
             contentType(ContentType.Application.Json)
             setBody(body)
+        }.toApiResponse()
+    }
+
+    suspend fun updateUserProfile(id: Int, body: xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.UpdateUserProfileRequestDto): ApiResponse<UserDto> {
+        return httpClient.patch("users/$id/") {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }.toApiResponse()
+    }
+
+    suspend fun getChangelog(): ApiResponse<List<xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.ChangelogDto>> {
+        return httpClient.get("version/changelog/") {
+            contentType(ContentType.Application.Json)
         }.toApiResponse()
     }
 }
