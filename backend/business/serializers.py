@@ -10,7 +10,7 @@ class BusinessSerializer(serializers.ModelSerializer):
             'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             'notification_enabled', 'notification_types', 'notification_minutes_before',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'allow_anonymous_view'
         ]
         read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at']
 
@@ -36,3 +36,23 @@ class BusinessSerializer(serializers.ModelSerializer):
         if value.size > 5 * 1024 * 1024:  # 5MB
             raise ValidationError("Image size cannot exceed 5MB")
         return value
+
+class ClientBusinessSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Business
+        fields = [
+            'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
+            'default_service_duration', 'work_start_hour', 'work_end_hour',
+            'allow_anonymous_view'
+        ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        
+        # If user is anonymous and the business doesn't allow anonymous viewing, mask contact fields
+        if (not request or not request.user or request.user.is_anonymous) and not instance.allow_anonymous_view:
+            data['phone'] = None
+            data['address'] = None
+        
+        return data

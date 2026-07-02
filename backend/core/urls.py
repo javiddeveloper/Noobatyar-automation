@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/business/', include('business.urls')),
     path('api/visitor/', include('visitor.urls')),
     path('api/appointment/', include('appointment.urls')),
+    path('api/client/business/', include('business.client_urls')),
 ]
 
 handler404 = custom_404_handler

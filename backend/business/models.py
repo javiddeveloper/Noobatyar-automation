@@ -40,6 +40,10 @@ class Business(models.Model):
     notification_minutes_before = models.IntegerField(default=30)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    allow_anonymous_view = models.BooleanField(
+        default=False, 
+        help_text="If True, guests can view contact details (phone, address, etc.)"
+    )
 
     class Meta:
         db_table = 'business'
