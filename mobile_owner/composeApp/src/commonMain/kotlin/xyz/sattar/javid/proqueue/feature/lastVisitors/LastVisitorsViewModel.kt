@@ -49,6 +49,7 @@ class LastVisitorsViewModel(
                 sendEvent(LastVisitorsEvent.NavigateToEditAppointment(intent.appointmentId))
             }
             is LastVisitorsIntent.OnDeleteAppointment -> deleteAppointment(intent.appointmentId)
+            is LastVisitorsIntent.OnUpdateStatus -> updateStatus(intent.appointmentId, intent.status)
             is LastVisitorsIntent.OnMarkCompleted -> markCompleted(intent.appointmentId)
             is LastVisitorsIntent.OnMarkNoShow -> markNoShow(intent.appointmentId)
             LastVisitorsIntent.DismissDialog -> flow {
@@ -219,6 +220,19 @@ class LastVisitorsViewModel(
             }
         } catch (e: Exception) {
             emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در ثبت عدم مراجعه"))
+        }
+    }
+
+    private fun updateStatus(appointmentId: Long, status: String): Flow<LastVisitorsState.PartialState> = flow {
+        try {
+            val success = appointmentRepository.updateAppointmentStatus(appointmentId, status)
+            if (success) {
+                emitAll(loadAppointments())
+            } else {
+                emit(LastVisitorsState.PartialState.ShowMessage("خطا در تغییر وضعیت نوبت"))
+            }
+        } catch (e: Exception) {
+            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در تغییر وضعیت نوبت"))
         }
     }
 }

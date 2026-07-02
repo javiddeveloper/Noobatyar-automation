@@ -165,7 +165,7 @@ fun LastVisitorsScreenContent(
                         if (uiState.selectedTab == 1) {
                             val now = DateTimeUtils.systemCurrentMilliseconds()
                             val waiting = uiState.appointments
-                                .filter { it.appointment.status == "WAITING" }
+                                .filter { it.appointment.status == "WAITING" || it.appointment.status == "PENDING_APPROVAL" }
                                 .sortedBy { abs(it.appointment.appointmentDate - now) }
 
                             TotalCountHeader(
@@ -207,14 +207,20 @@ fun LastVisitorsScreenContent(
                                                 )
                                             },
                                             onComplete = {
-                                                onIntent(
-                                                    LastVisitorsIntent.OnMarkCompleted(
-                                                        queueItem.appointment.id
-                                                    )
-                                                )
+                                                if (queueItem.appointment.status == "PENDING_APPROVAL") {
+                                                    // Mapping Complete to Approve -> "WAITING"
+                                                    onIntent(xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "WAITING"))
+                                                } else {
+                                                    onIntent(LastVisitorsIntent.OnMarkCompleted(queueItem.appointment.id))
+                                                }
                                             },
                                             onNoShow = {
-                                                onIntent(LastVisitorsIntent.OnMarkNoShow(queueItem.appointment.id))
+                                                if (queueItem.appointment.status == "PENDING_APPROVAL") {
+                                                    // Mapping NoShow to Reject -> "CANCELLED"
+                                                    onIntent(xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "CANCELLED"))
+                                                } else {
+                                                    onIntent(LastVisitorsIntent.OnMarkNoShow(queueItem.appointment.id))
+                                                }
                                             },
                                             onSendMessage = { appointmentId, type, content, businessTitle ->
                                                 onIntent(
@@ -324,6 +330,7 @@ fun FilterBottomSheet(
                 ) {
                     val statuses = listOf(
                         null to "همه",
+                        "PENDING_APPROVAL" to "در انتظار تایید",
                         "WAITING" to stringResource(Res.string.status_waiting),
                         "COMPLETED" to stringResource(Res.string.status_completed),
                         "NO_SHOW" to stringResource(Res.string.status_no_show),
@@ -587,6 +594,11 @@ fun StatusBadge(status: String, overdue: Boolean) {
             stringResource(Res.string.overdue_time),
             if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
             if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828)
+        )
+        status == "PENDING_APPROVAL" -> Triple(
+            "در انتظار تایید",
+            if (isDark) Color(0xFFE65100).copy(alpha = 0.4f) else Color(0xFFFFF3E0),
+            if (isDark) Color(0xFFFFCC80) else Color(0xFFE65100)
         )
         status == "WAITING" -> Triple(
             stringResource(Res.string.status_waiting),

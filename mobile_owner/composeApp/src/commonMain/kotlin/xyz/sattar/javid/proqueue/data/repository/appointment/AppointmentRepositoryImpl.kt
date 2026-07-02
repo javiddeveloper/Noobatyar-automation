@@ -28,9 +28,32 @@ class AppointmentRepositoryImpl(
 ) : AppointmentRepository {
     override suspend fun createAppointment(appointment: Appointment): Long {
         return try {
-            appointmentDao.upsertAppointment(
-                appointment.toEntity()
+            val request = xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.request.CreateAppointmentRequestDto(
+                businessId = appointment.businessId,
+                visitorId = appointment.visitorId,
+                appointmentDate = appointment.appointmentDate,
+                serviceDuration = appointment.serviceDuration,
+                description = appointment.description
             )
+            val response = appointmentApiService.createAppointment(request)
+            if (response is ApiResponse.Success) {
+                val dto = response.data
+                val entity = xyz.sattar.javid.proqueue.data.localDataSource.appointment.AppointmentEntity(
+                    id = dto.id,
+                    businessId = appointment.businessId,
+                    visitorId = dto.visitor.id,
+                    appointmentDate = dto.appointmentDate,
+                    serviceDuration = dto.serviceDuration,
+                    status = dto.status,
+                    description = dto.description,
+                    createdAt = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(dto.createdAt),
+                    updatedAt = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(dto.updatedAt)
+                )
+                appointmentDao.upsertAppointment(entity)
+                dto.id
+            } else {
+                -1L
+            }
         } catch (e: Exception) {
             -1L
         }
@@ -58,12 +81,20 @@ class AppointmentRepositoryImpl(
     @OptIn(ExperimentalTime::class)
     override suspend fun updateAppointmentStatus(appointmentId: Long, status: String): Boolean {
         return try {
-            appointmentDao.updateAppointmentStatus(
-                appointmentId,
-                status,
-                Clock.System.now().toEpochMilliseconds()
+            val request = xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.request.UpdateAppointmentRequestDto(
+                status = status
             )
-            true
+            val response = appointmentApiService.updateAppointment(appointmentId, request)
+            if (response is ApiResponse.Success) {
+                appointmentDao.updateAppointmentStatus(
+                    appointmentId,
+                    status,
+                    Clock.System.now().toEpochMilliseconds()
+                )
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
             false
         }
@@ -72,14 +103,24 @@ class AppointmentRepositoryImpl(
     @OptIn(ExperimentalTime::class)
     override suspend fun updateAppointment(appointmentId: Long, date: Long, duration: Int?, description: String?): Boolean {
         return try {
-            appointmentDao.updateAppointment(
-                appointmentId,
-                date,
-                duration,
-                description,
-                Clock.System.now().toEpochMilliseconds()
+            val request = xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.request.UpdateAppointmentRequestDto(
+                appointmentDate = date,
+                serviceDuration = duration,
+                description = description
             )
-            true
+            val response = appointmentApiService.updateAppointment(appointmentId, request)
+            if (response is ApiResponse.Success) {
+                appointmentDao.updateAppointment(
+                    appointmentId,
+                    date,
+                    duration,
+                    description,
+                    Clock.System.now().toEpochMilliseconds()
+                )
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
             false
         }
@@ -87,8 +128,13 @@ class AppointmentRepositoryImpl(
 
     override suspend fun removeAppointment(appointmentId: Long): Boolean {
         return try {
-            appointmentDao.removeAppointmentAndReorder(appointmentId)
-            true
+            val response = appointmentApiService.deleteAppointment(appointmentId)
+            if (response is ApiResponse.Success) {
+                appointmentDao.removeAppointmentAndReorder(appointmentId)
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
             false
         }
@@ -213,9 +259,9 @@ class AppointmentRepositoryImpl(
                 businessId = businessId,
                 visitorId = visitorId,
                 status = status,
-                date = date?.let { it / 1000 },
-                dateFrom = dateFrom?.let { it / 1000 },
-                dateTo = dateTo?.let { it / 1000 },
+                date = date,
+                dateFrom = dateFrom,
+                dateTo = dateTo,
                 ordering = ordering,
                 page = page,
                 pageSize = pageSize

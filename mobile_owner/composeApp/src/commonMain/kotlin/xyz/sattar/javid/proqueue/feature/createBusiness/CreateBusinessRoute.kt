@@ -32,6 +32,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,8 +74,11 @@ import proqueue.composeapp.generated.resources.work_start_hour
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
+import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateBusinessRoute(
     viewModel: CreateBusinessViewModel = koinViewModel<CreateBusinessViewModel>(),
@@ -75,6 +89,7 @@ fun CreateBusinessRoute(
     val uiState by viewModel.uiState.collectAsState()
 
     var title by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf(BusinessCategory.OTHER) }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var defaultProgress by remember { mutableStateOf("") }
@@ -96,6 +111,7 @@ fun CreateBusinessRoute(
     LaunchedEffect(uiState.business) {
         uiState.business?.let {
             title = it.title
+            category = it.category
             phone = it.phone
             address = it.address
             defaultProgress = it.defaultServiceDuration.toString()
@@ -114,6 +130,7 @@ fun CreateBusinessRoute(
         uiState = uiState,
         onIntent = viewModel::sendIntent,
         title = title,
+        category = category,
         phone = phone,
         address = address,
         defaultProgress = defaultProgress,
@@ -122,6 +139,9 @@ fun CreateBusinessRoute(
         onTitle = {
             title = it
             titleError = null
+        },
+        onCategory = {
+            category = it
         },
         onPhone = {
             phone = it
@@ -156,18 +176,21 @@ fun CreateBusinessRoute(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateBusinessScreen(
     modifier: Modifier = Modifier,
     uiState: CreateBusinessState,
     onIntent: (CreateBusinessIntent) -> Unit,
     title: String,
+    category: BusinessCategory,
     phone: String,
     address: String,
     defaultProgress: String,
     workStartHour: String,
     workEndHour: String,
     onTitle: (String) -> Unit,
+    onCategory: (BusinessCategory) -> Unit,
     onPhone: (String) -> Unit,
     onAddress: (String) -> Unit,
     onDefaultProgress: (String) -> Unit,
@@ -185,6 +208,8 @@ fun CreateBusinessScreen(
     onWorkHoursErrorUpdate: (String?) -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var showCategorySheet by remember { mutableStateOf(false) }
+
     LaunchedEffect(uiState.message) {
         val msg = uiState.message
         if (msg != null) {
@@ -248,6 +273,37 @@ fun CreateBusinessScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.height(24.dp))
+
+            val selectedCategoryText = category.persianName
+
+            Box(modifier = Modifier.fillMaxWidth().clickable {
+                if (!uiState.isLoading) showCategorySheet = true
+            }) {
+                AppTextField(
+                    value = selectedCategoryText,
+                    onValueChange = {},
+                    label = "دسته‌بندی",
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Category,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    enabled = false, // Disable to act just as a clickable button
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             AppTextField(
                 value = title,
@@ -422,12 +478,13 @@ fun CreateBusinessScreen(
                         if (!titleInvalid && !phoneInvalid && !defaultInvalid && !hoursInvalid && !addressInvalid) {
                             onIntent(
                                 CreateBusinessIntent.CreateBusiness(
-                                    t,
-                                    p,
-                                    a,
-                                    d,
-                                    wsInt!!,
-                                    weInt!!
+                                    title = t,
+                                    category = category,
+                                    phone = p,
+                                    address = a,
+                                    defaultProgress = d,
+                                    workStartHour = wsInt!!,
+                                    workEndHour = weInt!!
                                 )
                             )
                         }
@@ -442,6 +499,69 @@ fun CreateBusinessScreen(
             
             if (uiState.business != null) {
                 Text(uiState.business.title)
+            }
+        }
+    }
+
+    if (showCategorySheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        var searchQuery by remember { mutableStateOf("") }
+        
+        ModalBottomSheet(
+            onDismissRequest = { showCategorySheet = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Text(
+                    text = "انتخاب دسته‌بندی",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("جستجو...") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    },
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val filteredOptions = BusinessCategory.entries.filter {
+                    it.persianName.contains(searchQuery, ignoreCase = true)
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(filteredOptions) { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onCategory(option)
+                                    showCategorySheet = false
+                                }
+                                .padding(vertical = 16.dp)
+                        ) {
+                            Text(
+                                text = option.persianName,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+                }
             }
         }
     }
@@ -475,12 +595,14 @@ fun PreviewDashboardScreen() {
             uiState = CreateBusinessState(),
             onIntent = {},
             title = "",
+            category = BusinessCategory.OTHER,
             phone = "",
             address = "",
             defaultProgress = "",
             workStartHour = "9",
             workEndHour = "21",
             onTitle = {},
+            onCategory = {},
             onPhone = {},
             onAddress = {},
             onDefaultProgress = {},

@@ -127,6 +127,7 @@ class VisitorDetailsViewModel(
             if (visitor != null && business != null) {
                 // Sync visitor history
                 syncAppointmentsUseCase(businessId = business.id, visitorId = visitorId)
+                messageRepository.syncMessages(visitorId = visitorId, businessId = business.id)
 
                 val appointments = appointmentRepository.getVisitorHistoryForBusiness(visitorId, business.id)
                 val messages = messageRepository.getMessagesForVisitorAndBusiness(visitorId, business.id)

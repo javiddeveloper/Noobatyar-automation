@@ -4,7 +4,7 @@ data class User(
     val id: Int,
     val phone: String,
     val name: String,
-    val userType: String,
+    val userType: UserRole,
     val isEmployee: Boolean,
     val joinedAt: String
 )

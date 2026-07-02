@@ -18,6 +18,7 @@ class CreateBusinessViewModel(
             is CreateBusinessIntent.CreateBusiness -> {
                 createBusiness(
                     intent.title,
+                    intent.category,
                     intent.phone,
                     intent.address,
                     intent.defaultProgress,
@@ -78,6 +79,7 @@ class CreateBusinessViewModel(
 
     private fun createBusiness(
         businessName: String,
+        category: xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory,
         phone: String,
         address: String,
         defaultProgress: String,
@@ -88,6 +90,7 @@ class CreateBusinessViewModel(
         val updatedBusiness = businessUpsertUseCase.invoke(
             Business(
                 title = businessName,
+                category = category,
                 phone = phone,
                 address = address,
                 logoPath = uiState.value.logoPath ?: "Sample_path.jpg",

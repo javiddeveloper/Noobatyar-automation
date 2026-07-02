@@ -8,7 +8,7 @@ data class UserDto(
     val id: Int,
     val phone: String,
     val name: String,
-    @SerialName("user_type") val userType: String,
+    @SerialName("role") val userType: String,
     @SerialName("is_employee") val isEmployee: Boolean,
     @SerialName("joined_at") val joinedAt: String
 )

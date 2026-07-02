@@ -106,7 +106,7 @@ fun VersionUpdateBottomSheet(
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    versionInfo.latestVersion.changelog.changes.forEach { change ->
+                    versionInfo.latestVersion.changelog?.changes?.forEach { change ->
                         Row(
                             modifier = Modifier.padding(vertical = 4.dp),
                             verticalAlignment = Alignment.Top

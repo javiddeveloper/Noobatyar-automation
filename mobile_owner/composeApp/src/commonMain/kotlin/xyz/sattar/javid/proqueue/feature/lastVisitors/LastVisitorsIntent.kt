@@ -6,6 +6,7 @@ sealed interface LastVisitorsIntent {
     data object OnCreateAppointmentClick : LastVisitorsIntent
     data class OnEditAppointment(val appointmentId: Long) : LastVisitorsIntent
     data class OnDeleteAppointment(val appointmentId: Long) : LastVisitorsIntent
+    data class OnUpdateStatus(val appointmentId: Long, val status: String) : LastVisitorsIntent
     data class OnMarkCompleted(val appointmentId: Long) : LastVisitorsIntent
     data class OnMarkNoShow(val appointmentId: Long) : LastVisitorsIntent
     data object DismissDialog : LastVisitorsIntent

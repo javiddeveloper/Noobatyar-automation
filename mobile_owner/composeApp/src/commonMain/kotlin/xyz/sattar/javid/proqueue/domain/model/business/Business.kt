@@ -3,6 +3,8 @@ package xyz.sattar.javid.proqueue.domain.model.business
 data class Business(
     val id: Long = 0,
     val title: String,
+    val category: BusinessCategory,
+    val uniqueCode: String? = null,
     val phone: String,
     val address: String,
     val logoPath: String,

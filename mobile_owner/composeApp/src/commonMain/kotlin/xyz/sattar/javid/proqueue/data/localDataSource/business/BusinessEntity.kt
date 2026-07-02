@@ -8,6 +8,8 @@ data class BusinessEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val title: String,
+    val category: String? = null,
+    val uniqueCode: String? = null,
     val phone: String,
     val address: String,
     val logoPath: String = "",

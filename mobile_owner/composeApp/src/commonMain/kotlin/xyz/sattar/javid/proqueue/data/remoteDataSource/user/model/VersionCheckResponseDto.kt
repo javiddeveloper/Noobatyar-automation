@@ -15,10 +15,10 @@ data class LatestVersionDto(
     @SerialName("version_name") val versionName: String,
     @SerialName("version_code") val versionCode: Int,
     @SerialName("force_update") val forceUpdate: Boolean,
-    val changelog: ChangelogDto
+    val changelog: VersionChangelogDto
 )
 
 @Serializable
-data class ChangelogDto(
+data class VersionChangelogDto(
     val changes: List<String>
 )

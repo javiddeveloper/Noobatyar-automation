@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CreateBusinessRequestDto(
     @SerialName("title") val title: String,
+    @SerialName("category") val category: String,
     @SerialName("phone") val phone: String,
     @SerialName("address") val address: String,
     @SerialName("default_service_duration") val defaultServiceDuration: Int,

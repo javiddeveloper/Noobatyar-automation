@@ -2,6 +2,7 @@ package xyz.sattar.javid.proqueue.data.localDataSource.user
 
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.UserDto
 import xyz.sattar.javid.proqueue.domain.model.user.User
+import xyz.sattar.javid.proqueue.domain.model.user.UserRole
 
 fun UserDto.toEntity(): UserEntity = UserEntity(
     id = id,
@@ -16,7 +17,7 @@ fun UserEntity.toDomain(): User = User(
     id = id,
     phone = phone,
     name = name,
-    userType = userType,
+    userType = UserRole.fromString(userType),
     isEmployee = isEmployee,
     joinedAt = joinedAt
 )

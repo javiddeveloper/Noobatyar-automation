@@ -8,4 +8,5 @@ interface MessageRepository {
     suspend fun getMessagesForVisitorAndBusiness(visitorId: Long, businessId: Long): List<Message>
     suspend fun deleteMessage(id: Long): Boolean
     suspend fun deleteMessagesByVisitorId(visitorId: Long): Boolean
+    suspend fun syncMessages(visitorId: Long, businessId: Long): Boolean
 }

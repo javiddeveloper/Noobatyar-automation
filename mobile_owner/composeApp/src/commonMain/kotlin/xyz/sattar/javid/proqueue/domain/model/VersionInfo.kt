@@ -15,7 +15,7 @@ data class LatestVersion(
     @SerialName("version_name") val versionName: String,
     @SerialName("version_code") val versionCode: Int,
     @SerialName("force_update") val forceUpdate: Boolean,
-    val changelog: Changelog
+    val changelog: Changelog? = null
 )
 
 @Serializable

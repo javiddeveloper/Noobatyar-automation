@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 data class BusinessDto(
     @SerialName("id") val id: Long,
     @SerialName("title") val title: String,
+    @SerialName("category") val category: String? = null,
+    @SerialName("unique_code") val uniqueCode: String? = null,
     @SerialName("phone") val phone: String,
     @SerialName("address") val address: String,
     @SerialName("logo") val logo: String? = null,

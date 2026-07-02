@@ -240,48 +240,81 @@ fun QueueItemCard(
                         })
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            modifier = Modifier.clickable { onComplete() },
-                            contentDescription = stringResource(Res.string.complete_action),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = stringResource(Res.string.complete_action),
-                            modifier = Modifier.clickable { onComplete() },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                if (item.appointment.status == "PENDING_APPROVAL") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                modifier = Modifier.clickable { onComplete() }, // Assume onComplete maps to Approve
+                                contentDescription = "تایید",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "تایید",
+                                modifier = Modifier.clickable { onComplete() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                modifier = Modifier.clickable { onNoShow() }, // Assume onNoShow maps to Reject
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "رد",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "رد",
+                                modifier = Modifier.clickable { onNoShow() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            modifier = Modifier.clickable { onNoShow() },
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = stringResource(Res.string.no_show_action),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = stringResource(Res.string.no_show_action),
-                            modifier = Modifier.clickable { onNoShow() },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            modifier = Modifier.clickable { onRemove() },
-                            imageVector = Icons.Rounded.Delete,
-                            contentDescription = stringResource(Res.string.delete_appointment),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = stringResource(Res.string.delete_appointment),
-                            modifier = Modifier.clickable { onRemove() },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                modifier = Modifier.clickable { onComplete() },
+                                contentDescription = stringResource(Res.string.complete_action),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = stringResource(Res.string.complete_action),
+                                modifier = Modifier.clickable { onComplete() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                modifier = Modifier.clickable { onNoShow() },
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(Res.string.no_show_action),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = stringResource(Res.string.no_show_action),
+                                modifier = Modifier.clickable { onNoShow() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                modifier = Modifier.clickable { onRemove() },
+                                imageVector = Icons.Rounded.Delete,
+                                contentDescription = stringResource(Res.string.delete_appointment),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = stringResource(Res.string.delete_appointment),
+                                modifier = Modifier.clickable { onRemove() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

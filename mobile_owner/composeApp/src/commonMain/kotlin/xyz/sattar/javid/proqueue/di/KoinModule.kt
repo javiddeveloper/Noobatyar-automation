@@ -92,7 +92,7 @@ val appModule: Module = module {
     single<BusinessRepository> { BusinessRepositoryImpl(get(),get()) }
     single<VisitorRepository> { VisitorRepositoryImpl(get(), get()) }
     single<AppointmentRepository> { AppointmentRepositoryImpl(get(), get(), get(), get()) }
-    single<MessageRepository> { MessageRepositoryImpl(get()) }
+    single<MessageRepository> { MessageRepositoryImpl(get(), get()) }
 
     // --- User UseCases ---
     factory { RegisterUseCase(get()) }

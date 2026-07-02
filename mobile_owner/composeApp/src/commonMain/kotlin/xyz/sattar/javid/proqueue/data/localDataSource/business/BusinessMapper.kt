@@ -3,10 +3,13 @@ package xyz.sattar.javid.proqueue.data.localDataSource.business
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
+import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
 
 fun BusinessEntity.toDomain() = Business(
     id = id,
     title = title,
+    category = BusinessCategory.fromString(category),
+    uniqueCode = uniqueCode,
     phone = phone,
     address = address,
     logoPath = logoPath,
@@ -22,6 +25,8 @@ fun BusinessEntity.toDomain() = Business(
 fun Business.toEntity() = BusinessEntity(
     id = id,
     title = title,
+    category = category.value,
+    uniqueCode = uniqueCode,
     phone = phone,
     address = address,
     logoPath = logoPath,
@@ -36,6 +41,7 @@ fun Business.toEntity() = BusinessEntity(
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
     title = title,
+    category = category.value,
     phone = phone,
     address = address,
     defaultServiceDuration = defaultServiceDuration,
@@ -52,6 +58,8 @@ fun BusinessDto.toEntity(): BusinessEntity {
     return BusinessEntity(
         id = id,
         title = title,
+        category = category,
+        uniqueCode = uniqueCode,
         phone = phone,
         address = address,
         logoPath = logo ?: "",
