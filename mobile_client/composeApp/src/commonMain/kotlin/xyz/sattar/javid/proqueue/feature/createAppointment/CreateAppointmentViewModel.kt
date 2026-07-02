@@ -16,10 +16,8 @@ import proqueue.composeapp.generated.resources.operation_error
 import proqueue.composeapp.generated.resources.select_business_error
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
-import xyz.sattar.javid.proqueue.domain.usecase.CheckAppointmentConflictUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.CreateAppointmentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentByIdUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentsForDateUseCase
 
 import xyz.sattar.javid.proqueue.domain.usecase.RemoveAppointmentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.UpdateAppointmentUseCase
@@ -30,8 +28,6 @@ class CreateAppointmentViewModel(
     private val createAppointmentUseCase: CreateAppointmentUseCase,
     private val getAppointmentByIdUseCase: GetAppointmentByIdUseCase,
     private val updateAppointmentUseCase: UpdateAppointmentUseCase,
-    private val checkAppointmentConflictUseCase: CheckAppointmentConflictUseCase,
-    private val getAppointmentsForDateUseCase: GetAppointmentsForDateUseCase,
     private val removeAppointmentUseCase: RemoveAppointmentUseCase
 ) : BaseViewModel<CreateAppointmentState, CreateAppointmentState.PartialState, CreateAppointmentEvent, CreateAppointmentIntent>(
     initialState = CreateAppointmentState()
@@ -135,15 +131,7 @@ class CreateAppointmentViewModel(
         CreateAppointmentState.PartialState.ShowMessage(message)
 
     private fun loadDailyAppointments(date: Long): Flow<CreateAppointmentState.PartialState> = flow {
-        try {
-            val business = BusinessStateHolder.selectedBusiness.value
-            if (business != null) {
-                val appointments = getAppointmentsForDateUseCase(business.id, date)
-                emit(LoadDailyAppointments(appointments))
-            }
-        } catch (e: Exception) {
-            // Silently fail or log, as this is auxiliary info
-        }
+        // Not used by client
     }
 
     @OptIn(ExperimentalTime::class)
@@ -200,27 +188,7 @@ class CreateAppointmentViewModel(
                 return@flow
             }
 
-            if (!force) {
-                val duration = serviceDuration ?: business.defaultServiceDuration ?: 30
-                val defaultDuration = business.defaultServiceDuration ?: 30
-                var conflicts = checkAppointmentConflictUseCase(
-                    businessId = business.id,
-                    startTime = appointmentDate,
-                    duration = duration,
-                    defaultDuration = defaultDuration
-                )
 
-                val editingId = uiState.value.editingAppointmentId
-                if (editingId != null) {
-                    conflicts = conflicts.filter { it.appointment.id != editingId }
-                }
-
-                if (conflicts.isNotEmpty()) {
-                    val conflict = conflicts.first()
-                    emit(CreateAppointmentState.PartialState.ShowConflictDialog("شما"))
-                    return@flow
-                }
-            }
 
             val editingId = uiState.value.editingAppointmentId
             val success = if (editingId != null) {

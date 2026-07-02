@@ -10,11 +10,9 @@ import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.usecase.UserLogoutUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.ClearTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetCurrentUserUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
 
 class UserViewModel(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val getMySubscriptionUseCase: GetMySubscriptionUseCase,
     private val userLogoutUseCase: UserLogoutUseCase,
     private val clearTokenUseCase: ClearTokenUseCase
 ) : BaseViewModel<UserState, UserState.PartialState, UserEvent, UserIntent>(
@@ -22,13 +20,11 @@ class UserViewModel(
 ) {
     init {
         sendIntent(UserIntent.ObserveUser)
-        sendIntent(UserIntent.LoadProfile)
     }
 
     override fun handleIntent(intent: UserIntent): Flow<UserState.PartialState> {
         return when (intent) {
             UserIntent.ObserveUser -> observeCurrentUser()
-            UserIntent.LoadProfile -> loadSubscription()
             UserIntent.Logout -> logout()
         }
     }
@@ -51,33 +47,12 @@ class UserViewModel(
                 userNumber = partialState.phone,
                 isLoading = false
             )
-            is UserState.PartialState.Subscription -> currentState.copy(
-                subscription = partialState.subscription,
-                isLoading = false
-            )
             is UserState.PartialState.Error -> currentState.copy(error = partialState.message, isLoading = false)
         }
     }
 
     override fun createErrorState(message: String): UserState.PartialState = UserState.PartialState.Error(message)
 
-    private fun loadSubscription(): Flow<UserState.PartialState> = flow {
-        emit(UserState.PartialState.IsLoading(true))
-        try {
-            when (val subResponse = getMySubscriptionUseCase()) {
-                is ApiResponse.Success -> {
-                    emit(UserState.PartialState.Subscription(subResponse.data))
-                }
-                is ApiResponse.Error -> {
-                    // Fail silently
-                }
-            }
-        } catch (e: Exception) {
-            // Error handling
-        } finally {
-            emit(UserState.PartialState.IsLoading(false))
-        }
-    }
 
     private fun logout(): Flow<UserState.PartialState> = flow {
         emit(UserState.PartialState.IsLoading(true))

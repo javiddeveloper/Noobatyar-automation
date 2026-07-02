@@ -17,6 +17,12 @@ import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 
 class AppointmentApiService(private val httpClient: HttpClient) {
 
+    suspend fun getClientAppointments(): ApiResponse<List<xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.ClientAppointmentDto>> {
+        return httpClient.get("client/appointments/") {
+            contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
     suspend fun queryAppointments(
             businessId: Long,
             visitorId: Long? = null,

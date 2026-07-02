@@ -23,7 +23,7 @@ internal const val dbFileName = "proQueue.db"
         UserEntity::class,
         SubscriptionEntity::class
     ],
-    version = 4
+    version = 5
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

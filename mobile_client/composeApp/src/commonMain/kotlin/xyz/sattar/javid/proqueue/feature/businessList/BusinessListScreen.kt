@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -24,6 +27,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -196,6 +201,9 @@ fun BusinessListScreenContent(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        item {
+                            BannerCarousel()
+                        }
                         items(uiState.businesses) { business ->
                             BusinessItem(
                                 business = business,
@@ -265,7 +273,7 @@ fun BusinessItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = business.address,
+                    text = business.address ?: "آدرس ثبت نشده",
                     maxLines = 1,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -367,5 +375,83 @@ fun PreviewHomeScreen() {
             snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() },
             onDeleteRequest = {}
         )
+    }
+}
+
+@Composable
+fun BannerCarousel() {
+    val banners = listOf(
+        "https://via.placeholder.com/800x400/FF5722/FFFFFF?text=Banner+1",
+        "https://via.placeholder.com/800x400/4CAF50/FFFFFF?text=Banner+2",
+        "https://via.placeholder.com/800x400/2196F3/FFFFFF?text=Banner+3"
+    )
+    val pagerState = rememberPagerState(pageCount = { banners.size })
+
+    // Auto-scroll logic
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(3000)
+            val nextPage = (pagerState.currentPage + 1) % banners.size
+            pagerState.animateScrollToPage(nextPage)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) { page ->
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            when(page) {
+                                0 -> Color(0xFFFFCC80)
+                                1 -> Color(0xFFA5D6A7)
+                                else -> Color(0xFF90CAF9)
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "تبلیغات ${page + 1}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(banners.size) { iteration ->
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.LightGray
+                Box(
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(color)
+                        .size(8.dp)
+                )
+            }
+        }
     }
 }

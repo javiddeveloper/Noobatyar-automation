@@ -68,10 +68,10 @@ class BusinessListViewModel(
             try {
                 val success = fetchBusinessesUseCase(page = 1, pageSize = 20)
                 if (!success && uiState.value.businesses.isEmpty()) {
-                    sendEvent(BusinessListEvent.ShowMessage("Failed to fetch businesses"))
+                    sendEvent(BusinessListEvent.ShowMessage("پاسخ سرور با خطا مواجه شد"))
                 }
             } catch (e: Exception) {
-                // Ignore, flow will catch and db will just show empty/cached
+                sendEvent(BusinessListEvent.ShowMessage("Exception: ${e.message}"))
             }
         }
         

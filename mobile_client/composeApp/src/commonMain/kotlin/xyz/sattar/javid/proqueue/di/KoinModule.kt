@@ -16,18 +16,9 @@ import xyz.sattar.javid.proqueue.domain.BusinessRepository
 import xyz.sattar.javid.proqueue.domain.MessageRepository
 import xyz.sattar.javid.proqueue.domain.UserRepository
 
-import xyz.sattar.javid.proqueue.domain.usecase.CheckAppointmentConflictUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.CreateAppointmentUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.GenerateReminderMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentByIdUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentsForDateUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.GetTodayAppointmentsUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.GetTodayStatsUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.GetWaitingQueueUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentCompletedUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentNoShowUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.RemoveAppointmentUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.SendMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.UpdateAppointmentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.UserLogoutUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CheckVersionUseCase
@@ -39,18 +30,14 @@ import xyz.sattar.javid.proqueue.domain.usecase.user.RegisterUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.ResetPasswordUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.SendOTPUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.VerifyOTPUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetCurrentUserUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
-import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
 import xyz.sattar.javid.proqueue.feature.businessList.BusinessListViewModel
 import xyz.sattar.javid.proqueue.feature.calendar.CalendarViewModel
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentViewModel
 import xyz.sattar.javid.proqueue.feature.forgetPassword.resetPassword.ResetPasswordViewModel
 import xyz.sattar.javid.proqueue.feature.forgetPassword.sendOTP.SendOTPViewModel
-import xyz.sattar.javid.proqueue.feature.home.HomeViewModel
 import xyz.sattar.javid.proqueue.feature.login.LoginViewModel
-import xyz.sattar.javid.proqueue.feature.messages.MessagesViewModel
+
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsViewModel
 import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
 import xyz.sattar.javid.proqueue.feature.register.RegisterViewModel
@@ -88,10 +75,7 @@ val appModule: Module = module {
     factory { SendOTPUseCase(get()) }
     factory { VerifyOTPUseCase(get()) }
     factory { ResetPasswordUseCase(get()) }
-    factory { GetMySubscriptionUseCase(get()) }
     factory { GetCurrentUserUseCase(get()) }
-    factory { GetPlansUseCase(get()) }
-    factory { CreatePaymentUseCase(get()) }
 
     // --- Business UseCases ---
     factory { xyz.sattar.javid.proqueue.domain.usecase.ObserveBusinessesUseCase(get()) }
@@ -99,49 +83,30 @@ val appModule: Module = module {
 
 
     // --- Appointment UseCases ---
-    factory { GetWaitingQueueUseCase(get()) }
-    factory { GetTodayAppointmentsUseCase(get()) }
+    factory { xyz.sattar.javid.proqueue.domain.usecase.appointment.GetClientAppointmentsUseCase(get()) }
     factory { CreateAppointmentUseCase(get(), get(), get()) }
     factory { RemoveAppointmentUseCase(get()) }
-    factory { MarkAppointmentCompletedUseCase(get()) }
-    factory { MarkAppointmentNoShowUseCase(get()) }
-    factory { GetTodayStatsUseCase(get()) }
-    factory { GetAppointmentsForDateUseCase(get()) }
     factory { GetAppointmentByIdUseCase(get()) }
     factory { UpdateAppointmentUseCase(get()) }
-    factory { CheckAppointmentConflictUseCase(get()) }
     factory { xyz.sattar.javid.proqueue.domain.usecase.SyncAppointmentsUseCase(get()) }
 
     // --- Message UseCases ---
-    factory { SendMessageUseCase(get()) }
-    factory { GenerateReminderMessageUseCase() }
+
 
     // --- States ---
 
     // --- ViewModels ---
-    viewModel { CreateAppointmentViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel {
-        HomeViewModel(
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get()
-        )
-    }
+    viewModel { xyz.sattar.javid.proqueue.feature.clientAppointments.ClientAppointmentsViewModel(get()) }
+    viewModel { CreateAppointmentViewModel(get(), get(), get(), get()) }
     viewModel { SettingsViewModel() }
     viewModel { VersionViewModel(get()) }
     viewModel { NotificationsViewModel(get(), get()) }
     viewModel { BusinessListViewModel(get(), get()) }
-    viewModel { MessagesViewModel(get()) }
+
     viewModel { CalendarViewModel(get(), get()) }
     viewModel { RegisterViewModel(get()) }
     viewModel { SendOTPViewModel(get(), get()) }
     viewModel { ResetPasswordViewModel(get()) }
     viewModel { LoginViewModel(get()) }
-    viewModel { UserViewModel(get(), get(), get(), get()) }
+    viewModel { UserViewModel(get(), get(), get()) }
 }

@@ -3,7 +3,7 @@ package xyz.sattar.javid.proqueue.data.repository.user
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
-import xyz.sattar.javid.proqueue.data.localDataSource.user.SubscriptionEntity
+
 import xyz.sattar.javid.proqueue.data.localDataSource.user.UserDao
 import xyz.sattar.javid.proqueue.data.localDataSource.user.UserEntity
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.CheckVersionRequestDto
@@ -12,12 +12,8 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.RegisterRespon
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.UserApiService
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.LoginRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SendOTPResponseDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.UserDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPResponseDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PaymentResponseDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.PaymentRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.ResetPasswordRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.SendOTPRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.VerifyOTPRequestDto
@@ -70,7 +66,6 @@ class UserRepositoryImpl(
 
     override suspend fun logout(): ApiResponse<Unit> {
         userDao.clearUser()
-        userDao.clearSubscription()
         return userApiService.logout()
     }
 
@@ -78,17 +73,7 @@ class UserRepositoryImpl(
         return userApiService.getUserProfile(id)
     }
 
-    override suspend fun getMySubscription(): ApiResponse<SubscriptionDto> {
-        return userApiService.getMySubscription()
-    }
 
-    override suspend fun getPlans(): ApiResponse<List<PlanDto>> {
-        return userApiService.getPlans()
-    }
-
-    override suspend fun createPayment(planId: String): ApiResponse<PaymentResponseDto> {
-        return userApiService.createPayment(PaymentRequestDto(planId))
-    }
 
     override fun getLocalUser(id: Int): Flow<UserDto?> {
         return userDao.getUserById(id).map { entity ->
@@ -120,45 +105,7 @@ class UserRepositoryImpl(
         }
     }
 
-    override fun getLocalSubscription(): Flow<SubscriptionDto?> {
-        return userDao.getActiveSubscription().map { entity ->
-            entity?.let {
-                SubscriptionDto(
-                    id = it.id,
-                    plan = it.planName?.let { name ->
-                        PlanDto(id = 0, name = name, price = 0, priceDisplay = "", durationDisplay = "", isVip = true)
-                    },
-                    startedAt = it.startedAt,
-                    endsAt = it.endsAt,
-                    isValid = it.isValid
-                )
-            }
-        }
-    }
 
-    override suspend fun syncUserProfile(id: Int): ApiResponse<UserDto> {
-        val response = userApiService.getUserProfile(id)
-        if (response is ApiResponse.Success) {
-            saveUserToDb(response.data)
-        }
-        return response
-    }
-
-    override suspend fun syncSubscription(): ApiResponse<SubscriptionDto> {
-        val response = userApiService.getMySubscription()
-        if (response is ApiResponse.Success) {
-            userDao.insertSubscription(
-                SubscriptionEntity(
-                    id = response.data.id ?: 1,
-                    planName = response.data.plan?.name,
-                    startedAt = response.data.startedAt,
-                    endsAt = response.data.endsAt,
-                    isValid = response.data.isValid ?: false
-                )
-            )
-        }
-        return response
-    }
 
     private suspend fun saveUserToDb(user: UserDto) {
         userDao.insertUser(

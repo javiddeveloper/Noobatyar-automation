@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "399983c540621417801588a04f78e67f",
+    "identityHash": "b2d36a43b839e295e15227a6435ae70b",
     "entities": [
       {
         "tableName": "Business",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `logoPath` TEXT NOT NULL, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT, `address` TEXT, `logoPath` TEXT, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `allowAnonymousView` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -33,20 +33,17 @@
           {
             "fieldPath": "phone",
             "columnName": "phone",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "address",
             "columnName": "address",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "logoPath",
             "columnName": "logoPath",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "defaultServiceDuration",
@@ -87,6 +84,12 @@
           {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allowAnonymousView",
+            "columnName": "allowAnonymousView",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -375,7 +378,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '399983c540621417801588a04f78e67f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b2d36a43b839e295e15227a6435ae70b')"
     ]
   }
 }

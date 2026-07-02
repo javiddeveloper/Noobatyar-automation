@@ -23,6 +23,16 @@ class AppointmentRepositoryImpl(
     private val businessDao: BusinessDao,
     private val appointmentApiService: AppointmentApiService
 ) : AppointmentRepository {
+
+    override suspend fun getClientAppointments(): List<xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.ClientAppointmentDto> {
+        val response = appointmentApiService.getClientAppointments()
+        return if (response is ApiResponse.Success) {
+            response.data
+        } else {
+            emptyList()
+        }
+    }
+
     override suspend fun createAppointment(appointment: Appointment): Long {
         return try {
             val request = xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.request.CreateAppointmentRequestDto(

@@ -5,9 +5,9 @@ data class Business(
     val title: String,
     val category: BusinessCategory,
     val uniqueCode: String? = null,
-    val phone: String,
-    val address: String,
-    val logoPath: String,
+    val phone: String? = null,
+    val address: String? = null,
+    val logoPath: String? = null,
     val defaultServiceDuration: Int,
     val workStartHour: Int,
     val workEndHour: Int,
@@ -15,4 +15,5 @@ data class Business(
     val notificationTypes: String,
     val notificationMinutesBefore: Int = 0,
     val createdAt: Long = 0,
+    val allowAnonymousView: Boolean = false,
 )

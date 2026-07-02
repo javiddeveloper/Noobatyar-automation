@@ -7,6 +7,8 @@ import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.StringResource
@@ -14,6 +16,7 @@ import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.home_menu_item
 import proqueue.composeapp.generated.resources.last_visitors_menu_item
 import proqueue.composeapp.generated.resources.settings_menu_item
+import proqueue.composeapp.generated.resources.appointments_menu_item
 
 object AppNavHost {
     @Serializable
@@ -39,6 +42,8 @@ sealed class AppScreens {
     data class ResetPassword(val phone: String, val resetToken: String) : AppScreens()
     @Serializable
     object Home : AppScreens()
+    @Serializable
+    object Appointments : AppScreens()
     @Serializable
     object Settings : AppScreens()
     @Serializable
@@ -83,7 +88,13 @@ sealed interface MainTab {
         override val route = AppScreens.Home
     }
 
-
+    @Serializable
+    data object Appointments : MainTab {
+        override val title = Res.string.appointments_menu_item
+        override val iconSelected = Icons.Rounded.Event
+        override val iconUnSelected = Icons.Outlined.Event
+        override val route = AppScreens.Appointments
+    }
 
     @Serializable
     data object Settings : MainTab {

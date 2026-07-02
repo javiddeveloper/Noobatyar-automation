@@ -38,6 +38,7 @@ import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
+    userViewModel: xyz.sattar.javid.proqueue.feature.profile.UserViewModel = koinViewModel(),
     onNavigateToAbout: () -> Unit = {},
     onChangeBusiness: () -> Unit = {},
     onNavigateToEditBusiness: (Long) -> Unit = {},
@@ -46,6 +47,7 @@ fun SettingsScreen(
     onNavigateToLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val userState by userViewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     var showThemeSheet by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -127,7 +129,9 @@ fun SettingsScreen(
 
     SettingsContent(
         uiState = uiState,
+        isLoggedIn = userState.userName != null,
         onIntent = viewModel::sendIntent,
+        onLogout = { userViewModel.sendIntent(xyz.sattar.javid.proqueue.feature.profile.UserIntent.Logout) },
         onShowThemeSheet = { showThemeSheet = true },
         onShowDeleteDialog = { showDeleteDialog = true },
         onNavigateToLogin = onNavigateToLogin,
@@ -143,7 +147,9 @@ fun SettingsScreen(
 fun SettingsContent(
     modifier: Modifier = Modifier,
     uiState: SettingsState,
+    isLoggedIn: Boolean,
     onIntent: (SettingsIntent) -> Unit,
+    onLogout: () -> Unit,
     onShowThemeSheet: () -> Unit,
     onShowDeleteDialog: () -> Unit,
     onNavigateToLogin: () -> Unit,
@@ -214,58 +220,32 @@ fun SettingsContent(
                 }
             }
 
-            // Actions Card (Moved to top)
-            SettingsCard {
-                Column(
-                ) {
-                    SettingsItem(
-                        icon = Icons.Rounded.Factory,
-                        title = stringResource(Res.string.change_business),
-                        subtitle = null,
-                        onClick = { onIntent(SettingsIntent.OnChangeBusinessClick) },
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Edit,
-                        title = "ویرایش کسب‌وکار",
-                        subtitle = null,
-                        onClick = onEditBusiness,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Delete,
-                        title = stringResource(Res.string.delete_business),
-                        subtitle = null,
-                        onClick = onShowDeleteDialog,
-                        tint = MaterialTheme.colorScheme.error,
-                        centerVertically = true
-                    )
-                }
-            }
-
-            // Options Card
+            // Account Actions
             SettingsCard {
                 Column {
                     SettingsItem(
-                        icon = Icons.Rounded.Message,
-                        title = stringResource(Res.string.messages_auto_item),
-                        subtitle = stringResource(Res.string.messages_auto_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnMessagesClick) }
+                        icon = Icons.Rounded.Login, // Will use Person or something
+                        title = if (isLoggedIn) "خروج" else "ورود / ثبت‌نام",
+                        subtitle = if (isLoggedIn) "خروج از حساب کاربری" else "برای رزرو نوبت وارد شوید",
+                        onClick = {
+                            if (isLoggedIn) {
+                                onLogout()
+                            } else {
+                                onNavigateToLogin()
+                            }
+                        },
+                        tint = if (isLoggedIn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
-
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Notifications,
-                        title = stringResource(Res.string.reminders_notifications_item),
-                        subtitle = stringResource(Res.string.reminders_notifications_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnNotificationsClick) }
-                    )
+                    
+                    if (isLoggedIn) {
+                        HorizontalDivider()
+                        SettingsItem(
+                            icon = Icons.Rounded.Password,
+                            title = "تغییر رمز عبور",
+                            subtitle = null,
+                            onClick = { /* TODO */ }
+                        )
+                    }
                 }
             }
 

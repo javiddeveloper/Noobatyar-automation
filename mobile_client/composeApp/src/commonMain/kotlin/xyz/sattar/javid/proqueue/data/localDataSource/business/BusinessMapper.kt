@@ -20,6 +20,7 @@ fun BusinessEntity.toDomain() = Business(
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
     createdAt = createdAt,
+    allowAnonymousView = allowAnonymousView
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -37,12 +38,13 @@ fun Business.toEntity() = BusinessEntity(
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
     createdAt = createdAt,
+    allowAnonymousView = allowAnonymousView
 )
 
 
 
 fun BusinessDto.toEntity(): BusinessEntity {
-    val epochMillis = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(this.createdAt)
+    val epochMillis = this.createdAt?.let { xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(it) } ?: 0L
 
     return BusinessEntity(
         id = id,
@@ -51,13 +53,14 @@ fun BusinessDto.toEntity(): BusinessEntity {
         uniqueCode = uniqueCode,
         phone = phone,
         address = address,
-        logoPath = logo ?: "",
+        logoPath = logo,
         defaultServiceDuration = defaultServiceDuration,
         workStartHour = workStartHour,
         workEndHour = workEndHour,
         notificationEnabled = notificationEnabled,
         notificationTypes = notificationTypes,
         notificationMinutesBefore = notificationMinutesBefore,
-        createdAt = epochMillis
+        createdAt = epochMillis,
+        allowAnonymousView = allowAnonymousView
     )
 }

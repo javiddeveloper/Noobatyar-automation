@@ -16,10 +16,6 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.RegisterRespon
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SendOTPResponseDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.UserDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPResponseDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PaymentResponseDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.PaymentRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.ResetPasswordRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.SendOTPRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.VerifyOTPRequestDto
@@ -62,24 +58,6 @@ class UserApiService(private val httpClient: HttpClient) {
         }.toApiResponse()
     }
 
-    suspend fun getMySubscription(): ApiResponse<SubscriptionDto> {
-        return httpClient.get("accounting/my-subscription/") {
-            contentType(ContentType.Application.Json)
-        }.toApiResponse()
-    }
-
-    suspend fun getPlans(): ApiResponse<List<PlanDto>> {
-        return httpClient.get("accounting/plans/") {
-            contentType(ContentType.Application.Json)
-        }.toApiResponse()
-    }
-
-    suspend fun createPayment(body: PaymentRequestDto): ApiResponse<PaymentResponseDto> {
-        return httpClient.post("accounting/plans/payment/") {
-            contentType(ContentType.Application.Json)
-            setBody(body)
-        }.toApiResponse()
-    }
 
     suspend fun sendOTP(
         body: SendOTPRequestDto

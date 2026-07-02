@@ -57,7 +57,6 @@ fun ProfileAvatar(
         ProfileBottomSheet(
             userName = userState.userName,
             userEmail = userState.userNumber,
-            subscription = userState.subscription,
             onDismiss = { showProfileSheet = false },
             onLogout = {
                 showProfileSheet = false

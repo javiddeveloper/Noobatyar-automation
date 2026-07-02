@@ -24,7 +24,7 @@ class ClientBusinessListView(APIView):
         # Build Q objects for filtering
         filters = Q()
         if search_query:
-            filters &= (Q(title__icontains=search_query) | Q(unique_code__iexact=search_query))
+            filters &= (Q(title__icontains=search_query) | Q(unique_code__iexact=search_query) | Q(address__icontains=search_query))
         if category_query:
             filters &= Q(category=category_query)
 

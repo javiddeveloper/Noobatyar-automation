@@ -1,11 +1,8 @@
 package xyz.sattar.javid.proqueue.core.navigation.navHost
 
 import xyz.sattar.javid.proqueue.feature.calendar.CalendarScreen
-import xyz.sattar.javid.proqueue.feature.home.HomeScreen
 import xyz.sattar.javid.proqueue.feature.settings.SettingsScreen
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsScreen
-import xyz.sattar.javid.proqueue.feature.messages.MessagesScreen
-import xyz.sattar.javid.proqueue.feature.profile.PaymentResultScreen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -53,6 +50,7 @@ fun MainNavHost(
 
 
     val tabs = listOf(
+        MainTab.Appointments,
         MainTab.Home,
         MainTab.Settings
     )
@@ -115,7 +113,11 @@ fun MainNavHost(
                 )
             }
 
-
+            composable<AppScreens.Appointments> {
+                xyz.sattar.javid.proqueue.feature.clientAppointments.ClientAppointmentsScreen(
+                    onNavigateToLogin = onNavigateToLogin
+                )
+            }
 
             composable<AppScreens.Settings> {
                 SettingsScreen(
@@ -145,11 +147,7 @@ fun MainNavHost(
                 )
             }
 
-            composable<AppScreens.Messages> {
-                MessagesScreen(
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
+
 
 
 
@@ -204,31 +202,6 @@ fun MainNavHost(
             composable<AppScreens.AboutUs> {
                 AboutUsScreen(
                     onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            dialog<AppScreens.PaymentResult>(
-                dialogProperties = DialogProperties(
-                    dismissOnBackPress = false,
-                    dismissOnClickOutside = false,
-                    usePlatformDefaultWidth = false
-                ),
-                deepLinks = listOf(
-                    navDeepLink {
-                        uriPattern = "noobatyar://payment/result?success={success}&ref={ref}&amount={amount}&txn={txn}"
-                    }
-                )
-            ) { backStackEntry ->
-                val args = backStackEntry.toRoute<AppScreens.PaymentResult>()
-                PaymentResultScreen(
-                    success = args.success == 1,
-                    ref = args.ref,
-                    amount = args.amount,
-                    onDone = {
-                        navController.navigate(AppScreens.Home) {
-                            popUpTo(AppScreens.Home) { inclusive = true }
-                        }
-                    }
                 )
             }
         }

@@ -6,6 +6,7 @@ import xyz.sattar.javid.proqueue.domain.model.DashboardStats
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 
 interface AppointmentRepository {
+    suspend fun getClientAppointments(): List<xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.ClientAppointmentDto>
     suspend fun createAppointment(appointment: Appointment): Long
     suspend fun getWaitingQueue(businessId: Long, date: Long): List<AppointmentWithDetails>
     suspend fun getTodayAppointments(businessId: Long): List<AppointmentWithDetails>

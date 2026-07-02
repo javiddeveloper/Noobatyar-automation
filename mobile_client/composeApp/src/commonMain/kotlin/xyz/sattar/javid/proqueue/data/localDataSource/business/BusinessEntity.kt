@@ -10,14 +10,15 @@ data class BusinessEntity(
     val title: String,
     val category: String? = null,
     val uniqueCode: String? = null,
-    val phone: String,
-    val address: String,
-    val logoPath: String = "",
+    val phone: String? = null,
+    val address: String? = null,
+    val logoPath: String? = null,
     val defaultServiceDuration: Int,
     val workStartHour: Int, // 0-23
     val workEndHour: Int, // 0-23
     val notificationEnabled: Boolean = true,
     val notificationTypes: String = "SMS", // "SMS,WHATSAPP,TELEGRAM"
     val notificationMinutesBefore: Int = 30,
-    val createdAt: Long
+    val createdAt: Long = 0,
+    val allowAnonymousView: Boolean = false
 )
