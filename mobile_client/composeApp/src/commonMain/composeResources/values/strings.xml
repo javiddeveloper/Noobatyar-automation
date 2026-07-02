@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">نوبت یار</string>
+    <string name="home_menu_item">خانه</string>
+    <string name="last_visitors_menu_item">آخرین نوبت ها</string>
+    <string name="settings_menu_item">پروفایل</string>
+    <string name="phone">تلفن</string>
+    <string name="business_name">نام کسب‌وکار</string>
+    <string name="address">آدرس</string>
+    <string name="default_time_service">زمان پیشقرض سرویس دهی (10 دقیقه)</string>
+    <string name="accept">ثبت</string>
+    <string name="create_business">ایجاد کسب‌وکار</string>
+    <string name="visitor_name">نام و نام خانوادگی</string>
+    <string name="create_visitor">افزودن مراجع</string>
+    <string name="register_visitor">ثبت</string>
+    <string name="work_start_hour">ساعت شروع کار</string>
+    <string name="work_end_hour">ساعت پایان کار</string>
+    <string name="example_work_start">مثال: 9</string>
+    <string name="example_work_end">مثال: 21</string>
+
+    <!-- Home Screen -->
+    <string name="welcome_to_proqueue">به نوبت یار خوش آمدید</string>
+    <string name="smart_queue_management">سیستم مدیریت نوبت‌دهی هوشمند</string>
+    <string name="quick_access">دسترسی سریع</string>
+    <string name="add_customer">افزودن مشتری</string>
+    <string name="queue_title">صف</string>
+    <string name="today_total_appointments">کل نوبت‌های امروز</string>
+    <string name="completed_visitors">تکمیل‌شده‌ها</string>
+    <string name="queue_tab">صف</string>
+    <string name="visitors_tab">مراجعین</string>
+    <string name="contact_options">گزینه‌های تماس</string>
+    <string name="sms">پیامک</string>
+    <string name="whatsapp">واتساپ</string>
+    <string name="telegram">تلگرام</string>
+    <string name="phone_call">تماس تلفنی</string>
+    <string name="complete_action">تکمیل شده</string>
+    <string name="no_show_action">عدم مراجعه</string>
+    
+    <!-- Last Visitors Screen -->
+    <string name="no_visitors_yet">هنوز مشتری ثبت نشده است</string>
+    <string name="visitors_will_show_here">مشتریان شما در اینجا نمایش داده می‌شوند</string>
+    <string name="last_visitors_title">نوبت های اخیر</string>
+    <string name="create_appointment">ایجاد نوبت جدید</string>
+    <string name="total_appointments_today">تعداد کل نوبت‌های امروز</string>
+    <string name="people_in_queue_count">تعداد افراد در صف</string>
+    <string name="total_visitors_count">تعداد کل مراجعین</string>
+    <string name="empty_appointments_title">هنوز نوبتی ثبت نشده</string>
+    <string name="empty_appointments_subtitle">با زدن دکمه + می‌توانید نوبت جدید ایجاد کنید</string>
+    <string name="overdue_time">زمان رد شده</string>
+    <string name="change_appointment">تغییر نوبت</string>
+    <string name="delete_appointment">حذف نوبت</string>
+    <string name="status_waiting">در انتظار</string>
+    <string name="status_completed">تکمیل شده</string>
+    <string name="status_no_show">عدم حضور</string>
+    <string name="status_cancelled">لغو شده</string>
+    <string name="to_label">تا</string>
+
+    <!-- Visitor Details Screen -->
+    <string name="visitor_details_title">جزئیات مراجع</string>
+    <string name="history_title">سوابق</string>
+    <string name="messages_tab">پیام‌ها</string>
+    <string name="appointments_tab">نوبت‌ها</string>
+    <string name="empty_messages_title">هنوز پیامی ثبت نشده</string>
+    <string name="empty_messages_subtitle">از گزینه‌های تماس بالا می‌توانید پیام ارسال کنید</string>
+    
+    <!-- Settings Screen -->
+    <string name="theme_appearance">تم و ظاهر</string>
+    <string name="theme_settings">تنظیمات رنگ و تم</string>
+    <string name="theme_system">مطابق با سیستم</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_dark">تیره</string>
+    <string name="select_theme">انتخاب تم</string>
+    <string name="notifications">اعلان‌ها</string>
+    <string name="manage_notifications">مدیریت اعلان‌ها</string>
+    <string name="contact_me">تماس با ما</string>
+    <string name="more_info">اطلاعات بیشتر</string>
+    <string name="logout">خروج از حساب کاربری</string>
+    <string name="instagram">اینستاگرام</string>
+    <string name="market">دیگر برنامه ها</string>
+    <string name="notification_title">اطلاعیه</string>
+    <string name="enable_notifications">فعال‌سازی اعلان‌ها</string>
+    <string name="notification_reminder_time">زمان یادآوری (دقیقه قبل از نوبت)</string>
+    <string name="notification_reminder_hint">مثال: 10</string>
+    <string name="save_settings">ذخیره تنظیمات</string>
+    <string name="settings_saved">تنظیمات ذخیره شد</string>
+    <string name="coming_soon_message">این بخش به زودی راه اندازی می‌شود</string>
+    <string name="app_version">نسخه</string>
+
+    <!-- Business Selection -->
+    <string name="change_business">تغییر کسب‌وکار</string>
+    <string name="business_list">لیست کسب‌وکارها</string>
+    <string name="select_business">انتخاب کسب‌وکار</string>
+    <string name="no_business_found">کسب‌وکاری یافت نشده است</string>
+    <string name="create_first_business">اولین کسب‌وکار خود را ایجاد کنید</string>
+    <string name="delete_business">حذف کسب‌وکار</string>
+    <string name="delete_business_confirmation">آیا از حذف این کسب‌وکار و تمام نوبت‌های آن اطمینان دارید؟</string>
+    <string name="cancel">انصراف</string>
+    <string name="delete">حذف</string>
+
+    <!-- Visitor Selection -->
+    <string name="visitor_selection_title">انتخاب مراجع</string>
+    <string name="search_placeholder">جستجو نام یا شماره تماس...</string>
+    <string name="back">بازگشت</string>
+    <string name="create_new_visitor">ایجاد مراجع جدید</string>
+    <string name="visitor_delete_title">حذف مراجع</string>
+    <string name="visitor_delete_message">آیا از حذف این مراجع اطمینان دارید؟ \nتمام نوبت‌ها و پیام های این مراجع در همه کسب‌وکارها حذف خواهند شد.</string>
+    <string name="no_visitors_found">مراجعی ثبت نشده است</string>
+    <string name="create_first_visitor">اولین مراجع را ایجاد کنید</string>
+
+    <!-- Create Visitor / Appointment -->
+    <string name="edit_visitor">ویرایش مراجع</string>
+    <string name="edit">ویرایش</string>
+    <string name="create_appointment_title">ایجاد نوبت جدید</string>
+    <string name="select_visitor">انتخاب مراجع</string>
+    <string name="appointment_time">زمان نوبت</string>
+    <string name="appointment_date">تاریخ نوبت</string>
+    <string name="service_duration_minutes">مدت زمان سرویس (دقیقه)</string>
+    <string name="appointment_description">توضیحات نوبت (اختیاری)</string>
+    <string name="example_30">مثال: 30</string>
+    <string name="edit_appointment">ویرایش نوبت</string>
+    <string name="appointment_create_action">ایجاد نوبت</string>
+    <string name="choose_time">انتخاب زمان</string>
+    <string name="hour_label">ساعت:</string>
+    <string name="minute_label">دقیقه:</string>
+    <string name="confirm">تایید</string>
+
+    <!-- Conflict Dialog & Errors -->
+    <string name="service_duration_error">مدت زمان سرویس باید عدد باشد</string>
+    <string name="conflict_dialog_title">تداخل نوبت</string>
+    <string name="conflict_dialog_message_prefix">شما قبلا برای کاربر با نام </string>
+    <string name="conflict_dialog_message_suffix"> نوبت ثبت کردید. آیا مطمئن هستید که می‌خواهید در همین بازه نوبت جدید ثبت کنید؟</string>
+    <string name="yes_force_create">بله، ثبت شود</string>
+    <string name="no">خیر</string>
+    <string name="select_business_error">لطفاً ابتدا یک کسب‌وکار انتخاب کنید</string>
+    <string name="appointment_not_found">نوبت یافت نشد</string>
+    <string name="error_loading_appointment">خطا در بارگذاری نوبت</string>
+    <string name="error_saving_appointment">خطا در ذخیره نوبت</string>
+    <string name="operation_error">خطا در عملیات</string>
+    <string name="error_loading_visitors">خطا در بارگذاری لیست مراجعین</string>
+    
+    <!-- Messages Feature -->
+    <string name="messages_menu_item">پیام‌ها</string>
+    <string name="messages_ready_subtitle">پیام‌های آماده</string>
+    <string name="messages_title">قالب پیام یادآوری</string>
+    <string name="messages_tokens_label">درج مقادیر پویا</string>
+    <string name="messages_preview_label">پیش‌نمایش</string>
+    <string name="messages_save">ذخیره قالب</string>
+    <string name="reminder_minutes">دقیقه یادآوری</string>
+    <string name="message_text">متن پیام</string>
+    <string name="send">ارسال</string>
+    <string name="visitor_no_appointments_title">برای این مخاطب در این کسب‌وکار نوبتی ثبت نشده</string>
+    <string name="visitor_no_appointments_subtitle">از صفحه ایجاد نوبت می‌توانید نوبت جدید ثبت کنید</string>
+    <string name="messages_auto_item">پیام‌های خودکار</string>
+    <string name="messages_auto_subtitle">ارسال پیام آماده برای یادآوری مراجعین</string>
+    <string name="reminders_notifications_item">اعلان یادآوری</string>
+    <string name="reminders_notifications_subtitle">یادآوری خودکار به مراجع نزدیک زمان نوبت‌شان</string>
+
+    <!-- About Us -->
+    <string name="about_us_title">درباره ما</string>
+    <string name="about_us_app_name">نوبت‌یار</string>
+    <string name="about_us_app_description">سیستم هوشمند مدیریت نوبت و صف</string>
+    <string name="about_us_description">نوبت‌یار به شما کمک می‌کند تا به سادگی مراجعین خود را مدیریت کرده و صف‌های طولانی را به یک فرایند منظم و هوشمند تبدیل کنید. با نوبت‌یار، کسب‌وکار خود را حرفه‌ای‌تر مدیریت کنید.</string>
+    <string name="about_us_follow_us">ما را دنبال کنید</string>
+    <string name="social_bale">بله</string>
+    <string name="social_eitaa">ایتا</string>
+    <string name="social_rubika">روبیکا</string>
+    <string name="social_website">سایت</string>
+</resources>
