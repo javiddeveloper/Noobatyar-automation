@@ -16,4 +16,5 @@ sealed interface CreateAppointmentIntent {
     data object AppointmentCreated : CreateAppointmentIntent
     data object DismissConflictDialog : CreateAppointmentIntent
     data class DeleteAppointment(val appointmentId: Long) : CreateAppointmentIntent
+    data class ChangeAppointmentStatus(val appointmentId: Long, val status: String) : CreateAppointmentIntent
 }

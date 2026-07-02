@@ -25,4 +25,10 @@ class BusinessApiService(private val httpClient: HttpClient) {
         }.toApiResponse()
     }
 
+    suspend fun getBusinessDetail(id: Long): ApiResponse<BusinessDto> {
+        return httpClient.get("client/business/$id/") {
+            contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
 }

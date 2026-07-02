@@ -26,4 +26,12 @@ fun VerifyOTPResponseDto.toDomain(): VerifyOTP = VerifyOTP(
     expiresIn = expiresIn
 )
 
+fun xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPAuthResponseDto.toDomain(): xyz.sattar.javid.proqueue.domain.model.user.VerifyAuthOTP = xyz.sattar.javid.proqueue.domain.model.user.VerifyAuthOTP(
+    isRegistered = isRegistered,
+    registerToken = registerToken,
+    expiresIn = expiresIn,
+    user = user,
+    tokens = tokens
+)
+
 

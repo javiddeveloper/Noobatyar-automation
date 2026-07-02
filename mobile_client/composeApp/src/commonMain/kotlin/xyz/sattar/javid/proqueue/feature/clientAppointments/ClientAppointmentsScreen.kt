@@ -20,6 +20,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarToday
 import org.koin.compose.viewmodel.koinViewModel
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.ClientAppointmentDto
@@ -84,51 +88,121 @@ fun ClientAppointmentsScreen(
 
 @Composable
 fun ClientAppointmentItem(appointment: ClientAppointmentDto) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = appointment.business.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            appointment.appointmentDate?.let { date ->
-                Text(
-                    text = "تاریخ نوبت: ${DateTimeUtils.formatDate(date)} ساعت ${DateTimeUtils.formatTime(date)}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "وضعیت: ${translateStatus(appointment.status)}",
-                style = MaterialTheme.typography.bodyMedium
-            )
+    val statusColor = getStatusColor(appointment.status)
+    val statusText = translateStatus(appointment.status)
 
-            if (appointment.status in listOf("WAITING", "IN_PROGRESS")) {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "تعداد افراد در انتظار قبل از شما: ${appointment.queuePosition}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                appointment.estimatedTurnTime?.let { est ->
+    androidx.compose.material3.OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "ساعت تقریبی نوبت شما: ${DateTimeUtils.formatTime(est)}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = appointment.business.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    appointment.appointmentDate?.let { date ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Rounded.CalendarToday,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${DateTimeUtils.formatDate(date)} - ساعت ${DateTimeUtils.formatTime(date)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                // Status Badge
+                Box(
+                    modifier = Modifier
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .background(statusColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = statusColor
                     )
                 }
             }
+
+            if (appointment.status in listOf("WAITING", "IN_PROGRESS")) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "تعداد در انتظار قبل از شما",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${appointment.queuePosition} نفر",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    
+                    appointment.estimatedTurnTime?.let { est ->
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "زمان تقریبی",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = DateTimeUtils.formatTime(est),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun getStatusColor(status: String): androidx.compose.ui.graphics.Color {
+    return when (status) {
+        "PENDING_APPROVAL" -> androidx.compose.ui.graphics.Color(0xFFF57C00) // Orange
+        "WAITING" -> MaterialTheme.colorScheme.primary
+        "IN_PROGRESS" -> androidx.compose.ui.graphics.Color(0xFF388E3C) // Green
+        "COMPLETED" -> androidx.compose.ui.graphics.Color(0xFF757575) // Grey
+        "NO_SHOW", "CANCELLED" -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 }
 

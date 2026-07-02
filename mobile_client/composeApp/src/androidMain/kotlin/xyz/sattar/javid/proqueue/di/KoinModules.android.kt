@@ -18,4 +18,5 @@ val dbModuleAndroid = module {
 
 val platformModule = module {
     single<NotificationScheduler> { AndroidNotificationScheduler(androidContext()) }
+    single { xyz.sattar.javid.proqueue.core.utils.SmsRetrieverManager(androidContext()) }
 }

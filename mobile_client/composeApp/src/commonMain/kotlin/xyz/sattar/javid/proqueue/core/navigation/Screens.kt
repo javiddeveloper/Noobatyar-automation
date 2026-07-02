@@ -71,6 +71,8 @@ sealed class AppScreens {
     object AboutUs : AppScreens()
     @Serializable
     object BusinessList : AppScreens()
+    @Serializable
+    data class BusinessDetail(val businessId: Long) : AppScreens()
 }
 
 

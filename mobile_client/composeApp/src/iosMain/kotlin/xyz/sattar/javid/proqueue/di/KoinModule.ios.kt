@@ -16,4 +16,5 @@ val dbModuleiOS = module {
 
 val platformModule = module {
     single<NotificationScheduler> { IosNotificationScheduler() }
+    single { xyz.sattar.javid.proqueue.core.utils.SmsRetrieverManager() }
 }

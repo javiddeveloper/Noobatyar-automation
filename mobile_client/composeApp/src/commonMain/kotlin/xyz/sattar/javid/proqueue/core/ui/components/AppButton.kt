@@ -20,7 +20,9 @@ fun AppButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    isOutlined: Boolean = false
+    isOutlined: Boolean = false,
+    containerColor: Color = MaterialTheme.colorScheme.primary,
+    contentColor: Color = Color.White
 ) {
     if (isOutlined) {
         OutlinedButton(
@@ -51,8 +53,8 @@ fun AppButton(
             enabled = enabled,
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
+                containerColor = containerColor,
+                contentColor = contentColor
             )
         ) {
             Text(

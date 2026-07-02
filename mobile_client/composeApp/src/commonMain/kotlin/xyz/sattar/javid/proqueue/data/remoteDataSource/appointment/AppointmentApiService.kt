@@ -23,6 +23,25 @@ class AppointmentApiService(private val httpClient: HttpClient) {
         }.toApiResponse()
     }
 
+    suspend fun createClientAppointment(
+        businessId: Long,
+        appointmentDate: Long,
+        serviceDuration: Int? = null,
+        description: String? = null
+    ): ApiResponse<xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.ClientAppointmentDto> {
+        return httpClient.post("client/appointments/") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                mapOf(
+                    "business_id" to businessId,
+                    "appointment_date" to appointmentDate,
+                    "service_duration" to serviceDuration,
+                    "description" to description
+                )
+            )
+        }.toApiResponse()
+    }
+
     suspend fun queryAppointments(
             businessId: Long,
             visitorId: Long? = null,

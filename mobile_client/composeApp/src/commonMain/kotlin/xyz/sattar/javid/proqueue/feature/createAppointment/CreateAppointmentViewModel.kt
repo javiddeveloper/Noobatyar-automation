@@ -28,7 +28,8 @@ class CreateAppointmentViewModel(
     private val createAppointmentUseCase: CreateAppointmentUseCase,
     private val getAppointmentByIdUseCase: GetAppointmentByIdUseCase,
     private val updateAppointmentUseCase: UpdateAppointmentUseCase,
-    private val removeAppointmentUseCase: RemoveAppointmentUseCase
+    private val removeAppointmentUseCase: RemoveAppointmentUseCase,
+    private val updateAppointmentStatusUseCase: xyz.sattar.javid.proqueue.domain.usecase.UpdateAppointmentStatusUseCase
 ) : BaseViewModel<CreateAppointmentState, CreateAppointmentState.PartialState, CreateAppointmentEvent, CreateAppointmentIntent>(
     initialState = CreateAppointmentState()
 ) {
@@ -59,6 +60,7 @@ class CreateAppointmentViewModel(
                 emit(DismissConflictDialog)
             }
             is CreateAppointmentIntent.DeleteAppointment -> deleteAppointment(intent.appointmentId)
+            is CreateAppointmentIntent.ChangeAppointmentStatus -> changeAppointmentStatus(intent.appointmentId, intent.status)
         }
     }
 
@@ -124,6 +126,11 @@ class CreateAppointmentViewModel(
                     appointmentDeleted = true,
                     isLoading = false
                 )
+            is StatusUpdated ->
+                currentState.copy(
+                    status = partialState.status,
+                    isLoading = false
+                )
         }
     }
 
@@ -147,7 +154,8 @@ class CreateAppointmentViewModel(
                             appointmentDate = appointment.appointmentDate,
                             serviceDuration = appointment.serviceDuration,
                             description = appointment.description,
-                            appointmentId = appointment.id
+                            appointmentId = appointment.id,
+                            status = appointment.status
                         )
                     )
                     // Update selected date and time from appointment
@@ -225,6 +233,21 @@ class CreateAppointmentViewModel(
             if (success) {
                 emit(AppointmentDeleted)
                 sendEvent(CreateAppointmentEvent.AppointmentDeleted)
+            } else {
+                emit(ShowMessage(getString(Res.string.operation_error)))
+            }
+        } catch (e: Exception) {
+            emit(ShowMessage(e.message ?: getString(Res.string.operation_error)))
+        }
+    }
+
+    private fun changeAppointmentStatus(appointmentId: Long, status: String): Flow<CreateAppointmentState.PartialState> = flow {
+        emit(IsLoading(true))
+        try {
+            val success = updateAppointmentStatusUseCase(appointmentId, status)
+            if (success) {
+                emit(CreateAppointmentState.PartialState.StatusUpdated(status))
+                emit(ShowMessage(if (status == "WAITING") "نوبت تایید شد" else "وضعیت نوبت تغییر کرد"))
             } else {
                 emit(ShowMessage(getString(Res.string.operation_error)))
             }

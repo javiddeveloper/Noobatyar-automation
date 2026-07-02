@@ -20,9 +20,6 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
-        maven { url = uri("https://maven.myket.ir") }
-        maven { url = uri("https://mirror-maven.runflare.com/maven2") }
-        maven { url = uri("https://mirror-maven.runflare.com/gradle-plugins/") }
         google {
             mavenContent {
                 includeGroupAndSubgroups("androidx")
@@ -30,6 +27,9 @@ dependencyResolutionManagement {
                 includeGroupAndSubgroups("com.google")
             }
         }
+        maven { url = uri("https://maven.myket.ir") }
+        maven { url = uri("https://mirror-maven.runflare.com/maven2") }
+        maven { url = uri("https://mirror-maven.runflare.com/gradle-plugins/") }
         mavenCentral()
     }
 }

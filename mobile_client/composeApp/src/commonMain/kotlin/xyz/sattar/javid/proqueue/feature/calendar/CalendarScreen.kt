@@ -430,6 +430,11 @@ fun TimeSlotRow(
                             val fg = if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828)
                             bg to fg
                         }
+                        status == "PENDING_APPROVAL" -> {
+                            val bg = if (isDark) Color(0xFFE65100).copy(alpha = 0.4f) else Color(0xFFFFF3E0)
+                            val fg = if (isDark) Color(0xFFFFCC80) else Color(0xFFE65100)
+                            bg to fg
+                        }
                         else -> {
                             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isDark) 0.5f else 0.8f) to MaterialTheme.colorScheme.onSecondaryContainer
                         }

@@ -106,10 +106,35 @@ fun MainNavHost(
         ) {
             composable<AppScreens.Home> {
                 xyz.sattar.javid.proqueue.feature.businessList.BusinessListScreen(
-                    onNavigateToMain = {},
+                    onNavigateToMain = { business -> 
+                        navController.navigate(AppScreens.BusinessDetail(business.id))
+                    },
                     onNavigateToCreateBusiness = {},
                     onNavigateToEditBusiness = {},
                     onNavigateToLogin = onNavigateToLogin,
+                )
+            }
+
+            composable<AppScreens.BusinessDetail> { backStackEntry ->
+                val args = backStackEntry.toRoute<AppScreens.BusinessDetail>()
+                val userViewModel: xyz.sattar.javid.proqueue.feature.profile.UserViewModel = org.koin.compose.viewmodel.koinViewModel()
+                val userState by userViewModel.uiState.collectAsState()
+                
+                val selectedDate = backStackEntry.savedStateHandle.get<Long>("selectedDate")
+                val selectedTime = backStackEntry.savedStateHandle.get<String>("selectedTime")
+
+                xyz.sattar.javid.proqueue.feature.businessDetail.ClientBusinessDetailScreen(
+                    businessId = args.businessId,
+                    isLoggedIn = userState.userName != null,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToCreateAppointment = { id ->
+                        navController.navigate(AppScreens.CreateAppointment())
+                    },
+                    selectedDate = selectedDate,
+                    selectedTime = selectedTime,
+                    onNavigateToCalendar = {
+                        navController.navigate(AppScreens.Calendar(isPicker = true))
+                    }
                 )
             }
 

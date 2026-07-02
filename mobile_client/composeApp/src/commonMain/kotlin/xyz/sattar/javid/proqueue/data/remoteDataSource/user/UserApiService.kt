@@ -19,6 +19,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPRespo
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.ResetPasswordRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.SendOTPRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.VerifyOTPRequestDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPAuthResponseDto
 import xyz.sattar.javid.proqueue.domain.model.VersionInfo
 
 class UserApiService(private val httpClient: HttpClient) {
@@ -67,6 +68,7 @@ class UserApiService(private val httpClient: HttpClient) {
             setBody(body)
         }.toApiResponse()
     }
+
     suspend fun verifyOTP(
         body: VerifyOTPRequestDto
     ): ApiResponse<VerifyOTPResponseDto> {
@@ -75,6 +77,26 @@ class UserApiService(private val httpClient: HttpClient) {
             setBody(body)
         }.toApiResponse()
     }
+
+    suspend fun sendAuthOTP(
+        body: SendOTPRequestDto
+    ): ApiResponse<SendOTPResponseDto> {
+        return httpClient.post("auth/otp/send/") {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }.toApiResponse()
+    }
+
+    suspend fun verifyAuthOTP(
+        body: VerifyOTPRequestDto
+    ): ApiResponse<VerifyOTPAuthResponseDto> {
+        return httpClient.post("auth/otp/verify/") {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }.toApiResponse()
+    }
+
+
 
     suspend fun resetPassword(
         body: ResetPasswordRequestDto

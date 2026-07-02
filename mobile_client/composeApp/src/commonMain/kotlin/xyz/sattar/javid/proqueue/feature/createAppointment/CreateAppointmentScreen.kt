@@ -451,28 +451,55 @@ fun CreateAppointmentScreenContent(
 
                     // Create/Update Button
                     val serviceDurationErrorMsg = stringResource(Res.string.service_duration_error)
-                    AppButton(
-                        text = if (uiState.editingAppointmentId != null) stringResource(Res.string.edit_appointment) else stringResource(Res.string.appointment_create_action),
-                        onClick = {
-                            selectedVisitorId?.let { visitorId ->
-                                val duration = serviceDuration.trim().toIntOrNull()
-                                serviceDurationError = if (duration == null) serviceDurationErrorMsg else null
-                                onIntent(
-                                    CreateAppointmentIntent.CreateAppointment(
-                                        visitorId = visitorId,
-                                        appointmentDate = DateTimeUtils.combineDateAndTime(
-                                            selectedDate,
-                                            selectedTime
-                                        ),
-                                        serviceDuration = duration,
-                                        description = description.ifEmpty { null }
-                                    )
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = selectedVisitorId != null
-                    )
+
+                    if (uiState.editingAppointmentId != null && uiState.status == "PENDING_APPROVAL") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            AppButton(
+                                text = "تایید نوبت",
+                                onClick = {
+                                    onIntent(CreateAppointmentIntent.ChangeAppointmentStatus(uiState.editingAppointmentId, "WAITING"))
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            AppButton(
+                                text = "رد نوبت",
+                                onClick = {
+                                    onIntent(CreateAppointmentIntent.ChangeAppointmentStatus(uiState.editingAppointmentId, "CANCELLED"))
+                                },
+                                modifier = Modifier.weight(1f),
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        }
+                    } else {
+                        AppButton(
+                            text = if (uiState.editingAppointmentId != null) stringResource(Res.string.edit_appointment) else stringResource(Res.string.appointment_create_action),
+                            onClick = {
+                                selectedVisitorId?.let { visitorId ->
+                                    val duration = serviceDuration.trim().toIntOrNull()
+                                    serviceDurationError = if (duration == null) serviceDurationErrorMsg else null
+                                    if (duration != null) {
+                                        onIntent(
+                                            CreateAppointmentIntent.CreateAppointment(
+                                                visitorId = visitorId,
+                                                appointmentDate = DateTimeUtils.combineDateAndTime(
+                                                    selectedDate,
+                                                    selectedTime
+                                                ),
+                                                serviceDuration = duration,
+                                                description = description.ifEmpty { null }
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = selectedVisitorId != null
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                 }

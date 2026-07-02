@@ -11,10 +11,10 @@ class RegisterUseCase(
 ) {
     suspend operator fun invoke(
         phone: String,
-        password: String,
+        registerToken: String,
         name: String
-    ): ApiResponse<User> {
-        return when (val response = userRepository.register(phone, password, name)) {
+    ): ApiResponse<xyz.sattar.javid.proqueue.domain.model.user.User> {
+        return when (val response = userRepository.register(phone, registerToken, name)) {
             is ApiResponse.Success -> {
                 TokenManager.saveTokens(
                     accessToken = response.data.tokens.access,

@@ -21,7 +21,8 @@ data class CreateAppointmentState(
     val conflictingVisitorName: String? = null,
     val dailyAppointments: List<AppointmentWithDetails> = emptyList(),
     val dailyAppointmentsCount: Int = 0,
-    val appointmentDeleted: Boolean = false
+    val appointmentDeleted: Boolean = false,
+    val status: String? = null
 ) {
     sealed class PartialState {
         data class IsLoading(val isLoading: Boolean) : PartialState()
@@ -33,12 +34,14 @@ data class CreateAppointmentState(
             val appointmentDate: Long,
             val serviceDuration: Int?,
             val description: String?,
-            val appointmentId: Long
+            val appointmentId: Long,
+            val status: String?
         ) : PartialState()
         data object AppointmentCreated : PartialState()
         data class ShowConflictDialog(val visitorName: String) : PartialState()
         data object DismissConflictDialog : PartialState()
         data class LoadDailyAppointments(val appointments: List<AppointmentWithDetails>) : PartialState()
         data object AppointmentDeleted : PartialState()
+        data class StatusUpdated(val status: String) : PartialState()
     }
 }

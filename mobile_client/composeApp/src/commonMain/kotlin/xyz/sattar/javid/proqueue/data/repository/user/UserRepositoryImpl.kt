@@ -32,13 +32,13 @@ class UserRepositoryImpl(
 
     override suspend fun register(
         phone: String,
-        password: String,
+        registerToken: String,
         name: String
     ): ApiResponse<RegisterResponseDto> {
         val response = userApiService.register(
             RegisterRequestDto(
                 phone = phone,
-                password = password,
+                registerToken = registerToken,
                 name = name
             )
         )
@@ -129,6 +129,21 @@ class UserRepositoryImpl(
         code: String
     ): ApiResponse<VerifyOTPResponseDto> {
         return userApiService.verifyOTP(VerifyOTPRequestDto(phone = phone, code = code))
+    }
+
+    override suspend fun sendAuthOTP(phone: String): ApiResponse<SendOTPResponseDto> {
+        return userApiService.sendAuthOTP(SendOTPRequestDto(phone = phone))
+    }
+
+    override suspend fun verifyAuthOTP(
+        phone: String,
+        code: String
+    ): ApiResponse<xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPAuthResponseDto> {
+        val response = userApiService.verifyAuthOTP(VerifyOTPRequestDto(phone = phone, code = code))
+        if (response is ApiResponse.Success && response.data.isRegistered && response.data.user != null) {
+            saveUserToDb(response.data.user)
+        }
+        return response
     }
 
     override suspend fun resetPassword(

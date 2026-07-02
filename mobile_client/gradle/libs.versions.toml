@@ -24,6 +24,8 @@ ksp = "2.2.20-2.0.2"
 chucker = "4.1.0"
 
 
+play-services-auth-api-phone = "18.1.0"
+
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
@@ -70,6 +72,8 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 
+
+play-services-auth-api-phone = { module = "com.google.android.gms:play-services-auth-api-phone", version.ref = "play-services-auth-api-phone" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

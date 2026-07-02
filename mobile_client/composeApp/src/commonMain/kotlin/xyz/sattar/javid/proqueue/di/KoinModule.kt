@@ -34,13 +34,12 @@ import xyz.sattar.javid.proqueue.domain.usecase.user.GetCurrentUserUseCase
 import xyz.sattar.javid.proqueue.feature.businessList.BusinessListViewModel
 import xyz.sattar.javid.proqueue.feature.calendar.CalendarViewModel
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentViewModel
-import xyz.sattar.javid.proqueue.feature.forgetPassword.resetPassword.ResetPasswordViewModel
-import xyz.sattar.javid.proqueue.feature.forgetPassword.sendOTP.SendOTPViewModel
+
 import xyz.sattar.javid.proqueue.feature.login.LoginViewModel
 
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsViewModel
 import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
-import xyz.sattar.javid.proqueue.feature.register.RegisterViewModel
+
 import xyz.sattar.javid.proqueue.feature.settings.SettingsViewModel
 import xyz.sattar.javid.proqueue.feature.version.VersionViewModel
 
@@ -74,6 +73,8 @@ val appModule: Module = module {
     factory { GetUserProfileUseCase(get()) }
     factory { SendOTPUseCase(get()) }
     factory { VerifyOTPUseCase(get()) }
+    factory { xyz.sattar.javid.proqueue.domain.usecase.user.SendAuthOTPUseCase(get()) }
+    factory { xyz.sattar.javid.proqueue.domain.usecase.user.VerifyAuthOTPUseCase(get()) }
     factory { ResetPasswordUseCase(get()) }
     factory { GetCurrentUserUseCase(get()) }
 
@@ -88,6 +89,7 @@ val appModule: Module = module {
     factory { RemoveAppointmentUseCase(get()) }
     factory { GetAppointmentByIdUseCase(get()) }
     factory { UpdateAppointmentUseCase(get()) }
+    factory { xyz.sattar.javid.proqueue.domain.usecase.UpdateAppointmentStatusUseCase(get()) }
     factory { xyz.sattar.javid.proqueue.domain.usecase.SyncAppointmentsUseCase(get()) }
 
     // --- Message UseCases ---
@@ -97,16 +99,15 @@ val appModule: Module = module {
 
     // --- ViewModels ---
     viewModel { xyz.sattar.javid.proqueue.feature.clientAppointments.ClientAppointmentsViewModel(get()) }
-    viewModel { CreateAppointmentViewModel(get(), get(), get(), get()) }
+    viewModel { CreateAppointmentViewModel(get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel() }
     viewModel { VersionViewModel(get()) }
     viewModel { NotificationsViewModel(get(), get()) }
     viewModel { BusinessListViewModel(get(), get()) }
+    viewModel { xyz.sattar.javid.proqueue.feature.businessDetail.ClientBusinessDetailViewModel(get(), get()) }
 
     viewModel { CalendarViewModel(get(), get()) }
-    viewModel { RegisterViewModel(get()) }
-    viewModel { SendOTPViewModel(get(), get()) }
-    viewModel { ResetPasswordViewModel(get()) }
-    viewModel { LoginViewModel(get()) }
+
+    viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { UserViewModel(get(), get(), get()) }
 }

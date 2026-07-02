@@ -58,10 +58,21 @@ class BusinessRepositoryImpl(
     }
 
     override suspend fun getBusinessById(businessId: Long): Business? {
-        return try {
-            businessDao.getBusinessById(businessId)?.toDomain()
+        try {
+            val local = businessDao.getBusinessById(businessId)?.toDomain()
+            if (local != null) return local
+
+            // If not found locally, fetch from network
+            when (val response = businessApiService.getBusinessDetail(businessId)) {
+                is ApiResponse.Success -> {
+                    val entity = response.data.toEntity()
+                    businessDao.upsertBusiness(entity)
+                    return entity.toDomain()
+                }
+                is ApiResponse.Error -> return null
+            }
         } catch (e: Exception) {
-            null
+            return null
         }
     }
 

@@ -45,6 +45,7 @@ kotlin {
            implementation(libs.koin.compose)
            implementation(libs.ktor.client.okhttp)
            implementation(libs.ktor.client.logginig)
+           implementation(libs.play.services.auth.api.phone)
        }
         commonMain.dependencies {
             implementation(compose.runtime)

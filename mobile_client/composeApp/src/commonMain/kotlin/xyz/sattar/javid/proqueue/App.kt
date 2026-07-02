@@ -14,7 +14,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.koinInject
-import xyz.sattar.javid.proqueue.core.navigation.navHost.AuthNavHost
+
 import xyz.sattar.javid.proqueue.core.navigation.navHost.BusinessNavHost
 import xyz.sattar.javid.proqueue.core.navigation.navHost.MainNavHost
 import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
@@ -52,9 +52,9 @@ fun App() {
             )
 
             if (showAuthFlow) {
-                AuthNavHost(
-                    onRegisterComplete = { showAuthFlow = false },
-                    onNavigateToHome = { showAuthFlow = false },
+                xyz.sattar.javid.proqueue.feature.login.LoginBottomSheet(
+                    onDismissRequest = { showAuthFlow = false },
+                    onLoginSuccess = { showAuthFlow = false }
                 )
             }
         }
