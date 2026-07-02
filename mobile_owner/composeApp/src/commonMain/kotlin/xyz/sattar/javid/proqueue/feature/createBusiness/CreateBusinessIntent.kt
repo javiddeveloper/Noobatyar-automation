@@ -10,7 +10,8 @@ sealed class CreateBusinessIntent {
         val address: String,
         val defaultProgress: String,
         val workStartHour: Int,
-        val workEndHour: Int
+        val workEndHour: Int,
+        val allowAnonymousView: Boolean
     ) : CreateBusinessIntent()
     object BackPress : CreateBusinessIntent()
     object BusinessCreated : CreateBusinessIntent()

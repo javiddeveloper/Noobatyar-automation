@@ -23,7 +23,8 @@ class CreateBusinessViewModel(
                     intent.address,
                     intent.defaultProgress,
                     intent.workStartHour,
-                    intent.workEndHour
+                    intent.workEndHour,
+                    intent.allowAnonymousView
                 )
             }
 
@@ -84,7 +85,8 @@ class CreateBusinessViewModel(
         address: String,
         defaultProgress: String,
         workStartHour: Int,
-        workEndHour: Int
+        workEndHour: Int,
+        allowAnonymousView: Boolean
     ): Flow<CreateBusinessState.PartialState> = flow {
         emit(CreateBusinessState.PartialState.IsLoading(true))
         val updatedBusiness = businessUpsertUseCase.invoke(
@@ -100,6 +102,7 @@ class CreateBusinessViewModel(
                 workEndHour = workEndHour,
                 notificationEnabled = uiState.value.business?.notificationEnabled ?: true,
                 notificationTypes = uiState.value.business?.notificationTypes ?: "SMS,WHATSAPP",
+                allowAnonymousView = allowAnonymousView
             )
         )
         if (updatedBusiness != null) {

@@ -95,6 +95,7 @@ fun CreateBusinessRoute(
     var defaultProgress by remember { mutableStateOf("") }
     var workStartHour by remember { mutableStateOf("9") }
     var workEndHour by remember { mutableStateOf("21") }
+    var allowAnonymousView by remember { mutableStateOf(false) }
 
     var titleError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
@@ -117,6 +118,7 @@ fun CreateBusinessRoute(
             defaultProgress = it.defaultServiceDuration.toString()
             workStartHour = it.workStartHour.toString()
             workEndHour = it.workEndHour.toString()
+            allowAnonymousView = it.allowAnonymousView
         }
     }
 
@@ -136,6 +138,7 @@ fun CreateBusinessRoute(
         defaultProgress = defaultProgress,
         workStartHour = workStartHour,
         workEndHour = workEndHour,
+        allowAnonymousView = allowAnonymousView,
         onTitle = {
             title = it
             titleError = null
@@ -163,6 +166,7 @@ fun CreateBusinessRoute(
             workEndHour = it
             workHoursError = null
         },
+        onAllowAnonymousView = { allowAnonymousView = it },
         titleError = titleError,
         phoneError = phoneError,
         addressError = addressError,
@@ -196,6 +200,8 @@ fun CreateBusinessScreen(
     onDefaultProgress: (String) -> Unit,
     onWorkStartHour: (String) -> Unit,
     onWorkEndHour: (String) -> Unit,
+    allowAnonymousView: Boolean,
+    onAllowAnonymousView: (Boolean) -> Unit,
     titleError: String? = null,
     phoneError: String? = null,
     addressError: String? = null,
@@ -444,6 +450,23 @@ fun CreateBusinessScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { onAllowAnonymousView(!allowAnonymousView) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "نمایش اطلاعات تماس به کاربران مهمان",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                androidx.compose.material3.Switch(
+                    checked = allowAnonymousView,
+                    onCheckedChange = { onAllowAnonymousView(it) }
+                )
+            }
+
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -484,7 +507,8 @@ fun CreateBusinessScreen(
                                     address = a,
                                     defaultProgress = d,
                                     workStartHour = wsInt!!,
-                                    workEndHour = weInt!!
+                                    workEndHour = weInt!!,
+                                    allowAnonymousView = allowAnonymousView
                                 )
                             )
                         }
@@ -608,6 +632,8 @@ fun PreviewDashboardScreen() {
             onDefaultProgress = {},
             onWorkStartHour = {},
             onWorkEndHour = {},
+            allowAnonymousView = false,
+            onAllowAnonymousView = {},
             titleError = null,
             phoneError = null,
             addressError = null,

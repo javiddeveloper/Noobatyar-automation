@@ -19,5 +19,6 @@ data class BusinessEntity(
     val notificationEnabled: Boolean = true,
     val notificationTypes: String = "SMS", // "SMS,WHATSAPP,TELEGRAM"
     val notificationMinutesBefore: Int = 30,
-    val createdAt: Long
+    val createdAt: Long,
+    val allowAnonymousView: Boolean = false
 )

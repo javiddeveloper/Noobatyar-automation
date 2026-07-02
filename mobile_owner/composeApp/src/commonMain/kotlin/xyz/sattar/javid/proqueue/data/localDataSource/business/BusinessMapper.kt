@@ -20,6 +20,7 @@ fun BusinessEntity.toDomain() = Business(
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
     createdAt = createdAt,
+    allowAnonymousView = allowAnonymousView
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -37,6 +38,7 @@ fun Business.toEntity() = BusinessEntity(
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
     createdAt = createdAt,
+    allowAnonymousView = allowAnonymousView
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -49,7 +51,8 @@ fun Business.toRequestDto() = CreateBusinessRequestDto(
     workEndHour = workEndHour,
     notificationEnabled = notificationEnabled,
     notificationTypes = notificationTypes,
-    notificationMinutesBefore = notificationMinutesBefore
+    notificationMinutesBefore = notificationMinutesBefore,
+    allowAnonymousView = allowAnonymousView
 )
 
 fun BusinessDto.toEntity(): BusinessEntity {
@@ -69,6 +72,7 @@ fun BusinessDto.toEntity(): BusinessEntity {
         notificationEnabled = notificationEnabled,
         notificationTypes = notificationTypes,
         notificationMinutesBefore = notificationMinutesBefore,
-        createdAt = epochMillis
+        createdAt = epochMillis,
+        allowAnonymousView = allowAnonymousView
     )
 }

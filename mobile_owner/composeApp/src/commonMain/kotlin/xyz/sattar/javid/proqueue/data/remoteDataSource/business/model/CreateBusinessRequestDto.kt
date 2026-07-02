@@ -14,5 +14,6 @@ data class CreateBusinessRequestDto(
     @SerialName("work_end_hour") val workEndHour: Int,
     @SerialName("notification_enabled") val notificationEnabled: Boolean=true,
     @SerialName("notification_types") val notificationTypes: String ="SMS,WHATSAPP,TELEGRAM",
-    @SerialName("notification_minutes_before") val notificationMinutesBefore: Int
+    @SerialName("notification_minutes_before") val notificationMinutesBefore: Int,
+    @SerialName("allow_anonymous_view") val allowAnonymousView: Boolean = false
 )

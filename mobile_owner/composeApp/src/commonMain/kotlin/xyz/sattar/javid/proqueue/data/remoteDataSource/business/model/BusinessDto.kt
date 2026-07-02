@@ -19,5 +19,6 @@ data class BusinessDto(
     @SerialName("notification_types") val notificationTypes: String,
     @SerialName("notification_minutes_before") val notificationMinutesBefore: Int,
     @SerialName("created_at") val createdAt: String,
-    @SerialName("updated_at") val updatedAt: String
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("allow_anonymous_view") val allowAnonymousView: Boolean = false
 )

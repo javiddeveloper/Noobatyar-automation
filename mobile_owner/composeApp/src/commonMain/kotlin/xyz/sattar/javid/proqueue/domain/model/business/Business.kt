@@ -15,4 +15,5 @@ data class Business(
     val notificationTypes: String,
     val notificationMinutesBefore: Int = 0,
     val createdAt: Long = 0,
+    val allowAnonymousView: Boolean = false,
 )
