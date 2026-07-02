@@ -1,5 +1,8 @@
 package xyz.sattar.javid.proqueue
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,7 +33,7 @@ fun App() {
         PreferencesManager.themeMode.collect { ThemeStateHolder.setThemeMode(it) }
     }
     val hasTokenUseCase: HasTokenUseCase = koinInject()
-    var onAuthComplete by remember { mutableStateOf(hasTokenUseCase()) }
+    var showAuthFlow by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val businessRepository: BusinessRepository = koinInject()
 
@@ -38,55 +41,22 @@ fun App() {
         // Handle Version Update
         VersionHandler()
 
-        if (!onAuthComplete) {
-            AuthNavHost(
-                onRegisterComplete = { onAuthComplete = true },
-                onNavigateToHome = { onAuthComplete = true },
-            )
-            return@AppTheme
-        }
-
-        val selectedBusiness by BusinessStateHolder.selectedBusiness.collectAsState()
-
-        LaunchedEffect(Unit) {
-            PreferencesManager.defaultBusinessId.collect { id ->
-                if (id != null && BusinessStateHolder.selectedBusiness.value == null) {
-                    val business = businessRepository.getBusinessById(id)
-                    if (business != null) {
-                        BusinessStateHolder.selectBusiness(business)
-                    }
-                }
-            }
-        }
-
-        if (selectedBusiness == null) {
-            BusinessNavHost(
-                onBusinessSelected = { business ->
-                    BusinessStateHolder.selectBusiness(business)
-                    scope.launch { PreferencesManager.setDefaultBusinessId(business.id) }
-                },
-                onNavigateToAuth = {
-                    onAuthComplete = false
-                }
-            )
-        } else {
+        Box(modifier = Modifier.fillMaxSize()) {
             MainNavHost(
-                onNavigateToCreateBusiness = {
-                    BusinessStateHolder.clearBusiness()
-                    scope.launch { PreferencesManager.setDefaultBusinessId(null) }
-                },
-                onNavigateToCreateVisitor = {
-                },
-                onChangeBusiness = {
-                    BusinessStateHolder.clearBusiness()
-                    scope.launch { PreferencesManager.setDefaultBusinessId(null) }
-                },
+                onNavigateToCreateBusiness = {},
+                onNavigateToCreateVisitor = {},
+                onChangeBusiness = {},
                 onNavigateToLogin = {
-                    onAuthComplete = false
-                    BusinessStateHolder.clearBusiness()
-                    scope.launch { PreferencesManager.setDefaultBusinessId(null) }
+                    showAuthFlow = true
                 }
             )
+
+            if (showAuthFlow) {
+                AuthNavHost(
+                    onRegisterComplete = { showAuthFlow = false },
+                    onNavigateToHome = { showAuthFlow = false },
+                )
+            }
         }
     }
 }

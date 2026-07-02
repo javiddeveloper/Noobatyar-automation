@@ -18,7 +18,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDt
 class BusinessApiService(private val httpClient: HttpClient) {
 
     suspend fun getBusinesses(page: Int, pageSize: Int): ApiResponse<PaginatedResponseDto<BusinessDto>> {
-        return httpClient.get("business/") {
+        return httpClient.get("client/business/") {
             contentType(ContentType.Application.Json)
             parameter("page", page)
             parameter("page_size", pageSize)

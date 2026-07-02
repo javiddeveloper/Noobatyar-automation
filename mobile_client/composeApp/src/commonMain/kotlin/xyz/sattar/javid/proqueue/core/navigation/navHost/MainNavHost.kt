@@ -107,10 +107,10 @@ fun MainNavHost(
                 .navigationBarsPadding()
         ) {
             composable<AppScreens.Home> {
-                HomeScreen(
-                    onNavigateToCalendar = {
-                        navController.navigate(AppScreens.Calendar())
-                    },
+                xyz.sattar.javid.proqueue.feature.businessList.BusinessListScreen(
+                    onNavigateToMain = {},
+                    onNavigateToCreateBusiness = {},
+                    onNavigateToEditBusiness = {},
                     onNavigateToLogin = onNavigateToLogin,
                 )
             }
