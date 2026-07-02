@@ -58,3 +58,13 @@ class ClientAppointmentSerializer(serializers.ModelSerializer):
         # Add 15 minutes for each person ahead
         estimated_time = obj.appointment_date + timedelta(minutes=15 * queue_pos)
         return int(estimated_time.timestamp() * 1000)
+
+class ClientAppointmentCreateSerializer(serializers.ModelSerializer):
+    business_id = serializers.IntegerField(write_only=True)
+    appointment_date = serializers.IntegerField(write_only=True) # Unix timestamp in ms
+    service_duration = serializers.IntegerField(write_only=True, required=False)
+    description = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = Appointment
+        fields = ['business_id', 'appointment_date', 'service_duration', 'description']

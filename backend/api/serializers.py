@@ -5,9 +5,9 @@ import re
 
 
 class RegisterSerializer(serializers.Serializer):
-    """ثبت‌نام با phone + password"""
+    """ثبت‌نام با phone + register_token"""
     phone = serializers.CharField(max_length=11)
-    password = serializers.CharField(min_length=8, write_only=True)
+    register_token = serializers.CharField(write_only=True)
     name = serializers.CharField(max_length=100)
 
     def validate_phone(self, value):
@@ -17,9 +17,23 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("این شماره قبلاً ثبت شده")
         return value
 
-    def validate_password(self, value):
-        if len(value) < 8:
-            raise serializers.ValidationError("رمز عبور باید حداقل ۸ کاراکتر باشد")
+class SendOTPSerializer(serializers.Serializer):
+    """ارسال OTP عمومی"""
+    phone = serializers.CharField(max_length=11)
+
+    def validate_phone(self, value):
+        if not re.match(r'^09[0-9]{9}$', value):
+            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
+        return value
+
+class VerifyOTPSerializer(serializers.Serializer):
+    """تأیید OTP عمومی"""
+    phone = serializers.CharField(max_length=11)
+    code = serializers.CharField(min_length=4, max_length=6)
+
+    def validate_phone(self, value):
+        if not re.match(r'^09[0-9]{9}$', value):
+            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
         return value
 
 

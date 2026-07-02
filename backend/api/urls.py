@@ -8,6 +8,8 @@ urlpatterns = [
     path('auth/register/', views.register_view, name='register'),
     path('auth/login/', views.login_view, name='login'),
     path('auth/logout/', views.logout_view, name='logout'),
+    path('auth/otp/send/', views.send_otp_view, name='send_otp'),
+    path('auth/otp/verify/', views.verify_otp_view, name='verify_otp'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     # api/urls.py
     path('auth/forgot-password/send/', views.forgot_password_send_otp),

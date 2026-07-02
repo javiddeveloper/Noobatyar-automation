@@ -9,7 +9,7 @@ from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer, 
     UpdateUserSerializer, ForgotPasswordSendOTPSerializer,
     ForgotPasswordVerifyOTPSerializer, ResetPasswordSerializer,
-    LogoutSerializer
+    LogoutSerializer, SendOTPSerializer, VerifyOTPSerializer
 )
 from .models import User
 from .permissions import HasActiveSubscription
@@ -19,6 +19,7 @@ import secrets
 
 
 OTP_EXPIRY = 120
+REGISTER_TOKEN_EXPIRY = 600
 RESET_TOKEN_EXPIRY = 300
 
 
@@ -42,6 +43,67 @@ def _extract_error(errors: dict) -> str:
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def send_otp_view(request):
+    serializer = SendOTPSerializer(data=request.data)
+    if not serializer.is_valid():
+        return APIResponse.error(message=_extract_error(serializer.errors))
+
+    phone = serializer.validated_data['phone']
+    code = send_otp(phone)
+    if not code:
+        return APIResponse.error('خطا در ارسال پیامک')
+
+    cache.set(f'auth_otp:{phone}', str(code), timeout=OTP_EXPIRY)
+
+    return APIResponse.success(
+        data={'expires_in': OTP_EXPIRY},
+        message='کد تأیید ارسال شد'
+    )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp_view(request):
+    serializer = VerifyOTPSerializer(data=request.data)
+    if not serializer.is_valid():
+        return APIResponse.error(message=_extract_error(serializer.errors))
+
+    phone = serializer.validated_data['phone']
+    code = str(serializer.validated_data['code'])
+
+    cached_code = cache.get(f'auth_otp:{phone}')
+    if not cached_code or cached_code != code:
+        return APIResponse.error('کد نامعتبر یا منقضی شده است')
+
+    cache.delete(f'auth_otp:{phone}')
+
+    user = User.objects.filter(phone=phone).first()
+    if user:
+        # کاربر وجود دارد -> ورود مستقیم
+        return APIResponse.success(
+            data={
+                'is_registered': True,
+                'user': UserSerializer(user).data,
+                'tokens': get_tokens(user)
+            },
+            message='ورود موفق'
+        )
+    else:
+        # کاربر وجود ندارد -> باید ثبت نام کند
+        register_token = secrets.token_urlsafe(32)
+        cache.set(f'register_token:{phone}', register_token, timeout=REGISTER_TOKEN_EXPIRY)
+        return APIResponse.success(
+            data={
+                'is_registered': False,
+                'register_token': register_token,
+                'expires_in': REGISTER_TOKEN_EXPIRY
+            },
+            message='شماره تایید شد. لطفا ثبت نام را تکمیل کنید.'
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     if not serializer.is_valid():
@@ -49,11 +111,21 @@ def register_view(request):
             message=_extract_error(serializer.errors)
         )
 
+    phone = serializer.validated_data['phone']
+    register_token = serializer.validated_data['register_token']
+    name = serializer.validated_data['name']
+
+    cached_token = cache.get(f'register_token:{phone}')
+    if not cached_token or cached_token != register_token:
+        return APIResponse.error('زمان ثبت نام به پایان رسیده است. لطفا مجددا تلاش کنید.')
+
+    # Use a strong random password since users won't use it anymore
     user = User.objects.create_user(
-        phone=serializer.validated_data['phone'],
-        password=serializer.validated_data['password'],
-        name=serializer.validated_data['name']
+        phone=phone,
+        password=secrets.token_urlsafe(16),
+        name=name
     )
+    cache.delete(f'register_token:{phone}')
 
     # فعال‌سازی خودکار پلن آزمایشی برای کاربر جدید
     trial_plan = Plan.objects.filter(price=0, is_active=True).first()
