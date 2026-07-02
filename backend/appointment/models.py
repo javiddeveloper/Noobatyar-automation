@@ -13,6 +13,7 @@ User = get_user_model()
 
 class Appointment(models.Model):
     STATUS_CHOICES = [
+        ('PENDING_APPROVAL', 'Pending Approval'),
         ('WAITING', 'Waiting'),
         ('IN_PROGRESS', 'In Progress'),
         ('COMPLETED', 'Completed'),

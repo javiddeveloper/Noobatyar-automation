@@ -135,9 +135,9 @@ class PaymentVerificationService:
             )
 
             # Upgrade user if VIP plan
-            if self.transaction.plan.is_vip and self.transaction.user.user_type != 'vip':
-                self.transaction.user.user_type = 'vip'
-                self.transaction.user.save(update_fields=['user_type'])
+            if self.transaction.plan.is_vip and self.transaction.user.role != 'BUSINESS_OWNER':
+                self.transaction.user.role = 'BUSINESS_OWNER'
+                self.transaction.user.save(update_fields=['role'])
 
             return {
                 'subscription_id': subscription.id,

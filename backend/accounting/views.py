@@ -68,9 +68,9 @@ def buy_plan(request):
     )
 
     # VIP upgrade
-    if plan.is_vip and user.user_type != 'vip':
-        user.user_type = 'vip'
-        user.save(update_fields=['user_type'])
+    if plan.is_vip and user.role != 'BUSINESS_OWNER':
+        user.role = 'BUSINESS_OWNER'
+        user.save(update_fields=['role'])
 
     serializer = SubscriptionSerializer(subscription)
     return APIResponse.success(
@@ -109,15 +109,6 @@ def my_subscription(request):  # ✅ sync
 
 
 
-@api_view(['GET'])
-@permission_classes([IsAdminUser])
-async def all_subscriptions(request):
-    """همه اشتراک‌ها — فقط ادمین"""
-    subs = await sync_to_async(list)(
-        Subscription.objects.select_related('user', 'plan').all()
-    )
-    serializer = SubscriptionSerializer(subs, many=True)
-    return APIResponse.success(data=serializer.data)
 
 
 # ============ PAYMENT ============

@@ -12,7 +12,7 @@ from .serializers import (
     LogoutSerializer
 )
 from .models import User
-from .permissions import IsVIPUser, HasActiveSubscription
+from .permissions import HasActiveSubscription
 from django.core.cache import cache
 from accounting.models import Plan, Subscription # اضافه شد
 import secrets
@@ -194,13 +194,6 @@ def forgot_password_reset(request):
     return APIResponse.success(message='رمز عبور با موفقیت تغییر کرد')
 
 
-@api_view(['GET'])
-@permission_classes([IsAdminUser])
-def user_list(request):
-    users = User.objects.all()
-    return APIResponse.success(
-        data=UserSerializer(users, many=True).data
-    )
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
@@ -234,9 +227,3 @@ def user_detail(request, pk):
         return APIResponse.success(message='کاربر حذف شد')
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated, HasActiveSubscription, IsVIPUser])
-def vip_content(request):
-    return APIResponse.success(
-        data={'content': f'سلام {request.user.name}، به بخش VIP خوش اومدی'}
-    )

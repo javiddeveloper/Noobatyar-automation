@@ -16,9 +16,7 @@ urlpatterns = [
 
     
     # مدیریت کاربران
-    path('users/', views.user_list, name='user-list'),
+
     path('users/<int:pk>/', views.user_detail, name='user-detail'),
     
-    # محتوای VIP
-    path('vip/', views.vip_content, name='vip-content'),
 ]

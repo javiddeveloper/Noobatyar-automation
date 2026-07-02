@@ -7,12 +7,12 @@ class BusinessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = [
-            'id', 'title', 'phone', 'address', 'logo',
+            'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             'notification_enabled', 'notification_types', 'notification_minutes_before',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at']
 
     def validate_work_start_hour(self, value):
         if not 0 <= value <= 23:

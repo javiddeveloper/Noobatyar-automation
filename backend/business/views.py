@@ -60,6 +60,8 @@ class BusinessView(APIView):
         return APIResponse.success(
             data={
                 'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': page_obj.number,
                 'next': page_obj.next_page_number() if page_obj.has_next() else None,
                 'previous': page_obj.previous_page_number() if page_obj.has_previous() else None,
                 'results': serializer.data

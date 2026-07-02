@@ -9,8 +9,8 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 import logging
 
-from .models import Visitor
-from .serializers import VisitorSerializer
+from .models import Visitor, SmsLog
+from .serializers import VisitorSerializer, SmsLogSerializer
 from api.responses import APIResponse  # اضافه کردن import
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,8 @@ class VisitorView(APIView):
             return APIResponse.success(
                 data={
                     'count': paginator.count,
+                    'total_pages': paginator.num_pages,
+                    'current_page': page_obj.number,
                     'next': page_obj.next_page_number() if page_obj.has_next() else None,
                     'previous': page_obj.previous_page_number() if page_obj.has_previous() else None,
                     'results': serializer.data
@@ -179,3 +181,42 @@ class VisitorView(APIView):
                 message="خطا در حذف مشتری",
                 code=500
             )
+
+
+class VisitorMessageHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    async def get(self, request, visitor_id):
+        try:
+            visitor = await sync_to_async(Visitor.objects.get)(
+                id=visitor_id,
+                user=request.user
+            )
+        except Visitor.DoesNotExist:
+            return APIResponse.error("مشتری یافت نشد", code=404)
+
+        # Pagination params
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        page_size = min(page_size, 100)
+
+        logs = [
+            b async for b in SmsLog.objects.filter(visitor=visitor).select_related('business').order_by('-sent_at')
+        ]
+
+        paginator = Paginator(logs, page_size)
+        page_obj = paginator.get_page(page)
+
+        serializer = SmsLogSerializer(page_obj.object_list, many=True)
+
+        return APIResponse.success(
+            data={
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': page_obj.number,
+                'next': page_obj.next_page_number() if page_obj.has_next() else None,
+                'previous': page_obj.previous_page_number() if page_obj.has_previous() else None,
+                'results': serializer.data
+            },
+            message="تاریخچه پیام‌ها با موفقیت دریافت شد"
+        )

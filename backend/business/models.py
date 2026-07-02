@@ -1,8 +1,6 @@
 from django.db import models
-
-# Create your models here.
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils.crypto import get_random_string
 
 User = get_user_model()
 
@@ -11,6 +9,13 @@ class Business(models.Model):
     Represents a business profile for appointment management.
     Each user can have multiple businesses.
     """
+    CATEGORY_CHOICES = [
+        ('BEAUTY_SALON', 'آرایشگاه و سالن زیبایی'),
+        ('DOCTOR', 'پزشک و کلینیک'),
+        ('CONSULTANT', 'مشاوره'),
+        ('OTHER', 'سایر'),
+    ]
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -18,6 +23,8 @@ class Business(models.Model):
         help_text="Owner of this business"
     )
     title = models.CharField(max_length=255)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='OTHER', help_text="Business category")
+    unique_code = models.CharField(max_length=8, unique=True, db_index=True, blank=True, help_text="Unique 8-character code")
     phone = models.CharField(max_length=20)
     address = models.TextField()
     logo = models.ImageField(upload_to='business_logos/', blank=True, null=True, help_text="Business logo image")
@@ -41,5 +48,15 @@ class Business(models.Model):
             models.Index(fields=['user', '-created_at']),
         ]
 
+    def save(self, *args, **kwargs):
+        if not self.unique_code:
+            # Generate a random 8-character code consisting of uppercase letters and digits
+            while True:
+                code = get_random_string(length=8, allowed_chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+                if not Business.objects.filter(unique_code=code).exists():
+                    self.unique_code = code
+                    break
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.title} ({self.user.username})"
+        return f"{self.title} ({self.user.phone})"

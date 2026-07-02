@@ -4,6 +4,6 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['phone', 'name', 'user_type', 'is_employee', 'joined_at']
-    list_filter = ['user_type', 'is_employee']
+    list_display = ['phone', 'name', 'role', 'is_employee', 'joined_at']
+    list_filter = ['role', 'is_employee']
     search_fields = ['phone', 'name']

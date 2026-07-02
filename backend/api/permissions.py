@@ -30,10 +30,16 @@ class HasActiveSubscription(BasePermission):
         return active_sub is not None and active_sub.is_valid()
 
 
-class IsVIPUser(BasePermission):
-    """فقط کاربران VIP"""
+class IsBusinessOwner(BasePermission):
+    """فقط صاحبان کسب‌وکار"""
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_type == 'vip'
+        return request.user.is_authenticated and request.user.role == 'BUSINESS_OWNER'
+
+
+class IsClient(BasePermission):
+    """فقط مشتریان"""
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'CLIENT'
 
 
 

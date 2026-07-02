@@ -15,7 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from appointment.models import Appointment, Business, Visitor
-from appointment.serializers import AppointmentSerializer
+from appointment.serializers import AppointmentSerializer, AppointmentQuerySerializer
 from api.responses import APIResponse
 from api.views import _extract_error
 
@@ -28,6 +28,7 @@ class AppointmentView(APIView):
 
     # Valid status transitions (state machine)
     STATUS_TRANSITIONS = {
+        'PENDING_APPROVAL': ['WAITING', 'CANCELLED'],
         'WAITING': ['CONFIRMED', 'CANCELLED'],
         'CONFIRMED': ['COMPLETED', 'CANCELLED', 'NO_SHOW'],
         'COMPLETED': [],  # Terminal state
@@ -57,7 +58,8 @@ class AppointmentView(APIView):
                 return error_response
 
             # Serialize appointment data
-            appointment_data = await self._serialize_appointment(appointment)
+            serializer = await sync_to_async(AppointmentQuerySerializer)(appointment)
+            appointment_data = await sync_to_async(lambda: serializer.data)()
 
             elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
             logger.info(
@@ -158,7 +160,7 @@ class AppointmentView(APIView):
             )
 
             # Serialize response
-            serializer = await sync_to_async(AppointmentSerializer)(appointment)
+            serializer = await sync_to_async(AppointmentQuerySerializer)(appointment)
             response_data = await sync_to_async(lambda: serializer.data)()
 
             elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -472,7 +474,7 @@ class AppointmentView(APIView):
         appointment.status = new_status
         appointment.save(update_fields=['status', 'updated_at'])
 
-        serializer = AppointmentSerializer(appointment)
+        serializer = AppointmentQuerySerializer(appointment)
         elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
 
         logger.info(
@@ -563,7 +565,7 @@ class AppointmentView(APIView):
             error_message = _extract_error(e.message_dict) if hasattr(e, 'message_dict') else str(e)
             return APIResponse.error(error_message, code=status.HTTP_400_BAD_REQUEST)
 
-        serializer = AppointmentSerializer(appointment)
+        serializer = AppointmentQuerySerializer(appointment)
         elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
 
         logger.info(

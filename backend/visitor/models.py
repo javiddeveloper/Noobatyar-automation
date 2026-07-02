@@ -25,3 +25,23 @@ class Visitor(models.Model):
 
     def __str__(self):
         return f"{self.full_name} ({self.phone_number})"
+
+
+class SmsLog(models.Model):
+    STATUS_CHOICES = [
+        ('SENT', 'Sent'),
+        ('FAILED', 'Failed'),
+    ]
+    
+    business = models.ForeignKey('business.Business', on_delete=models.CASCADE, related_name='sms_logs')
+    visitor = models.ForeignKey(Visitor, on_delete=models.CASCADE, related_name='sms_logs')
+    message_text = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SENT')
+    sent_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'sms_log'
+        ordering = ['-sent_at']
+
+    def __str__(self):
+        return f"SMS to {self.visitor.phone_number} at {self.sent_at}"

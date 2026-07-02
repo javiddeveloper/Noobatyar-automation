@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Visitor
+from .models import Visitor, SmsLog
 import re
 
 
@@ -22,3 +22,13 @@ class VisitorSerializer(serializers.ModelSerializer):
         if not value or not value.strip():
             raise serializers.ValidationError("نام نمی‌تواند خالی باشد")
         return value.strip()
+
+
+class SmsLogSerializer(serializers.ModelSerializer):
+    visitor_name = serializers.CharField(source='visitor.full_name', read_only=True)
+    visitor_phone = serializers.CharField(source='visitor.phone_number', read_only=True)
+
+    class Meta:
+        model = SmsLog
+        fields = ['id', 'visitor', 'visitor_name', 'visitor_phone', 'business', 'message_text', 'status', 'sent_at']
+        read_only_fields = ['id', 'sent_at']

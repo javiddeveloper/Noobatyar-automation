@@ -11,10 +11,10 @@ from api.responses import APIResponse
 
 
 
-class AppointmentQueryView(PageNumberPagination):
-    page_size = 20
-    page_size_query_param = 'page_size'
-    max_page_size = 100
+from api.pagination import StandardPagination
+
+class AppointmentQueryView(StandardPagination):
+    pass
 
 
 @api_view(['GET'])
@@ -104,7 +104,7 @@ def appointment_list(request):
     # Filter by status
     status_param = request.query_params.get('status')
     if status_param:
-        valid_statuses = ['WAITING', 'COMPLETED', 'CANCELLED', 'NO_SHOW']
+        valid_statuses = ['PENDING_APPROVAL', 'WAITING', 'COMPLETED', 'CANCELLED', 'NO_SHOW']
         if status_param.upper() not in valid_statuses:
             return APIResponse.error(f'وضعیت باید یکی از این مقادیر باشد: {", ".join(valid_statuses)}', code=status.HTTP_400_BAD_REQUEST)
         queryset = queryset.filter(status=status_param.upper())

@@ -18,7 +18,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, phone, password=None, **extra):
         extra.setdefault('is_staff', True)
         extra.setdefault('is_superuser', True)
-        extra.setdefault('user_type', 'vip')
+        extra.setdefault('role', 'ADMIN')
         return self.create_user(phone, password, **extra)
 
 
@@ -27,16 +27,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     مدل کاربر سفارشی با phone به جای username
     - phone: شناسه یکتا (09XXXXXXXXX)
     - password: hash شده با Argon2
-    - user_type: دسترسی به محتوای VIP
+    - role: نقش کاربر در سیستم
     """
-    USER_TYPE = [
-        ('vip', 'VIP'),
-        ('normal', 'عادی'),
+    ROLE_CHOICES = [
+        ('BUSINESS_OWNER', 'صاحب کسب‌وکار'),
+        ('CLIENT', 'مشتری'),
+        ('ADMIN', 'مدیر'),
     ]
 
     phone = models.CharField(max_length=11, unique=True, db_index=True)
     name = models.CharField(max_length=100)
-    user_type = models.CharField(max_length=10, choices=USER_TYPE, default='normal')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='CLIENT')
     is_employee = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
