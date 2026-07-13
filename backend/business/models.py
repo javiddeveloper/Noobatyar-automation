@@ -45,6 +45,47 @@ class Business(models.Model):
         help_text="If True, guests can view contact details (phone, address, etc.)"
     )
 
+    # ── Payment configuration ─────────────────────────────────────────────
+    PAYMENT_METHOD_CHOICES = [
+        ('NONE',    'رایگان / بدون پیش‌پرداخت'),
+        ('CARD',    'کارت به کارت'),
+        ('GATEWAY', 'درگاه آنلاین (زیبال)'),
+    ]
+    payment_method = models.CharField(
+        max_length=10,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='NONE',
+        help_text="How clients are charged when booking"
+    )
+    merchant_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Zibal merchant ID — required when payment_method=GATEWAY"
+    )
+    card_number = models.CharField(
+        max_length=19,
+        blank=True,
+        default='',
+        help_text="Owner's card number shown to clients — required when payment_method=CARD"
+    )
+    card_owner_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Name on the card, displayed alongside card_number"
+    )
+
+    # ── SMS preferences ───────────────────────────────────────────────────
+    enable_reminder_sms = models.BooleanField(
+        default=True,
+        help_text="Send appointment reminder SMS to clients"
+    )
+    enable_promotional_sms = models.BooleanField(
+        default=False,
+        help_text="Allow sending promotional/marketing SMS to clients"
+    )
+
     class Meta:
         db_table = 'business'
         ordering = ['-created_at']
