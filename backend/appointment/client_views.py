@@ -43,15 +43,15 @@ class ClientAppointmentListView(APIView):
         try:
             business = await Business.objects.aget(id=business_id)
         except Business.DoesNotExist:
-            return APIResponse.error(message="کسب و کار یافت نشد", code=404)
+            return APIResponse.error(message="کسب و کار یافت نم‌شد", code=404)
 
-        # Ensure visitor exists for this user under this business
+        # Ensure visitor exists for this user
+        # Visitor model fields: user, full_name, phone_number
         visitor, created = await Visitor.objects.aget_or_create(
-            business=business,
-            phone_number=request.user.phone_number,
+            user=request.user,
+            phone_number=request.user.phone,
             defaults={
-                'name': f"{request.user.first_name} {request.user.last_name}".strip() or request.user.phone_number,
-                'created_by': request.user
+                'full_name': request.user.name or request.user.phone,
             }
         )
 
@@ -67,7 +67,72 @@ class ClientAppointmentListView(APIView):
             status='PENDING_APPROVAL'
         )
 
+        # ── SMS Notifications via Melipayamak ─────────────────────────
+        from zoneinfo import ZoneInfo
+        tehran_tz = ZoneInfo('Asia/Tehran')
+        local_time = app_date.astimezone(tehran_tz)
+        time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+
+        client_msg = (
+            f"نوبت‌یار ✅\n"
+            f"نوبت شما در {business.title}\n"
+            f"تاریخ: {time_str}\n"
+            f"در انتظار تایید کسب‌وکار\n"
+            f"کد نوبت: {appointment.id}"
+        )
+        owner_msg = (
+            f"نوبت‌یار 📋\n"
+            f"درخواست نوبت جدید\n"
+            f"مشتری: {visitor.full_name}\n"
+            f"تاریخ: {time_str}\n"
+            f"کد: {appointment.id}"
+        )
+
+        import asyncio
+        asyncio.create_task(_send_booking_sms(
+            client_phone=request.user.phone,
+            owner_phone=business.phone,
+            client_msg=client_msg,
+            owner_msg=owner_msg,
+            business=business,
+            visitor=visitor,
+        ))
+        # ─────────────────────────────────────────────────────────────
+
         return APIResponse.success(
             data={'id': appointment.id},
             message="نوبت شما با موفقیت ثبت شد و در انتظار تایید است"
         )
+
+
+async def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business, visitor):
+    """
+    Background task: sends SMS to client and business owner via Melipayamak.
+    Logs result in SmsLog table.
+    Uses run_in_executor to avoid blocking the async event loop.
+    """
+    import asyncio
+    from api.sms import send_sms
+    from visitor.models import SmsLog
+
+    loop = asyncio.get_event_loop()
+
+    # Send to client
+    try:
+        client_ok = await loop.run_in_executor(None, send_sms, client_phone, client_msg)
+        await SmsLog.objects.acreate(
+            business=business,
+            visitor=visitor,
+            message_text=client_msg,
+            status='SENT' if client_ok else 'FAILED',
+        )
+        logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
+    except Exception as e:
+        logger.error(f"SMS→client error: {e}")
+
+    # Send to business owner
+    try:
+        owner_ok = await loop.run_in_executor(None, send_sms, owner_phone, owner_msg)
+        logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
+    except Exception as e:
+        logger.error(f"SMS→owner error: {e}")
