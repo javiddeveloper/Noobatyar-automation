@@ -45,6 +45,17 @@ class Business(models.Model):
         help_text="If True, guests can view contact details (phone, address, etc.)"
     )
 
+    # ── Client-facing notice & booking control ────────────────────────────
+    notice_message = models.TextField(
+        blank=True,
+        default='',
+        help_text="A short notice shown to clients on the booking page (e.g. vacation, holiday)"
+    )
+    booking_enabled = models.BooleanField(
+        default=True,
+        help_text="If False, clients cannot create new appointments"
+    )
+
     # ── Payment configuration ─────────────────────────────────────────────
     PAYMENT_METHOD_CHOICES = [
         ('NONE',    'رایگان / بدون پیش‌پرداخت'),

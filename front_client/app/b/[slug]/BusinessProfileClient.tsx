@@ -20,6 +20,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
 
   const workHours = `${String(business.work_start_hour).padStart(2, '0')}:۰۰ الی ${String(business.work_end_hour).padStart(2, '0')}:۰۰`;
   const emoji = CATEGORY_EMOJI[business.category] || '🏢';
+  const bookingEnabled = business.booking_enabled !== false; // default true if undefined
 
   return (
     <div className="page-content">
@@ -33,24 +34,32 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         position: 'relative',
         overflow: 'hidden'
       }}>
-        {/* Background decorative circles */}
+        {/* Decorative circles */}
         <div style={{
           position: 'absolute', top: -20, left: -20,
           width: 120, height: 120, borderRadius: '50%',
           background: 'rgba(255,255,255,0.08)'
         }} />
+        <div style={{
+          position: 'absolute', bottom: -30, right: -10,
+          width: 80, height: 80, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)'
+        }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginBottom: 16 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'white', textAlign: 'right' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'white', textAlign: 'right' }}>
             {business.title}
           </h1>
           <div style={{
-            width: 48, height: 48, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)',
+            width: 52, height: 52, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.22)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, flexShrink: 0
+            fontSize: 26, flexShrink: 0
           }}>
-            {emoji}
+            {/* Show logo if available, else emoji */}
+            {business.logo
+              ? <img src={business.logo} alt={business.title} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              : emoji}
           </div>
         </div>
 
@@ -88,13 +97,31 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         </div>
       </div>
 
-      {/* ── Notice Banner ── */}
-      <div className="section" style={{ paddingTop: 8 }}>
-        <div className="notice-banner">
-          <span>⏱ </span>
-          این هفته رفتیم مسافرت نوبت ها از هفته دیگه بررسی میشه
+      {/* ── Notice Banner (dynamic from backend) ── */}
+      {business.notice_message && (
+        <div className="section" style={{ paddingTop: 8 }}>
+          <div className="notice-banner">
+            <span>⏱ </span>
+            {business.notice_message}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Booking Disabled Banner ── */}
+      {!bookingEnabled && (
+        <div className="section" style={{ paddingTop: 8 }}>
+          <div style={{
+            background: '#fee2e2',
+            borderRadius: 12, padding: '14px 18px',
+            fontSize: 13, color: '#b91c1c', fontWeight: 600,
+            textAlign: 'right', lineHeight: 1.6,
+            display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <span>🚫</span>
+            ثبت نوبت در حال حاضر غیرفعال است
+          </div>
+        </div>
+      )}
 
       {/* ── Noobatyar Promo ── */}
       <div className="section" style={{ paddingTop: 8, paddingBottom: 8 }}>
@@ -131,8 +158,10 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         <button
           className="btn-primary"
           onClick={() => router.push(`/b/${slug}/book`)}
+          disabled={!bookingEnabled}
+          style={!bookingEnabled ? { background: '#9ca3af', boxShadow: 'none', cursor: 'not-allowed' } : {}}
         >
-          دریافت/مشاهده نوبت
+          {bookingEnabled ? 'دریافت/مشاهده نوبت' : 'ثبت نوبت غیرفعال است'}
         </button>
       </div>
 

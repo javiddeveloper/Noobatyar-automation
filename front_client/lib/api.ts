@@ -13,6 +13,8 @@ export interface Business {
   work_start_hour: number;
   work_end_hour: number;
   allow_anonymous_view: boolean;
+  notice_message: string | null;
+  booking_enabled: boolean;
 }
 
 export interface TimeSlot {
@@ -43,24 +45,44 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return json.data as T;
 }
 
-// Auth
-export async function registerUser(phone: string, password: string, name: string) {
-  return apiFetch('/api/auth/register/', {
+// ── Auth: OTP Flow ──────────────────────────────────────────────────────────
+export async function sendOtp(phone: string): Promise<{ expires_in: number }> {
+  return apiFetch('/api/auth/otp/send/', {
     method: 'POST',
-    body: JSON.stringify({ phone, password, name }),
+    body: JSON.stringify({ phone }),
   });
 }
 
-export async function loginUser(phone: string, password: string) {
-  return apiFetch<{ user: object; tokens: { access: string; refresh: string } }>(
-    '/api/auth/login/',
-    { method: 'POST', body: JSON.stringify({ phone, password }) }
-  );
+export interface OtpVerifyResult {
+  is_registered: boolean;
+  // If registered:
+  user?: object;
+  tokens?: { access: string; refresh: string };
+  // If new user:
+  register_token?: string;
+  expires_in?: number;
+}
+
+export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyResult> {
+  return apiFetch<OtpVerifyResult>('/api/auth/otp/verify/', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code }),
+  });
+}
+
+export async function completeRegister(
+  phone: string,
+  register_token: string,
+  name: string
+): Promise<{ user: object; tokens: { access: string; refresh: string } }> {
+  return apiFetch('/api/auth/register/', {
+    method: 'POST',
+    body: JSON.stringify({ phone, register_token, name }),
+  });
 }
 
 // Business
 export async function getBusinessByCode(code: string): Promise<Business> {
-  // Search by unique_code
   const data = await apiFetch<{
     results: Business[];
     count: number;
@@ -119,8 +141,6 @@ export async function getMyAppointments(token: string): Promise<Appointment[]> {
 }
 
 export async function getAppointment(id: number, token: string): Promise<Appointment> {
-  // We can fetch from list or we need a detail endpoint. Since client_views doesn't have detail view yet,
-  // we'll filter the list for now to get a specific appointment.
   const all = await getMyAppointments(token);
   const apt = all.find((a) => a.id === id);
   if (!apt) throw new Error('نوبت یافت نشد');
@@ -141,7 +161,6 @@ export function businessUrl(code: string) {
 }
 
 export function extractCode(slug: string): string {
-  // "Noobatyar-XVCTY" → "XVCTY"
   return slug.replace(/^Noobatyar-/i, '');
 }
 
@@ -154,3 +173,4 @@ export function categoryLabel(category: string): string {
   };
   return map[category] || category;
 }
+

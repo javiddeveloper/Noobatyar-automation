@@ -25,6 +25,8 @@ class BusinessSerializer(serializers.ModelSerializer):
             'enable_reminder_sms', 'enable_promotional_sms',
             # Misc
             'allow_anonymous_view', 'created_at', 'updated_at',
+            # Booking control
+            'notice_message', 'booking_enabled',
         ]
         read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at']
 
@@ -92,7 +94,8 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
             'default_service_duration', 'work_start_hour', 'work_end_hour',
-            'allow_anonymous_view'
+            'allow_anonymous_view',
+            'notice_message', 'booking_enabled',
         ]
 
     def to_representation(self, instance):

@@ -152,6 +152,43 @@ export default function BookingPage({ params }: Props) {
     );
   }
 
+  // Check if booking is enabled for this business
+  const bookingEnabled = business.booking_enabled !== false;
+
+  if (!bookingEnabled) {
+    return (
+      <div className="page-content" style={{ background: '#f9fafb' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 24px', background: 'white', position: 'sticky', top: 0, zIndex: 50,
+          borderBottom: '1px solid #f3f4f6'
+        }}>
+          <button onClick={() => router.back()}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111827', padding: '4px 8px' }}>
+            ←
+          </button>
+          <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>رزرو نوبت</h1>
+        </div>
+        <div style={{ padding: 40, textAlign: 'center' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🚫</div>
+          <h2 style={{ fontSize: 16, color: '#111827', fontWeight: 700, marginBottom: 8 }}>
+            ثبت نوبت غیرفعال است
+          </h2>
+          {business.notice_message && (
+            <div className="notice-banner" style={{ marginTop: 16, textAlign: 'center' }}>
+              {business.notice_message}
+            </div>
+          )}
+          <button className="btn-primary" style={{ marginTop: 32, width: 'auto', padding: '0 32px' }}
+            onClick={() => router.back()}>
+            بازگشت
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+
   const selectedDayMonth = new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long' }).format(selectedDay);
 
   return (
