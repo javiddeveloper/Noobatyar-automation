@@ -408,3 +408,56 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   object-fit: cover;
   box-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
+
+/* ── Toolbar (RTL-correct) ──────────────────────────────────
+   In RTL layout, flex items start from the right side.
+   Structure: [spacer] [centered title] [back-button]
+   The back-button (›) sits on the RIGHT (reading-start side).
+   ─────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid #f3f4f6;
+  /* Use LTR so we control exact side placement */
+  direction: ltr;
+}
+
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  flex: 1;
+  /* Ensure Persian text renders correctly even in LTR container */
+  direction: rtl;
+  font-family: var(--font-base);
+}
+
+.toolbar-back {
+  background: #f3f4f6;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #374151;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.toolbar-back:hover { background: #e5e7eb; }
+
+.toolbar-placeholder {
+  width: 36px;
+  flex-shrink: 0;
+}
+

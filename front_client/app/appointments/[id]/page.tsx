@@ -65,23 +65,10 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   return (
     <div className="page-content" style={{ background: '#f9fafb', minHeight: '100dvh' }}>
       
-      {/* ── Header ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 24px', background: 'white', position: 'sticky', top: 0, zIndex: 50
-      }}>
-        <button
-          onClick={() => router.back()}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 22, color: '#111827', padding: '4px 8px',
-          }}
-        >
-          ←
-        </button>
-        <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
-          جزئیات نوبت
-        </h1>
+      <div className="toolbar">
+        <div className="toolbar-placeholder" />
+        <h1 className="toolbar-title">جزئیات نوبت</h1>
+        <button className="toolbar-back" onClick={() => router.back()}>›</button>
       </div>
 
       <div style={{ padding: '24px 24px' }}>

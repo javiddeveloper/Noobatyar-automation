@@ -133,22 +133,19 @@ function LoginForm() {
       display: 'flex', flexDirection: 'column',
     }}>
 
-      {/* Header */}
-      <div style={{
-        padding: '20px 24px 16px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'white', borderBottom: '1px solid #f3f4f6',
-      }}>
-        {step !== 'PHONE' ? (
-          <button
-            onClick={() => { setStep(step === 'NAME' ? 'OTP' : 'PHONE'); setError(''); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#111827', padding: '4px 8px' }}
-          >←</button>
-        ) : <div style={{ width: 40 }} />}
-        <h1 style={{ fontSize: 17, fontWeight: 700, color: '#111827', textAlign: 'center' }}>
+      <div className="toolbar">
+        <div className="toolbar-placeholder" />
+        <h1 className="toolbar-title">
           {step === 'PHONE' ? 'ورود / ثبت‌نام' : step === 'OTP' ? 'کد تأیید' : 'تکمیل پروفایل'}
         </h1>
-        <div style={{ width: 40 }} />
+        {step !== 'PHONE' ? (
+          <button
+            className="toolbar-back"
+            onClick={() => { setStep(step === 'NAME' ? 'OTP' : 'PHONE'); setError(''); }}
+          >›</button>
+        ) : (
+          <div className="toolbar-placeholder" />
+        )}
       </div>
 
       <div style={{ flex: 1, padding: '32px 24px 120px' }}>

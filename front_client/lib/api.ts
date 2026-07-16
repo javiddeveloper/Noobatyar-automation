@@ -34,15 +34,22 @@ export interface Appointment {
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  // Destructure headers separately so we can merge them with Content-Type
+  // without `...options` overwriting the headers key entirely.
+  const { headers: extraHeaders, ...restOptions } = options ?? {};
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
+    ...restOptions,
   });
   const json = await res.json();
   if (!res.ok || json.status === 'error') {
     throw new Error(json.message || 'خطا در ارتباط با سرور');
   }
   return json.data as T;
+
 }
 
 // ── Auth: OTP Flow ──────────────────────────────────────────────────────────
