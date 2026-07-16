@@ -35,48 +35,76 @@ function RegisterForm() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🗓</div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>ثبت‌نام در نوبت‌یار</h1>
-          <p style={{ marginTop: 6, fontSize: 13 }}>یه دقیقه طول می‌کشه!</p>
-        </div>
+    <div className="page-content" style={{ background: '#f9fafb', minHeight: '100dvh' }}>
+      
+      {/* ── Header ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 24px', background: 'white',
+        position: 'sticky', top: 0, zIndex: 50, marginBottom: 16
+      }}>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 22, color: '#111827', padding: '4px 8px',
+          }}
+        >
+          ←
+        </button>
+        <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
+          ثبت‌نام
+        </h1>
+      </div>
 
+      <div style={{ padding: '0 24px' }}>
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">نام و نام‌خانوادگی</label>
+          
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+              نام و نام خانوادگی
+            </label>
             <input
               className="form-input"
               type="text"
-              placeholder="مثلاً: علی احمدی"
+              placeholder="مثلاً: زهرا احمدی"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              style={{ height: 56, borderRadius: 14, fontSize: 15 }}
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">شماره موبایل</label>
+
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+              شماره موبایل
+            </label>
             <input
               className="form-input"
               type="tel"
-              placeholder="09xxxxxxxxx"
+              placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
               dir="ltr"
+              style={{ textAlign: 'center', height: 56, borderRadius: 14, fontSize: 15 }}
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">رمز عبور</label>
+
+          <div className="form-group" style={{ marginBottom: 32 }}>
+            <label style={{ display: 'block', textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+              رمز عبور
+            </label>
             <input
               className="form-input"
               type="password"
-              placeholder="حداقل ۸ کاراکتر"
+              placeholder="رمز عبور"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
+              style={{ textAlign: 'center', height: 56, borderRadius: 14, fontSize: 15 }}
             />
           </div>
 
@@ -90,23 +118,27 @@ function RegisterForm() {
             </div>
           )}
 
-          <button className="btn-primary" type="submit" disabled={loading}>
-            {loading ? 'در حال ثبت‌نام...' : 'ثبت‌نام و ورود'}
-          </button>
-        </form>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>حساب دارید؟ </span>
+            <button
+              type="button"
+              onClick={() => router.push(`/auth/login?redirect=${redirect}`)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#d735a9', fontWeight: 600, fontSize: 13, fontFamily: 'inherit',
+              }}
+            >
+              ورود
+            </button>
+          </div>
 
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <span style={{ fontSize: 13, color: '#6b7280' }}>حساب دارید؟ </span>
-          <button
-            onClick={() => router.push(`/auth/login?redirect=${redirect}`)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#d735a9', fontWeight: 600, fontSize: 13, fontFamily: 'inherit',
-            }}
-          >
-            ورود
-          </button>
-        </div>
+          {/* ── Fixed Bottom Button ── */}
+          <div className="btn-group">
+            <button className="btn-primary" type="submit" disabled={loading}>
+              {loading ? 'در حال ثبت‌نام...' : 'تایید و ادامه'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

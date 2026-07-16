@@ -32,38 +32,47 @@ function LoginForm() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🗓</div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>نوبت‌یار</h1>
-          <p style={{ marginTop: 6, fontSize: 13 }}>برای ثبت نوبت وارد شوید</p>
-        </div>
+    <div className="page-content" style={{ background: '#f9fafb', minHeight: '100dvh' }}>
+      
+      {/* ── Header ── */}
+      <div style={{ padding: '24px 24px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+        <h1 style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>ورود مهمان</h1>
+      </div>
+
+      <div style={{ padding: '0 24px' }}>
+        <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'right', marginBottom: 24 }}>
+          برای رزرو نوبت، شماره موبایل و رمز عبور خود را وارد کنید
+        </p>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">شماره موبایل</label>
+          <div className="form-group" style={{ marginBottom: 16 }}>
             <input
               className="form-input"
               type="tel"
-              placeholder="09xxxxxxxxx"
+              placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
               dir="ltr"
+              style={{ textAlign: 'center', height: 56, borderRadius: 14, fontSize: 15 }}
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">رمز عبور</label>
+          
+          <div className="form-group" style={{ marginBottom: 24 }}>
             <input
               className="form-input"
               type="password"
-              placeholder="••••••••"
+              placeholder="رمز عبور"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{ textAlign: 'center', height: 56, borderRadius: 14, fontSize: 15 }}
             />
           </div>
+
+          <p style={{ fontSize: 11, color: '#6b7280', textAlign: 'center', marginBottom: 24, lineHeight: 1.6 }}>
+            با ورود، قوانین و حریم خصوصی نوبت‌یار را می‌پذیرید.
+          </p>
 
           {error && (
             <div style={{
@@ -75,23 +84,27 @@ function LoginForm() {
             </div>
           )}
 
-          <button className="btn-primary" type="submit" disabled={loading}>
-            {loading ? 'در حال ورود...' : 'ورود'}
-          </button>
-        </form>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>حساب ندارید؟ </span>
+            <button
+              type="button"
+              onClick={() => router.push(`/auth/register?redirect=${redirect}`)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#d735a9', fontWeight: 600, fontSize: 13, fontFamily: 'inherit',
+              }}
+            >
+              ثبت‌نام
+            </button>
+          </div>
 
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <span style={{ fontSize: 13, color: '#6b7280' }}>حساب ندارید؟ </span>
-          <button
-            onClick={() => router.push(`/auth/register?redirect=${redirect}`)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#d735a9', fontWeight: 600, fontSize: 13, fontFamily: 'inherit',
-            }}
-          >
-            ثبت‌نام
-          </button>
-        </div>
+          {/* ── Fixed Bottom Button ── */}
+          <div className="btn-group">
+            <button className="btn-primary" type="submit" disabled={loading}>
+              {loading ? 'در حال ورود...' : 'ورود به حساب'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

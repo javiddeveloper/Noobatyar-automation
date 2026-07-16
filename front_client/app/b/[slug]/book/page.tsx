@@ -149,7 +149,7 @@ export default function BookingPage({ params }: Props) {
     );
   }
 
-  const availableCount = slots.filter((s) => s.status === 'AVAILABLE').length;
+  const selectedDayMonth = new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long' }).format(selectedDay);
 
   return (
     <div className="page-content">
@@ -158,39 +158,37 @@ export default function BookingPage({ params }: Props) {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '16px 24px', background: 'white',
-        borderBottom: '1px solid #f3f4f6',
         position: 'sticky', top: 0, zIndex: 50,
       }}>
         <button
           onClick={() => router.back()}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 22, color: '#6b7280', padding: '4px 8px',
+            fontSize: 22, color: '#111827', padding: '4px 8px',
           }}
         >
           ←
         </button>
         <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
-          {business.title}
+          انتخاب زمان نوبت
         </h1>
-        <div style={{ width: 40 }} />
       </div>
 
       {/* ── Date Picker ── */}
       <div className="section" style={{ paddingBottom: 8 }}>
-        <div className="section-title">انتخاب تاریخ</div>
-        <div className="date-row">
+        <div className="date-row" style={{ padding: 0 }}>
           {days.map((day) => {
-            const { weekday, day: dayNum } = toPersianDate(day);
+            const weekday = new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(day).replace('‌', ' ');
+            const dayNum = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(day);
             const isSelected = toDateString(day) === toDateString(selectedDay);
             return (
               <button
                 key={day.toISOString()}
                 className={`day-pill ${isSelected ? 'selected' : ''}`}
                 onClick={() => setSelectedDay(day)}
-                style={{ border: 'none', fontFamily: 'inherit' }}
+                style={{ border: isSelected ? 'none' : '1px solid #e5e7eb', fontFamily: 'inherit' }}
               >
-                <span className="day-name">{weekday.replace('‌', '')}</span>
+                <span className="day-name">{weekday}</span>
                 <span className="day-num">{dayNum}</span>
               </button>
             );
@@ -200,11 +198,8 @@ export default function BookingPage({ params }: Props) {
 
       {/* ── Time Slots ── */}
       <div className="section">
-        <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 400 }}>
-            {slotsLoading ? 'در حال بارگذاری...' : `${toPersianNumerals(String(availableCount))} ساعت خالی`}
-          </span>
-          <span>ساعات خالی</span>
+        <div className="section-title" style={{ textAlign: 'right', marginBottom: 16 }}>
+          ساعات خالی - {selectedDayMonth}
         </div>
 
         {slotsLoading ? (
@@ -231,7 +226,7 @@ export default function BookingPage({ params }: Props) {
                   key={slot.timestamp}
                   className={`time-slot ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
                   onClick={() => !isDisabled && setSelectedSlot(slot)}
-                  style={{ border: 'none', fontFamily: 'inherit' }}
+                  style={{ border: isSelected ? 'none' : '1px solid #e5e7eb', fontFamily: 'inherit' }}
                   disabled={isDisabled}
                 >
                   {toPersianNumerals(slot.time)}
@@ -240,6 +235,39 @@ export default function BookingPage({ params }: Props) {
             })}
           </div>
         )}
+
+        {/* ── Legend ── */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb' }} />
+            رزرو شده
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d735a9' }} />
+            انتخاب شما
+          </div>
+        </div>
+      </div>
+
+      {/* ── My Appointments Button ── */}
+      <div className="section" style={{ paddingBottom: 0 }}>
+        <button
+          onClick={() => router.push('/appointments')}
+          style={{
+            width: '100%',
+            height: 52,
+            background: 'white',
+            color: '#d735a9',
+            border: '1.5px solid #d735a9',
+            borderRadius: 14,
+            fontSize: 16,
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+          }}
+        >
+          نوبت های من
+        </button>
       </div>
 
       {/* ── Toast ── */}
@@ -252,7 +280,7 @@ export default function BookingPage({ params }: Props) {
           onClick={handleBook}
           disabled={!selectedSlot || booking}
         >
-          {booking ? 'در حال ثبت...' : selectedSlot ? `تایید و ادامه — ${toPersianNumerals(selectedSlot.time)}` : 'یک ساعت انتخاب کنید'}
+          {booking ? 'در حال ثبت...' : selectedSlot ? `ادامه - ساعت ${toPersianNumerals(selectedSlot.time)}` : 'یک ساعت انتخاب کنید'}
         </button>
       </div>
 
