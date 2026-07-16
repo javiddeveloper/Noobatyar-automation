@@ -240,17 +240,18 @@ fun QueueItemCard(
                         })
                 }
 
-                if (item.appointment.status == "PENDING_APPROVAL") {
+                if (item.appointment.status == "PENDING_APPROVAL" || item.appointment.status == "PENDING_VERIFICATION") {
+                    val isPendingVerification = item.appointment.status == "PENDING_VERIFICATION"
                     Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
-                                modifier = Modifier.clickable { onComplete() }, // Assume onComplete maps to Approve
-                                contentDescription = "تایید",
+                                modifier = Modifier.clickable { onComplete() },
+                                contentDescription = if (isPendingVerification) "تأیید فیش" else "تایید",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "تایید",
+                                text = if (isPendingVerification) "تأیید فیش" else "تایید",
                                 modifier = Modifier.clickable { onComplete() },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
@@ -258,7 +259,7 @@ fun QueueItemCard(
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                modifier = Modifier.clickable { onNoShow() }, // Assume onNoShow maps to Reject
+                                modifier = Modifier.clickable { onNoShow() },
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "رد",
                                 tint = MaterialTheme.colorScheme.error

@@ -165,7 +165,7 @@ fun LastVisitorsScreenContent(
                         if (uiState.selectedTab == 1) {
                             val now = DateTimeUtils.systemCurrentMilliseconds()
                             val waiting = uiState.appointments
-                                .filter { it.appointment.status == "WAITING" || it.appointment.status == "PENDING_APPROVAL" }
+                                .filter { it.appointment.status == "WAITING" || it.appointment.status == "PENDING_APPROVAL" || it.appointment.status == "PENDING_VERIFICATION" }
                                 .sortedBy { abs(it.appointment.appointmentDate - now) }
 
                             TotalCountHeader(
@@ -207,19 +207,21 @@ fun LastVisitorsScreenContent(
                                                 )
                                             },
                                             onComplete = {
-                                                if (queueItem.appointment.status == "PENDING_APPROVAL") {
-                                                    // Mapping Complete to Approve -> "WAITING"
-                                                    onIntent(xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "WAITING"))
-                                                } else {
-                                                    onIntent(LastVisitorsIntent.OnMarkCompleted(queueItem.appointment.id))
+                                                when (queueItem.appointment.status) {
+                                                    "PENDING_APPROVAL", "PENDING_VERIFICATION" -> {
+                                                        // Verify/Approve receipt → move to WAITING
+                                                        onIntent(LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "WAITING"))
+                                                    }
+                                                    else -> onIntent(LastVisitorsIntent.OnMarkCompleted(queueItem.appointment.id))
                                                 }
                                             },
                                             onNoShow = {
-                                                if (queueItem.appointment.status == "PENDING_APPROVAL") {
-                                                    // Mapping NoShow to Reject -> "CANCELLED"
-                                                    onIntent(xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "CANCELLED"))
-                                                } else {
-                                                    onIntent(LastVisitorsIntent.OnMarkNoShow(queueItem.appointment.id))
+                                                when (queueItem.appointment.status) {
+                                                    "PENDING_APPROVAL", "PENDING_VERIFICATION" -> {
+                                                        // Reject receipt → CANCELLED
+                                                        onIntent(LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "CANCELLED"))
+                                                    }
+                                                    else -> onIntent(LastVisitorsIntent.OnMarkNoShow(queueItem.appointment.id))
                                                 }
                                             },
                                             onSendMessage = { appointmentId, type, content, businessTitle ->
@@ -330,8 +332,10 @@ fun FilterBottomSheet(
                 ) {
                     val statuses = listOf(
                         null to "همه",
+                        "PENDING_VERIFICATION" to "💳 در انتظار تأیید فیش",
                         "PENDING_APPROVAL" to "در انتظار تایید",
                         "WAITING" to stringResource(Res.string.status_waiting),
+                        "IN_PROGRESS" to "در حال سرویس",
                         "COMPLETED" to stringResource(Res.string.status_completed),
                         "NO_SHOW" to stringResource(Res.string.status_no_show),
                         "CANCELLED" to "لغو شده"
@@ -594,6 +598,11 @@ fun StatusBadge(status: String, overdue: Boolean) {
             stringResource(Res.string.overdue_time),
             if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
             if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828)
+        )
+        status == "PENDING_VERIFICATION" -> Triple(
+            "💳 در انتظار تأیید فیش",
+            if (isDark) Color(0xFF4A148C).copy(alpha = 0.4f) else Color(0xFFEDE7F6),
+            if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A)
         )
         status == "PENDING_APPROVAL" -> Triple(
             "در انتظار تایید",

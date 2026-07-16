@@ -28,12 +28,19 @@ class AppointmentView(APIView):
 
     # Valid status transitions (state machine)
     STATUS_TRANSITIONS = {
-        'PENDING_APPROVAL': ['WAITING', 'CANCELLED'],
-        'WAITING': ['CONFIRMED', 'CANCELLED'],
-        'CONFIRMED': ['COMPLETED', 'CANCELLED', 'NO_SHOW'],
-        'COMPLETED': [],  # Terminal state
-        'CANCELLED': [],  # Terminal state
-        'NO_SHOW': [],  # Terminal state
+        # Owner creates / confirms manually
+        'PENDING_APPROVAL':     ['WAITING', 'CANCELLED'],
+        # Client paid (card-to-card) — owner must verify receipt
+        'PENDING_VERIFICATION': ['WAITING', 'CANCELLED'],
+        # Slot locked (client in checkout) — owner can force-cancel stale locks
+        'LOCKED':               ['CANCELLED'],
+        # Normal queue flow
+        'WAITING':    ['IN_PROGRESS', 'CONFIRMED', 'CANCELLED', 'NO_SHOW'],
+        'CONFIRMED':  ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'],
+        'IN_PROGRESS':['COMPLETED', 'CANCELLED', 'NO_SHOW'],
+        'COMPLETED':  [],
+        'CANCELLED':  [],
+        'NO_SHOW':    [],
     }
 
     @staticmethod
