@@ -1,5 +1,5 @@
 from django.urls import path
-from .client_views import ClientAppointmentListView
+from .client_views import ClientAppointmentListView, ClientAppointmentPaymentView
 from .available_slots_view import AvailableSlotsView
 
 try:
@@ -10,6 +10,7 @@ except ImportError:
 
 urlpatterns = [
     path('', ClientAppointmentListView.as_view(), name='client-appointment-list'),
+    path('<int:pk>/pay/', ClientAppointmentPaymentView.as_view(), name='client-appointment-pay'),
     path('<int:business_id>/available-slots/', AvailableSlotsView.as_view(), name='client-available-slots'),
 ]
 

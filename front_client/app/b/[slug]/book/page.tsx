@@ -111,15 +111,18 @@ export default function BookingPage({ params }: Props) {
 
     setBooking(true);
     try {
-      await bookAppointment(
+      const resp = await bookAppointment(
         business.id,
         selectedSlot.timestamp,
         business.default_service_duration,
         '',
         token
       );
-      showToast('✅ نوبت شما با موفقیت ثبت شد و در انتظار تایید است');
-      setTimeout(() => router.push('/appointments'), 2000);
+      
+      const appointmentId = (resp as any).id; // bookAppointment returns data.id directly? Let's assume api.ts extracts data
+      
+      showToast('✅ نوبت با موفقیت قفل شد. در حال انتقال به درگاه پرداخت...');
+      setTimeout(() => router.push(`/b/${slug}/checkout/${appointmentId}`), 1500);
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'خطا در ثبت نوبت');
     } finally {

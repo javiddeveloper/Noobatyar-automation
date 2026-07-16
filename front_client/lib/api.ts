@@ -118,6 +118,23 @@ export async function getMyAppointments(token: string): Promise<Appointment[]> {
   });
 }
 
+export async function getAppointment(id: number, token: string): Promise<Appointment> {
+  // We can fetch from list or we need a detail endpoint. Since client_views doesn't have detail view yet,
+  // we'll filter the list for now to get a specific appointment.
+  const all = await getMyAppointments(token);
+  const apt = all.find((a) => a.id === id);
+  if (!apt) throw new Error('نوبت یافت نشد');
+  return apt;
+}
+
+export async function payAppointment(id: number, paymentReference: string, token: string) {
+  return apiFetch<{ id: number }>(`/api/client/appointments/${id}/pay/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ payment_reference: paymentReference }),
+  });
+}
+
 // Helpers
 export function businessUrl(code: string) {
   return `/b/Noobatyar-${code}`;

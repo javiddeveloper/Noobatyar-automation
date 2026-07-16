@@ -64,18 +64,47 @@ class ClientAppointmentListView(APIView):
             appointment_date=app_date,
             service_duration=serializer.validated_data.get('service_duration', business.default_service_duration),
             description=serializer.validated_data.get('description', ''),
-            status='PENDING_APPROVAL'
+            status='LOCKED'
         )
 
-        # ── SMS Notifications via Melipayamak ─────────────────────────
+        # ── SMS Notifications are deferred until payment is completed ──
+
+
+        return APIResponse.success(
+            data={'id': appointment.id},
+            message="نوبت با موفقیت قفل شد. لطفا پرداخت را انجام دهید."
+        )
+
+class ClientAppointmentPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    async def post(self, request, pk):
         from zoneinfo import ZoneInfo
+        
+        try:
+            appointment = await Appointment.objects.select_related('business', 'visitor').aget(
+                id=pk, user=request.user
+            )
+        except Appointment.DoesNotExist:
+            return APIResponse.error(message="نوبت یافت نشد", code=404)
+
+        if appointment.status != 'LOCKED':
+            return APIResponse.error(message="این نوبت قابل پرداخت نیست", code=400)
+
+        payment_reference = request.data.get('payment_reference', '')
+        
+        appointment.status = 'PENDING_VERIFICATION'
+        appointment.payment_reference = payment_reference
+        await appointment.asave()
+
+        # ── SMS Notifications via Melipayamak ─────────────────────────
         tehran_tz = ZoneInfo('Asia/Tehran')
-        local_time = app_date.astimezone(tehran_tz)
+        local_time = appointment.appointment_date.astimezone(tehran_tz)
         time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
 
         client_msg = (
             f"نوبت‌یار ✅\n"
-            f"نوبت شما در {business.title}\n"
+            f"نوبت شما در {appointment.business.title}\n"
             f"تاریخ: {time_str}\n"
             f"در انتظار تایید کسب‌وکار\n"
             f"کد نوبت: {appointment.id}"
@@ -83,7 +112,7 @@ class ClientAppointmentListView(APIView):
         owner_msg = (
             f"نوبت‌یار 📋\n"
             f"درخواست نوبت جدید\n"
-            f"مشتری: {visitor.full_name}\n"
+            f"مشتری: {appointment.visitor.full_name}\n"
             f"تاریخ: {time_str}\n"
             f"کد: {appointment.id}"
         )
@@ -91,17 +120,17 @@ class ClientAppointmentListView(APIView):
         import asyncio
         asyncio.create_task(_send_booking_sms(
             client_phone=request.user.phone,
-            owner_phone=business.phone,
+            owner_phone=appointment.business.phone,
             client_msg=client_msg,
             owner_msg=owner_msg,
-            business=business,
-            visitor=visitor,
+            business=appointment.business,
+            visitor=appointment.visitor,
         ))
         # ─────────────────────────────────────────────────────────────
 
         return APIResponse.success(
             data={'id': appointment.id},
-            message="نوبت شما با موفقیت ثبت شد و در انتظار تایید است"
+            message="پرداخت با موفقیت ثبت شد و نوبت در انتظار تایید است"
         )
 
 
