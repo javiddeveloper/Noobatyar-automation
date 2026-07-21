@@ -196,7 +196,7 @@ def forgot_password_send_otp(request):
     if not User.objects.filter(phone=phone).exists():
         return APIResponse.success(message='اگر شماره ثبت شده باشد، کد ارسال می‌شود')
 
-    code = send_otp(phone)
+    code = otp_send(phone)
     if not code:
         return APIResponse.error('خطا در ارسال پیامک')
 
