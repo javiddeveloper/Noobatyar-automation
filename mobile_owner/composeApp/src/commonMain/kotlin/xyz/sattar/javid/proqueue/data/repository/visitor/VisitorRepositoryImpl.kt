@@ -71,10 +71,10 @@ class VisitorRepositoryImpl(
                     visitorDao.upsertVisitor(entity)
                     entity.toDomain()
                 }
-                is ApiResponse.Error -> null
+                is ApiResponse.Error -> throw Exception(response.message)
             }
         } catch (e: Exception) {
-            null
+            throw e
         }
     }
 
@@ -96,13 +96,12 @@ class VisitorRepositoryImpl(
                         return true
                     }
                     is ApiResponse.Error -> {
-                        visitorDao.upsertVisitor(visitor.toEntity())
-                        return false
+                        throw Exception(response.message)
                     }
                 }
             }
         } catch (e: Exception) {
-            visitorDao.upsertVisitor(visitor.toEntity())
+            throw e
         }
         return false
     }

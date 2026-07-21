@@ -74,11 +74,13 @@ class MessageRepositoryImpl(
                 // It's safer to just iterate and insert with Ignore/Replace since they have ids
                 entities.forEach { messageDao.insertMessage(it) }
                 true
+            } else if (response is ApiResponse.Error) {
+                throw Exception(response.message)
             } else {
                 false
             }
         } catch (e: Exception) {
-            false
+            throw e
         }
     }
 }

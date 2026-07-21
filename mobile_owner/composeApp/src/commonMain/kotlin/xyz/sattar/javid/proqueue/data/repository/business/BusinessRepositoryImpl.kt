@@ -67,15 +67,15 @@ class BusinessRepositoryImpl(
 
     override suspend fun deleteBusiness(businessId: Long): Boolean {
         return try {
-            when (businessApiService.deleteBusiness(businessId)) {
+            when (val response = businessApiService.deleteBusiness(businessId)) {
                 is ApiResponse.Success -> {
                     businessDao.deleteBusiness(businessId)
                     true
                 }
-                is ApiResponse.Error -> false
+                is ApiResponse.Error -> throw Exception(response.message)
             }
         } catch (e: Exception) {
-            false
+            throw e
         }
     }
 
@@ -87,10 +87,10 @@ class BusinessRepositoryImpl(
                     businessDao.upsertBusiness(entity)
                     entity.toDomain()
                 }
-                is ApiResponse.Error -> null
+                is ApiResponse.Error -> throw Exception(response.message)
             }
         } catch (e: Exception) {
-            null
+            throw e
         }
     }
 
@@ -102,10 +102,10 @@ class BusinessRepositoryImpl(
                     businessDao.upsertBusiness(entity)
                     entity.toDomain()
                 }
-                is ApiResponse.Error -> null
+                is ApiResponse.Error -> throw Exception(response.message)
             }
         } catch (e: Exception) {
-            null
+            throw e
         }
     }
 }
