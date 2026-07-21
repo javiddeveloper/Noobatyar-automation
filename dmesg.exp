@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+set timeout -1
+spawn ssh -o StrictHostKeyChecking=no root@93.127.223.93 "dmesg -T | tail -n 20"
+expect "password:"
+send "gbJPRmA6qRWrXOpdd5IB\r"
+expect eof

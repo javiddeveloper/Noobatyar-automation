@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+set timeout -1
+spawn ssh -o StrictHostKeyChecking=no root@93.127.223.93 "cd /root/app && unzip -o deploy_bundle.zip && cd backend && docker compose down && nohup docker compose up --build -d > build.log 2>&1 &"
+expect "password:"
+send "gbJPRmA6qRWrXOpdd5IB\r"
+expect eof
