@@ -51,7 +51,7 @@ fun ProfileAvatar(
         contentAlignment = Alignment.Center
     ) {
         if (businessState != null && !businessState!!.logoPath.isNullOrEmpty()) {
-            val url = if (businessState!!.logoPath.startsWith("http")) businessState!!.logoPath else "http://93.127.223.93${businessState!!.logoPath}"
+            val url = if (businessState!!.logoPath.startsWith("http")) businessState!!.logoPath else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${businessState!!.logoPath}"
             AsyncImage(
                 model = url,
                 contentDescription = "Business Logo",

@@ -247,7 +247,7 @@ fun QueueItemCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable {
-                            val url = if (item.appointment.paymentReceipt.startsWith("http")) item.appointment.paymentReceipt else "http://93.127.223.93${item.appointment.paymentReceipt}"
+                            val url = if (item.appointment.paymentReceipt.startsWith("http")) item.appointment.paymentReceipt else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${item.appointment.paymentReceipt}"
                             uriHandler.openUri(url)
                         }.padding(end = 8.dp)
                     )

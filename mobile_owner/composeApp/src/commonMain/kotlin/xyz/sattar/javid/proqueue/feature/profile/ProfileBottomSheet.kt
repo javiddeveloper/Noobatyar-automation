@@ -75,7 +75,7 @@ fun ProfileBottomSheet(
                 contentAlignment = Alignment.Center
             ) {
                 if (business != null && !business.logoPath.isNullOrEmpty()) {
-                    val url = if (business.logoPath.startsWith("http")) business.logoPath else "http://93.127.223.93${business.logoPath}"
+                    val url = if (business.logoPath.startsWith("http")) business.logoPath else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${business.logoPath}"
                     AsyncImage(
                         model = url,
                         contentDescription = "Business Logo",
@@ -138,7 +138,7 @@ fun ProfileBottomSheet(
             if (business != null && business.uniqueCode != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val clipboardManager = LocalClipboardManager.current
-                val bookingLink = "http://93.127.223.93/b/${business.uniqueCode}"
+                val bookingLink = "${xyz.sattar.javid.proqueue.BuildKonfig.BOOKING_BASE_URL}/b/${business.uniqueCode}"
                 
                 OutlinedButton(
                     onClick = {

@@ -396,7 +396,7 @@ fun CreateBusinessScreen(
                     }
                 } else if (!uiState.business?.logoPath.isNullOrEmpty()) {
                     val path = uiState.business!!.logoPath!!
-                    val url = if (path.startsWith("http")) path else "http://93.127.223.93$path"
+                    val url = if (path.startsWith("http")) path else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$path"
                     AsyncImage(
                         model = url,
                         contentDescription = "Business Logo",

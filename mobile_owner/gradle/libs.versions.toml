@@ -1,4 +1,5 @@
 [versions]
+buildkonfig = "0.15.1"
 peekaboo = "0.5.2"
 easycrop = "0.1.1"
 agp = "8.13.2"
@@ -86,3 +87,5 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
+
+buildkonfig = { id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig" }

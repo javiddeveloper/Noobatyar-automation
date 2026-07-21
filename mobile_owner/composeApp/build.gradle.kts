@@ -10,7 +10,19 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.room)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.buildkonfig)
 }
+
+import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
+
+buildkonfig {
+    packageName = "xyz.sattar.javid.proqueue"
+    defaultConfigs {
+        buildConfigField(STRING, "BASE_URL", "http://93.127.223.93")
+        buildConfigField(STRING, "BOOKING_BASE_URL", "http://93.127.223.93")
+    }
+}
+
 
 kotlin {
     compilerOptions {

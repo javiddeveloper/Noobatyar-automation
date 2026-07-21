@@ -27,12 +27,7 @@ actual object HttpClientFactory {
             level = LogLevel.ALL
         }
         install(DefaultRequest) {
-            url {
-                protocol = URLProtocol.HTTP
-                host = "93.127.223.93"
-                port = 80
-                path("api/")
-            }
+            url("${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}/api/")
         }
     }
 }
