@@ -22,6 +22,9 @@ class VisitorRepositoryImpl(
         try {
             when (val response = visitorApiService.getVisitors(page, pageSize, query)) {
                 is ApiResponse.Success -> {
+                    if (page == 1 && query.isNullOrEmpty()) {
+                        visitorDao.clearAllVisitors()
+                    }
                     val entities = response.data.results.map { it.toEntity() }
                     visitorDao.upsertVisitors(entities)
                     hasMore = response.data.next != null
