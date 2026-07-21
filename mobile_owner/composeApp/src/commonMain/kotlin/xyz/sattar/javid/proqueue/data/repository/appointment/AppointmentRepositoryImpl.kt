@@ -51,11 +51,13 @@ class AppointmentRepositoryImpl(
                 )
                 appointmentDao.upsertAppointment(entity)
                 dto.id
+            } else if (response is ApiResponse.Error) {
+                throw Exception(response.message)
             } else {
                 -1L
             }
         } catch (e: Exception) {
-            -1L
+            throw e
         }
     }
 
@@ -92,11 +94,13 @@ class AppointmentRepositoryImpl(
                     Clock.System.now().toEpochMilliseconds()
                 )
                 true
+            } else if (response is ApiResponse.Error) {
+                throw Exception(response.message)
             } else {
                 false
             }
         } catch (e: Exception) {
-            false
+            throw e
         }
     }
 
@@ -118,11 +122,13 @@ class AppointmentRepositoryImpl(
                     Clock.System.now().toEpochMilliseconds()
                 )
                 true
+            } else if (response is ApiResponse.Error) {
+                throw Exception(response.message)
             } else {
                 false
             }
         } catch (e: Exception) {
-            false
+            throw e
         }
     }
 
@@ -132,11 +138,13 @@ class AppointmentRepositoryImpl(
             if (response is ApiResponse.Success) {
                 appointmentDao.removeAppointmentAndReorder(appointmentId)
                 true
+            } else if (response is ApiResponse.Error) {
+                throw Exception(response.message)
             } else {
                 false
             }
         } catch (e: Exception) {
-            false
+            throw e
         }
     }
 
