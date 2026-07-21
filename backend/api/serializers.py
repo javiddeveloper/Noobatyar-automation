@@ -5,9 +5,9 @@ import re
 
 
 class RegisterSerializer(serializers.Serializer):
-    """ثبت‌نام با phone + register_token"""
+    """ثبت‌نام با phone + password"""
     phone = serializers.CharField(max_length=11)
-    register_token = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
     name = serializers.CharField(max_length=100)
 
     def validate_phone(self, value):

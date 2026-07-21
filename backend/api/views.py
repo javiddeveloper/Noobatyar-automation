@@ -115,20 +115,14 @@ def register_view(request):
         )
 
     phone = serializer.validated_data['phone']
-    register_token = serializer.validated_data['register_token']
+    password = serializer.validated_data['password']
     name = serializer.validated_data['name']
 
-    cached_token = cache.get(f'register_token:{phone}')
-    if not cached_token or cached_token != register_token:
-        return APIResponse.error('زمان ثبت نام به پایان رسیده است. لطفا مجددا تلاش کنید.')
-
-    # Use a strong random password since users won't use it anymore
     user = User.objects.create_user(
         phone=phone,
-        password=secrets.token_urlsafe(16),
+        password=password,
         name=name
     )
-    cache.delete(f'register_token:{phone}')
 
     # فعال‌سازی خودکار پلن آزمایشی برای کاربر جدید
     trial_plan = Plan.objects.filter(price=0, is_active=True).first()
