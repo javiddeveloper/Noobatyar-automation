@@ -6,6 +6,7 @@ export interface Business {
   title: string;
   category: string;
   unique_code: string;
+  bio?: string | null;
   phone: string | null;
   address: string | null;
   logo: string | null;
