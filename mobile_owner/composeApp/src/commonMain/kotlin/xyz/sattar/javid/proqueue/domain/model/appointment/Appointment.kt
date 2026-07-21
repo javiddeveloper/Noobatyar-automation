@@ -10,4 +10,5 @@ data class Appointment(
     val description: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    val paymentReceipt: String? = null
 )

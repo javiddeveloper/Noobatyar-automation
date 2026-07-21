@@ -16,4 +16,15 @@ data class Business(
     val notificationMinutesBefore: Int = 0,
     val createdAt: Long = 0,
     val allowAnonymousView: Boolean = false,
+    val paymentMethod: String? = null,
+    val acceptedPaymentMethods: List<String>? = null,
+    val maxAppointmentsPerHour: Int? = null,
+    val depositMode: String? = null,
+    val depositAmount: Int? = null,
+    val merchantId: String = "",
+    val paymentLink: String = "",
+    val cardNumber: String = "",
+    val cardOwnerName: String = "",
+    val bio: String = "",
+    val logoBytes: ByteArray? = null
 )

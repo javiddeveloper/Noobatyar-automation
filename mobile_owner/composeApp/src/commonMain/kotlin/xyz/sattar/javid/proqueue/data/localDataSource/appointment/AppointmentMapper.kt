@@ -15,6 +15,7 @@ fun AppointmentEntity.toDomain() = Appointment(
     description = description,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    paymentReceipt = paymentReceipt,
 )
 
 fun Appointment.toEntity() = AppointmentEntity(
@@ -27,6 +28,7 @@ fun Appointment.toEntity() = AppointmentEntity(
     description = description,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    paymentReceipt = paymentReceipt,
 )
 
 fun AppointmentWithDetailsEntity.toDomain() = AppointmentWithDetails(

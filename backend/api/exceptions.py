@@ -7,6 +7,7 @@ from django.http import JsonResponse
 
 
 def custom_exception_handler(exc, context):
+    print("EXC:", type(exc), exc)
     response = exception_handler(exc, context)
 
     if response is None:

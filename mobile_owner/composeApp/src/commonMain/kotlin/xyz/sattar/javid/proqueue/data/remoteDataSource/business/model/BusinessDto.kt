@@ -20,5 +20,15 @@ data class BusinessDto(
     @SerialName("notification_minutes_before") val notificationMinutesBefore: Int,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
-    @SerialName("allow_anonymous_view") val allowAnonymousView: Boolean = false
+    @SerialName("allow_anonymous_view") val allowAnonymousView: Boolean = false,
+    @SerialName("payment_method") val paymentMethod: String? = null,
+    @SerialName("accepted_payment_methods") val acceptedPaymentMethods: List<String>? = null,
+    @SerialName("max_appointments_per_hour") val maxAppointmentsPerHour: Int? = null,
+    @SerialName("deposit_mode") val depositMode: String? = null,
+    @SerialName("deposit_amount") val depositAmount: Int? = null,
+    @SerialName("merchant_id") val merchantId: String? = null,
+    @SerialName("payment_link") val paymentLink: String? = null,
+    @SerialName("card_number") val cardNumber: String? = null,
+    @SerialName("card_owner_name") val cardOwnerName: String? = null,
+    @SerialName("bio") val bio: String? = null
 )

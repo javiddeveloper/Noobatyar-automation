@@ -194,6 +194,27 @@ export default function BookingPage({ params }: Props) {
         <button className="toolbar-back" onClick={() => router.back()}>›</button>
       </div>
 
+      <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f3f4f6' }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%', background: '#f3f4f6',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0
+        }}>
+          {business.logo ? (
+            <img 
+              src={business.logo.startsWith('http') ? business.logo : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${business.logo}`} 
+              alt={business.title} 
+              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+            />
+          ) : '🏢'}
+        </div>
+        <div>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: '#111827' }}>{business.title}</h2>
+          {business.notice_message && (
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>{business.notice_message}</p>
+          )}
+        </div>
+      </div>
+
       {/* ── Date Picker ── */}
       <div className="section" style={{ paddingBottom: 8 }}>
         <div className="date-row" style={{ padding: 0 }}>

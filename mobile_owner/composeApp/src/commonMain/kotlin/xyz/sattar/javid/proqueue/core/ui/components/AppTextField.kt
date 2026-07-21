@@ -40,8 +40,10 @@ fun AppTextField(
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     placeholder: String? = null,
+    visualTransformation: VisualTransformation? = null,
 ) {
     val isPassword = keyboardType == KeyboardType.Password
+    val transformation = visualTransformation ?: if (isPassword) PasswordVisualTransformation() else VisualTransformation.None
     AppTextFieldInternal(
         value = value,
         onValueChange = onValueChange,
@@ -58,7 +60,7 @@ fun AppTextField(
         onClick = onClick,
         enabled = enabled,
         placeholder = placeholder,
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None
+        visualTransformation = transformation
     )
 }
 

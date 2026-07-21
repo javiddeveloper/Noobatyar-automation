@@ -20,7 +20,16 @@ fun BusinessEntity.toDomain() = Business(
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
     createdAt = createdAt,
-    allowAnonymousView = allowAnonymousView
+    allowAnonymousView = allowAnonymousView,
+    paymentMethod = paymentMethod,
+    acceptedPaymentMethods = acceptedPaymentMethods.split(",").filter { it.isNotEmpty() },
+    maxAppointmentsPerHour = maxAppointmentsPerHour,
+    depositAmount = depositAmount,
+    merchantId = merchantId,
+    paymentLink = paymentLink,
+    cardNumber = cardNumber,
+    cardOwnerName = cardOwnerName,
+    bio = bio
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -38,7 +47,16 @@ fun Business.toEntity() = BusinessEntity(
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
     createdAt = createdAt,
-    allowAnonymousView = allowAnonymousView
+    allowAnonymousView = allowAnonymousView,
+    paymentMethod = paymentMethod,
+    acceptedPaymentMethods = acceptedPaymentMethods?.joinToString(",") ?: "",
+    maxAppointmentsPerHour = maxAppointmentsPerHour,
+    depositAmount = depositAmount,
+    merchantId = merchantId,
+    paymentLink = paymentLink,
+    cardNumber = cardNumber,
+    cardOwnerName = cardOwnerName,
+    bio = bio
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -52,7 +70,16 @@ fun Business.toRequestDto() = CreateBusinessRequestDto(
     notificationEnabled = notificationEnabled,
     notificationTypes = notificationTypes,
     notificationMinutesBefore = notificationMinutesBefore,
-    allowAnonymousView = allowAnonymousView
+    allowAnonymousView = allowAnonymousView,
+    paymentMethod = paymentMethod,
+    acceptedPaymentMethods = acceptedPaymentMethods,
+    maxAppointmentsPerHour = maxAppointmentsPerHour,
+    depositAmount = depositAmount,
+    merchantId = merchantId,
+    paymentLink = paymentLink,
+    cardNumber = cardNumber,
+    cardOwnerName = cardOwnerName,
+    bio = bio
 )
 
 fun BusinessDto.toEntity(): BusinessEntity {
@@ -73,6 +100,15 @@ fun BusinessDto.toEntity(): BusinessEntity {
         notificationTypes = notificationTypes,
         notificationMinutesBefore = notificationMinutesBefore,
         createdAt = epochMillis,
-        allowAnonymousView = allowAnonymousView
+        allowAnonymousView = allowAnonymousView,
+        paymentMethod = paymentMethod,
+        acceptedPaymentMethods = acceptedPaymentMethods?.joinToString(",") ?: "",
+        maxAppointmentsPerHour = maxAppointmentsPerHour,
+        depositAmount = depositAmount,
+        merchantId = merchantId ?: "",
+        paymentLink = paymentLink ?: "",
+        cardNumber = cardNumber ?: "",
+        cardOwnerName = cardOwnerName ?: "",
+        bio = bio ?: ""
     )
 }

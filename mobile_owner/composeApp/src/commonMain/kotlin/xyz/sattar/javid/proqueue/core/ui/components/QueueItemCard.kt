@@ -239,6 +239,19 @@ fun QueueItemCard(
                             openPhoneDial(item.visitorPhone)
                         })
                 }
+                
+                if (item.appointment.paymentReceipt != null) {
+                    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+                    Text(
+                        text = "مشاهده فیش پرداخت",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            val url = if (item.appointment.paymentReceipt.startsWith("http")) item.appointment.paymentReceipt else "http://93.127.223.93${item.appointment.paymentReceipt}"
+                            uriHandler.openUri(url)
+                        }.padding(end = 8.dp)
+                    )
+                }
 
                 if (item.appointment.status == "PENDING_APPROVAL" || item.appointment.status == "PENDING_VERIFICATION") {
                     val isPendingVerification = item.appointment.status == "PENDING_VERIFICATION"

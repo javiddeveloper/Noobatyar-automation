@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.fillMaxSize
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +32,7 @@ fun ProfileAvatar(
     userViewModel: UserViewModel = koinViewModel()
 ) {
     val userState by userViewModel.uiState.collectAsState()
+    val businessState by xyz.sattar.javid.proqueue.core.state.BusinessStateHolder.selectedBusiness.collectAsState()
     var showProfileSheet by remember { mutableStateOf(false) }
 
     userViewModel.events.collectWithLifecycleAware { event ->
@@ -46,11 +50,24 @@ fun ProfileAvatar(
             .clickable { showProfileSheet = true },
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = userState.userName?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
+        if (businessState != null && !businessState!!.logoPath.isNullOrEmpty()) {
+            val url = if (businessState!!.logoPath.startsWith("http")) businessState!!.logoPath else "http://93.127.223.93${businessState!!.logoPath}"
+            AsyncImage(
+                model = url,
+                contentDescription = "Business Logo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            val displayChar = businessState?.title?.firstOrNull()?.uppercaseChar()?.toString()
+                ?: userState.userName?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                
+            Text(
+                text = displayChar,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 
     if (showProfileSheet) {
@@ -58,6 +75,7 @@ fun ProfileAvatar(
             userName = userState.userName,
             userEmail = userState.userNumber,
             subscription = userState.subscription,
+            business = businessState,
             onDismiss = { showProfileSheet = false },
             onLogout = {
                 showProfileSheet = false

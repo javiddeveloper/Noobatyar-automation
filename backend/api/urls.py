@@ -18,7 +18,6 @@ urlpatterns = [
 
     
     # مدیریت کاربران
-
     path('users/<int:pk>/', views.user_detail, name='user-detail'),
     
 ]

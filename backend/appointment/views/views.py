@@ -133,6 +133,11 @@ class AppointmentView(APIView):
                 )
                 return APIResponse.error('فرمت تاریخ نامعتبر است', code=status.HTTP_400_BAD_REQUEST)
 
+            # Check hourly capacity
+            capacity_error = await self._check_hourly_capacity(business, appointment_datetime)
+            if capacity_error:
+                return APIResponse.error('ظرفیت این ساعت تکمیل شده است', code=status.HTTP_409_CONFLICT)
+
             # Check for conflicts
             # has_conflict, conflict_details = await self._check_appointment_conflicts(
             #     business=business,
@@ -387,6 +392,26 @@ class AppointmentView(APIView):
             return True, {'conflicting_appointments': conflicts}
 
         return False, None
+
+    @sync_to_async
+    def _check_hourly_capacity(self, business: Business, appointment_date: datetime) -> bool:
+        """
+        Check if the business has reached its maximum appointments per hour.
+        Returns True if capacity is exceeded, False otherwise.
+        """
+        if business.max_appointments_per_hour is None:
+            return False
+            
+        hour_start = appointment_date.replace(minute=0, second=0, microsecond=0)
+        hour_end = hour_start + timedelta(hours=1)
+        
+        count = Appointment.objects.filter(
+            business=business,
+            appointment_date__gte=hour_start,
+            appointment_date__lt=hour_end
+        ).exclude(status__in=['CANCELLED', 'NO_SHOW']).count()
+        
+        return count >= business.max_appointments_per_hour
 
     @sync_to_async
     @transaction.atomic

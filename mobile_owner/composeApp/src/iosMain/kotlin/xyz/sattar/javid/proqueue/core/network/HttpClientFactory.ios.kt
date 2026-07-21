@@ -29,8 +29,8 @@ actual object HttpClientFactory {
         install(DefaultRequest) {
             url {
                 protocol = URLProtocol.HTTP
-                host = "10.0.2.2"
-                port = 8000
+                host = "93.127.223.93"
+                port = 80
                 path("api/")
             }
         }

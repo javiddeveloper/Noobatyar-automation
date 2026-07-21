@@ -73,6 +73,12 @@ kotlin {
 
             // navigation
             implementation(libs.navigation.compose)
+
+            // Image Picker & Cropper
+            implementation(libs.peekaboo.image.picker)
+            implementation(libs.easycrop)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
         }
         iosMain.dependencies {
             implementation(libs.sqldelight.native.driver)

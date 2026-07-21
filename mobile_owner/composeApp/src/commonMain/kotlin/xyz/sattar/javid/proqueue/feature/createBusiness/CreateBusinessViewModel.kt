@@ -24,7 +24,17 @@ class CreateBusinessViewModel(
                     intent.defaultProgress,
                     intent.workStartHour,
                     intent.workEndHour,
-                    intent.allowAnonymousView
+                    intent.allowAnonymousView,
+                    intent.maxAppointmentsPerHour,
+                    intent.depositMode,
+                    intent.depositAmount,
+                    intent.acceptedPaymentMethods,
+                    intent.cardNumber,
+                    intent.cardOwnerName,
+                    intent.merchantId,
+                    intent.paymentLink,
+                    intent.bio,
+                    intent.logoBytes
                 )
             }
 
@@ -53,13 +63,12 @@ class CreateBusinessViewModel(
                     message = partialState.message
                 )
             is CreateBusinessState.PartialState.LogoSelected ->
-                currentState.copy(logoPath = partialState.path, isLoading = false)
+                currentState.copy(logoBytes = partialState.bytes, isLoading = false)
 
             is CreateBusinessState.PartialState.BusinessLoaded ->
                 currentState.copy(
                     businessId = partialState.business.id,
                     business = partialState.business,
-                    logoPath = partialState.business.logoPath,
                     isLoading = false
                 )
         }
@@ -86,7 +95,17 @@ class CreateBusinessViewModel(
         defaultProgress: String,
         workStartHour: Int,
         workEndHour: Int,
-        allowAnonymousView: Boolean
+        allowAnonymousView: Boolean,
+        maxAppointmentsPerHour: Int?,
+        depositMode: String?,
+        depositAmount: Int?,
+        acceptedPaymentMethods: String,
+        cardNumber: String,
+        cardOwnerName: String,
+        merchantId: String,
+        paymentLink: String,
+        bio: String,
+        logoBytes: ByteArray?
     ): Flow<CreateBusinessState.PartialState> = flow {
         emit(CreateBusinessState.PartialState.IsLoading(true))
         val updatedBusiness = businessUpsertUseCase.invoke(
@@ -95,14 +114,24 @@ class CreateBusinessViewModel(
                 category = category,
                 phone = phone,
                 address = address,
-                logoPath = uiState.value.logoPath ?: "Sample_path.jpg",
+                logoPath = uiState.value.business?.logoPath ?: "Sample_path.jpg",
                 id = uiState.value.businessId,
                 defaultServiceDuration = defaultProgress.toIntOrNull() ?: 15,
                 workStartHour = workStartHour,
                 workEndHour = workEndHour,
                 notificationEnabled = uiState.value.business?.notificationEnabled ?: true,
                 notificationTypes = uiState.value.business?.notificationTypes ?: "SMS,WHATSAPP",
-                allowAnonymousView = allowAnonymousView
+                allowAnonymousView = allowAnonymousView,
+                maxAppointmentsPerHour = maxAppointmentsPerHour,
+                depositMode = depositMode,
+                depositAmount = depositAmount,
+                acceptedPaymentMethods = acceptedPaymentMethods.split(",").filter { it.isNotEmpty() },
+                cardNumber = cardNumber,
+                cardOwnerName = cardOwnerName,
+                merchantId = merchantId,
+                paymentLink = paymentLink,
+                bio = bio,
+                logoBytes = logoBytes
             )
         )
         if (updatedBusiness != null) {

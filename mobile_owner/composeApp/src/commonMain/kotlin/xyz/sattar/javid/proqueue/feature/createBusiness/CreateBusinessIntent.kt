@@ -11,7 +11,17 @@ sealed class CreateBusinessIntent {
         val defaultProgress: String,
         val workStartHour: Int,
         val workEndHour: Int,
-        val allowAnonymousView: Boolean
+        val allowAnonymousView: Boolean,
+        val bio: String,
+        val logoBytes: ByteArray? = null,
+        val maxAppointmentsPerHour: Int? = null,
+        val depositMode: String? = null,
+        val depositAmount: Int?,
+        val acceptedPaymentMethods: String,
+        val cardNumber: String,
+        val cardOwnerName: String,
+        val merchantId: String,
+        val paymentLink: String
     ) : CreateBusinessIntent()
     object BackPress : CreateBusinessIntent()
     object BusinessCreated : CreateBusinessIntent()

@@ -81,7 +81,7 @@ class BusinessRepositoryImpl(
 
     override suspend fun createBusiness(business: Business): Business? {
         return try {
-            when (val response = businessApiService.createBusiness(business.toRequestDto())) {
+            when (val response = businessApiService.createBusiness(business)) {
                 is ApiResponse.Success -> {
                     val entity = response.data.toEntity()
                     businessDao.upsertBusiness(entity)
@@ -96,7 +96,7 @@ class BusinessRepositoryImpl(
 
     override suspend fun updateBusiness(business: Business): Business? {
         return try {
-            when (val response = businessApiService.updateBusiness(business.id, business.toRequestDto())) {
+            when (val response = businessApiService.updateBusiness(business.id, business)) {
                 is ApiResponse.Success -> {
                     val entity = response.data.toEntity()
                     businessDao.upsertBusiness(entity)

@@ -15,6 +15,14 @@ export interface Business {
   allow_anonymous_view: boolean;
   notice_message: string | null;
   booking_enabled: boolean;
+  deposit_mode?: string;
+  deposit_amount?: number;
+  accepted_payment_methods?: string[];
+  max_appointments_per_hour?: number | null;
+  payment_method?: string;
+  card_number?: string;
+  card_owner_name?: string;
+  payment_link?: string;
 }
 
 export interface TimeSlot {
@@ -160,6 +168,21 @@ export async function payAppointment(id: number, paymentReference: string, token
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ payment_reference: paymentReference }),
   });
+}
+
+export async function payAppointmentWithReceipt(id: number, formData: FormData, token: string) {
+  const res = await fetch(`${BASE_URL}/api/client/appointments/${id}/pay/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok || json.status === 'error') {
+    throw new Error(json.message || 'خطا در آپلود فیش');
+  }
+  return json.data;
 }
 
 // Helpers

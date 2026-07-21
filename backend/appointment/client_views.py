@@ -92,9 +92,12 @@ class ClientAppointmentPaymentView(APIView):
             return APIResponse.error(message="این نوبت قابل پرداخت نیست", code=400)
 
         payment_reference = request.data.get('payment_reference', '')
+        payment_receipt = request.FILES.get('payment_receipt', None)
         
         appointment.status = 'PENDING_VERIFICATION'
         appointment.payment_reference = payment_reference
+        if payment_receipt:
+            appointment.payment_receipt = payment_receipt
         await appointment.asave()
 
         # ── SMS Notifications via Melipayamak ─────────────────────────

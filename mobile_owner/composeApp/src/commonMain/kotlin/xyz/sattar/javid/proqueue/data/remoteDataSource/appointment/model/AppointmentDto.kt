@@ -13,5 +13,6 @@ data class AppointmentDto(
     val status: String,
     val description: String?,
     @SerialName("created_at") val createdAt: String,
-    @SerialName("updated_at") val updatedAt: String
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("payment_receipt") val paymentReceipt: String? = null
 )

@@ -40,5 +40,6 @@ data class AppointmentEntity(
     val status: String = "WAITING", // WAITING, IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED
     val description: String? = null,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val paymentReceipt: String? = null
 )

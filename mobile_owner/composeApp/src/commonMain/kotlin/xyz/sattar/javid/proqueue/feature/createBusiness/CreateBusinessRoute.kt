@@ -15,10 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.Factory
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -77,6 +77,16 @@ import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
 import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
+import kotlin.String
+import com.preat.peekaboo.image.picker.SelectionMode
+import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
+import com.preat.peekaboo.image.picker.toImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.AddLocation
+import coil3.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +106,16 @@ fun CreateBusinessRoute(
     var workStartHour by remember { mutableStateOf("9") }
     var workEndHour by remember { mutableStateOf("21") }
     var allowAnonymousView by remember { mutableStateOf(false) }
+    var bio by remember { mutableStateOf("") }
+    var logoBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var maxAppointmentsPerHour by remember { mutableStateOf("") }
+    var depositEnabled by remember { mutableStateOf(false) }
+    var depositAmount by remember { mutableStateOf("") }
+    var acceptedPaymentMethods by remember { mutableStateOf(setOf<String>()) }
+    var cardNumber by remember { mutableStateOf("") }
+    var cardOwnerName by remember { mutableStateOf("") }
+    var merchantId by remember { mutableStateOf("") }
+    var paymentLink by remember { mutableStateOf("") }
 
     var titleError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
@@ -119,6 +139,16 @@ fun CreateBusinessRoute(
             workStartHour = it.workStartHour.toString()
             workEndHour = it.workEndHour.toString()
             allowAnonymousView = it.allowAnonymousView
+            maxAppointmentsPerHour = it.maxAppointmentsPerHour?.toString() ?: ""
+            depositEnabled = (it.depositMode == "MANDATORY" || it.depositMode == "OPTIONAL")
+            depositAmount = it.depositAmount?.toString() ?: ""
+            acceptedPaymentMethods = it.acceptedPaymentMethods?.toSet() ?: setOf()
+            cardNumber = it.cardNumber
+            cardOwnerName = it.cardOwnerName
+            merchantId = it.merchantId
+            paymentLink = it.paymentLink
+            bio = it.bio
+            logoBytes = it.logoBytes
         }
     }
 
@@ -139,6 +169,24 @@ fun CreateBusinessRoute(
         workStartHour = workStartHour,
         workEndHour = workEndHour,
         allowAnonymousView = allowAnonymousView,
+        bio = bio,
+        logoBytes = logoBytes,
+        maxAppointmentsPerHour = maxAppointmentsPerHour,
+        depositEnabled = depositEnabled,
+        depositAmount = depositAmount,
+        acceptedPaymentMethods = acceptedPaymentMethods,
+        cardNumber = cardNumber,
+        cardOwnerName = cardOwnerName,
+        merchantId = merchantId,
+        paymentLink = paymentLink,
+        onMaxAppointmentsPerHour = { maxAppointmentsPerHour = it },
+        onDepositEnabled = { depositEnabled = it },
+        onDepositAmount = { depositAmount = it },
+        onAcceptedPaymentMethods = { acceptedPaymentMethods = it },
+        onCardNumber = { cardNumber = it },
+        onCardOwnerName = { cardOwnerName = it },
+        onMerchantId = { merchantId = it },
+        onPaymentLink = { paymentLink = it },
         onTitle = {
             title = it
             titleError = null
@@ -167,6 +215,8 @@ fun CreateBusinessRoute(
             workHoursError = null
         },
         onAllowAnonymousView = { allowAnonymousView = it },
+        onBio = { bio = it },
+        onLogoBytes = { logoBytes = it },
         titleError = titleError,
         phoneError = phoneError,
         addressError = addressError,
@@ -202,6 +252,26 @@ fun CreateBusinessScreen(
     onWorkEndHour: (String) -> Unit,
     allowAnonymousView: Boolean,
     onAllowAnonymousView: (Boolean) -> Unit,
+    bio: String,
+    logoBytes: ByteArray?,
+    onBio: (String) -> Unit,
+    onLogoBytes: (ByteArray?) -> Unit,
+    maxAppointmentsPerHour: String,
+    depositEnabled: Boolean,
+    depositAmount: String,
+    acceptedPaymentMethods: Set<String>,
+    cardNumber: String,
+    cardOwnerName: String,
+    merchantId: String,
+    paymentLink: String,
+    onMaxAppointmentsPerHour: (String) -> Unit,
+    onDepositEnabled: (Boolean) -> Unit,
+    onDepositAmount: (String) -> Unit,
+    onAcceptedPaymentMethods: (Set<String>) -> Unit,
+    onCardNumber: (String) -> Unit,
+    onCardOwnerName: (String) -> Unit,
+    onMerchantId: (String) -> Unit,
+    onPaymentLink: (String) -> Unit,
     titleError: String? = null,
     phoneError: String? = null,
     addressError: String? = null,
@@ -215,6 +285,18 @@ fun CreateBusinessScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showCategorySheet by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    
+    val singleImagePicker = rememberImagePickerLauncher(
+        selectionMode = SelectionMode.Single,
+        scope = scope,
+        onResult = { byteArrays ->
+            val bytes = byteArrays.firstOrNull()
+            if (bytes != null) {
+                onLogoBytes(bytes)
+            }
+        }
+    )
 
     LaunchedEffect(uiState.message) {
         val msg = uiState.message
@@ -280,6 +362,58 @@ fun CreateBusinessScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Avatar Section
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape)
+                    .clickable {
+                        singleImagePicker.launch()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (logoBytes != null) {
+                    val bitmap = remember(logoBytes) {
+                        try {
+                            logoBytes.toImageBitmap()
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = "Logo",
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            "عکس انتخاب شد",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else if (!uiState.business?.logoPath.isNullOrEmpty()) {
+                    val path = uiState.business!!.logoPath!!
+                    val url = if (path.startsWith("http")) path else "http://93.127.223.93$path"
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Business Logo",
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AddPhotoAlternate,
+                        contentDescription = "Add Logo",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
             val selectedCategoryText = category.persianName
 
             Box(modifier = Modifier.fillMaxWidth().clickable {
@@ -327,6 +461,25 @@ fun CreateBusinessScreen(
                 },
                 isError = titleError != null,
                 errorMessage = titleError,
+                enabled = !uiState.isLoading,
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AppTextField(
+                value = bio,
+                onValueChange = onBio,
+                label = "معرفی کسب‌وکار (Bio)",
+                maxLength = 50,
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Factory,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 enabled = !uiState.isLoading,
             )
 
@@ -453,7 +606,8 @@ fun CreateBusinessScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { onAllowAnonymousView(!allowAnonymousView) },
+                modifier = Modifier.fillMaxWidth()
+                    .clickable { onAllowAnonymousView(!allowAnonymousView) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -465,6 +619,145 @@ fun CreateBusinessScreen(
                     checked = allowAnonymousView,
                     onCheckedChange = { onAllowAnonymousView(it) }
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.material3.HorizontalDivider()
+
+            var showAdvancedSettings by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clickable { showAdvancedSettings = !showAdvancedSettings }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "تنظیمات پیشرفته (اختیاری)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Icon(
+                    imageVector = if (showAdvancedSettings) Icons.Default.ArrowDropDown else Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            if (showAdvancedSettings) {
+                AppTextField(
+                    enabled = !uiState.isLoading,
+                    value = maxAppointmentsPerHour,
+                    onValueChange = onMaxAppointmentsPerHour,
+                    label = "حداکثر نوبت در هر ساعت (خالی = نامحدود)",
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardType = KeyboardType.Number
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Deposit Mode selection
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { onDepositEnabled(!depositEnabled) }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "دریافت بیعانه",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    androidx.compose.material3.Switch(
+                        checked = depositEnabled,
+                        onCheckedChange = { onDepositEnabled(it) }
+                    )
+                }
+
+                if (depositEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AppTextField(
+                        enabled = !uiState.isLoading,
+                        value = depositAmount,
+                        onValueChange = onDepositAmount,
+                        label = "مبلغ بیعانه (تومان)",
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardType = KeyboardType.Number,
+                        visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CurrencyVisualTransformation()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Payment Methods
+                Text("روش‌های پرداخت مجاز", style = MaterialTheme.typography.bodyMedium)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        "CASH" to "پرداخت در محل",
+                        "CARD" to "کارت به کارت",
+                        "ONLINE" to "پرداخت آنلاین"
+                    ).forEach { (method, label) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Checkbox(
+                                checked = acceptedPaymentMethods.contains(method),
+                                onCheckedChange = { checked ->
+                                    val newSet = acceptedPaymentMethods.toMutableSet()
+                                    if (checked) newSet.add(method) else newSet.remove(method)
+                                    onAcceptedPaymentMethods(newSet)
+                                }
+                            )
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.clickable {
+                                    val newSet = acceptedPaymentMethods.toMutableSet()
+                                    if (acceptedPaymentMethods.contains(method)) newSet.remove(
+                                        method
+                                    ) else newSet.add(method)
+                                    onAcceptedPaymentMethods(newSet)
+                                })
+                        }
+                        
+                        if (acceptedPaymentMethods.contains(method) && method == "CARD") {
+                            AppTextField(
+                                enabled = !uiState.isLoading,
+                                value = cardNumber,
+                                onValueChange = onCardNumber,
+                                label = "شماره کارت (۱۶ رقم)",
+                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                                keyboardType = KeyboardType.Number,
+                                maxLength = 16,
+                                visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CardNumberVisualTransformation()
+                            )
+                            AppTextField(
+                                enabled = !uiState.isLoading,
+                                value = cardOwnerName,
+                                onValueChange = onCardOwnerName,
+                                label = "نام صاحب کارت",
+                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                                keyboardType = KeyboardType.Text
+                            )
+                        }
+
+                        if (acceptedPaymentMethods.contains(method) && method == "ONLINE") {
+                            AppTextField(
+                                enabled = !uiState.isLoading,
+                                value = merchantId,
+                                onValueChange = onMerchantId,
+                                label = "مرچنت آیدی (Merchant ID)",
+                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                                keyboardType = KeyboardType.Text
+                            )
+                            AppTextField(
+                                enabled = !uiState.isLoading,
+                                value = paymentLink,
+                                onValueChange = onPaymentLink,
+                                label = "لینک درگاه پرداخت (مثال: zarinpal.com/pay/...)",
+                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                                keyboardType = KeyboardType.Uri
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -489,7 +782,8 @@ fun CreateBusinessScreen(
                         val defaultInvalid = d.isNotEmpty() && d.toIntOrNull() == null
                         val wsInt = ws.toIntOrNull()
                         val weInt = we.toIntOrNull()
-                        val hoursInvalid = wsInt == null || weInt == null || wsInt < 0 || wsInt > 23 || weInt < 0 || weInt > 23 || wsInt >= weInt
+                        val hoursInvalid =
+                            wsInt == null || weInt == null || wsInt < 0 || wsInt > 23 || weInt < 0 || weInt > 23 || wsInt >= weInt
                         val addressInvalid = a.isEmpty() || a.length > 300
 
                         onTitleErrorUpdate(if (titleInvalid) "نام باید بین ۳ تا ۵۰ کاراکتر باشد" else null)
@@ -508,7 +802,17 @@ fun CreateBusinessScreen(
                                     defaultProgress = d,
                                     workStartHour = wsInt!!,
                                     workEndHour = weInt!!,
-                                    allowAnonymousView = allowAnonymousView
+                                    allowAnonymousView = allowAnonymousView,
+                                    bio = bio.trim(),
+                                    logoBytes = logoBytes,
+                                    maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
+                                    depositMode = if (depositEnabled) "MANDATORY" else "NONE",
+                                    depositAmount = depositAmount.toIntOrNull(),
+                                    acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
+                                    cardNumber = cardNumber,
+                                    cardOwnerName = cardOwnerName,
+                                    merchantId = merchantId,
+                                    paymentLink = paymentLink
                                 )
                             )
                         }
@@ -520,7 +824,7 @@ fun CreateBusinessScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            
+
             if (uiState.business != null) {
                 Text(uiState.business.title)
             }
@@ -530,7 +834,7 @@ fun CreateBusinessScreen(
     if (showCategorySheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
         var searchQuery by remember { mutableStateOf("") }
-        
+
         ModalBottomSheet(
             onDismissRequest = { showCategorySheet = false },
             sheetState = sheetState
@@ -634,6 +938,10 @@ fun PreviewDashboardScreen() {
             onWorkEndHour = {},
             allowAnonymousView = false,
             onAllowAnonymousView = {},
+            bio = "",
+            logoBytes = null,
+            onBio = {},
+            onLogoBytes = {},
             titleError = null,
             phoneError = null,
             addressError = null,
@@ -644,6 +952,22 @@ fun PreviewDashboardScreen() {
             onAddressErrorUpdate = {},
             onDefaultProgressErrorUpdate = {},
             onWorkHoursErrorUpdate = {},
+            maxAppointmentsPerHour = "String",
+            depositEnabled = false,
+            depositAmount = "String",
+            acceptedPaymentMethods = setOf(),
+            cardNumber = "",
+            cardOwnerName = "",
+            merchantId = "",
+            paymentLink = "",
+            onMaxAppointmentsPerHour = {},
+            onDepositEnabled = {},
+            onDepositAmount = {},
+            onAcceptedPaymentMethods = {},
+            onCardNumber = {},
+            onCardOwnerName = {},
+            onMerchantId = {},
+            onPaymentLink = {},
         )
     }
 }

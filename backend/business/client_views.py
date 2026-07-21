@@ -5,7 +5,7 @@ from django.db.models import Q
 import logging
 
 from .models import Business
-from .serializers import ClientBusinessSerializer
+from .serializers import PublicBusinessSerializer
 from api.responses import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class ClientBusinessListView(APIView):
         paginator = Paginator(businesses, page_size)
         page_obj = paginator.get_page(page)
 
-        serializer = ClientBusinessSerializer(
+        serializer = PublicBusinessSerializer(
             page_obj.object_list, 
             many=True,
             context={'request': request}
@@ -66,7 +66,7 @@ class ClientBusinessDetailView(APIView):
                 code=404
             )
 
-        serializer = ClientBusinessSerializer(business, context={'request': request})
+        serializer = PublicBusinessSerializer(business, context={'request': request})
         return APIResponse.success(
             data=serializer.data,
             message="اطلاعات کسب و کار با موفقیت دریافت شد"

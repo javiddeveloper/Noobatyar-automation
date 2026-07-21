@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "b513f9c2c2fba210de5893a5c22c5a18",
+    "identityHash": "b2e7e142aa2b168d6591a8621f553fc7",
     "entities": [
       {
         "tableName": "Business",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `logoPath` TEXT NOT NULL, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `allowAnonymousView` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `logoPath` TEXT NOT NULL, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `allowAnonymousView` INTEGER NOT NULL, `paymentMethod` TEXT, `acceptedPaymentMethods` TEXT NOT NULL, `maxAppointmentsPerHour` INTEGER, `depositMode` TEXT, `depositAmount` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -95,6 +95,32 @@
             "columnName": "allowAnonymousView",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "paymentMethod",
+            "columnName": "paymentMethod",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "acceptedPaymentMethods",
+            "columnName": "acceptedPaymentMethods",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxAppointmentsPerHour",
+            "columnName": "maxAppointmentsPerHour",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "depositMode",
+            "columnName": "depositMode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "depositAmount",
+            "columnName": "depositAmount",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -153,7 +179,7 @@
       },
       {
         "tableName": "Appointment",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `businessId` INTEGER NOT NULL, `visitorId` INTEGER NOT NULL, `appointmentDate` INTEGER NOT NULL, `serviceDuration` INTEGER, `status` TEXT NOT NULL, `description` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, FOREIGN KEY(`businessId`) REFERENCES `Business`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`visitorId`) REFERENCES `Visitor`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `businessId` INTEGER NOT NULL, `visitorId` INTEGER NOT NULL, `appointmentDate` INTEGER NOT NULL, `serviceDuration` INTEGER, `status` TEXT NOT NULL, `description` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `paymentReceipt` TEXT, FOREIGN KEY(`businessId`) REFERENCES `Business`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`visitorId`) REFERENCES `Visitor`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -206,6 +232,11 @@
             "columnName": "updatedAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "paymentReceipt",
+            "columnName": "paymentReceipt",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -439,7 +470,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b513f9c2c2fba210de5893a5c22c5a18')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b2e7e142aa2b168d6591a8621f553fc7')"
     ]
   }
 }

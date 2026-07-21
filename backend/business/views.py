@@ -1,5 +1,6 @@
 from adrf.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class BusinessView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     async def _get_business_or_404(self, business_id: int, user):
         """Helper to retrieve business with ownership check."""
@@ -135,7 +137,7 @@ class BusinessView(APIView):
             logger.info(f"Business '{business_title}' (ID: {business_id}) deleted by user {user.id}")
             return APIResponse.success(
                 message=f"کسب و کار '{business_title}' با موفقیت حذف شد",
-                status=204,
+                status=200,
                 data=None
             )
         except Exception as e:

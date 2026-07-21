@@ -21,7 +21,16 @@ import androidx.compose.ui.unit.sp
 import kotlinx.datetime.Instant
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
+import xyz.sattar.javid.proqueue.domain.model.business.Business
 import kotlin.time.ExperimentalTime
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.buildAnnotatedString
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +38,7 @@ fun ProfileBottomSheet(
     userName: String?,
     userEmail: String?,
     subscription: SubscriptionDto?,
+    business: Business?,
     onDismiss: () -> Unit,
     onLogout: () -> Unit,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -64,32 +74,84 @@ fun ProfileBottomSheet(
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = userName?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold
-                )
+                if (business != null && !business.logoPath.isNullOrEmpty()) {
+                    val url = if (business.logoPath.startsWith("http")) business.logoPath else "http://93.127.223.93${business.logoPath}"
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Business Logo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    val displayChar = business?.title?.firstOrNull()?.uppercaseChar()?.toString()
+                        ?: userName?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                        
+                    Text(
+                        text = displayChar,
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // User Name
+            // Business/User Name
             Text(
-                text = userName ?: "کاربر نوبت یار",
+                text = business?.title ?: userName ?: "کاربر نوبت یار",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             
-            // User Phone
-            if (userEmail != null) {
+            // Category/Services
+            if (business != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = business.category.persianName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            // User Phone / Bio
+            if (business?.bio?.isNotBlank() == true) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = business.bio,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            } else if (userEmail != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = userEmail,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            if (business != null && business.uniqueCode != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                val clipboardManager = LocalClipboardManager.current
+                val bookingLink = "https://noobatyar.ir/b/${business.uniqueCode}"
+                
+                OutlinedButton(
+                    onClick = {
+                        clipboardManager.setText(buildAnnotatedString { append(bookingLink) })
+                        // Optionally show a toast here
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("کپی لینک دریافت نوبت")
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -20,5 +20,15 @@ data class BusinessEntity(
     val notificationTypes: String = "SMS", // "SMS,WHATSAPP,TELEGRAM"
     val notificationMinutesBefore: Int = 30,
     val createdAt: Long,
-    val allowAnonymousView: Boolean = false
+    val allowAnonymousView: Boolean = false,
+    val paymentMethod: String? = null,
+    val acceptedPaymentMethods: String = "",
+    val maxAppointmentsPerHour: Int? = null,
+    val depositMode: String? = null,
+    val depositAmount: Int? = null,
+    val merchantId: String = "",
+    val paymentLink: String = "",
+    val cardNumber: String = "",
+    val cardOwnerName: String = "",
+    val bio: String = ""
 )

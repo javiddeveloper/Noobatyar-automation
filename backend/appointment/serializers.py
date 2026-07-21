@@ -30,6 +30,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'service_duration',
             'status',
             'description',
+            'payment_receipt',
             'created_at',
             'updated_at',
         ]
@@ -119,6 +120,7 @@ class AppointmentQuerySerializer(serializers.ModelSerializer):
             'service_duration',
             'status',
             'description',
+            'payment_receipt',
             'created_at',
             'updated_at'
         ]

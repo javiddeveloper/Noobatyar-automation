@@ -27,6 +27,7 @@ class Business(models.Model):
     unique_code = models.CharField(max_length=8, unique=True, db_index=True, blank=True, help_text="Unique 8-character code")
     phone = models.CharField(max_length=20)
     address = models.TextField()
+    bio = models.CharField(max_length=50, blank=True, null=True)
     logo = models.ImageField(upload_to='business_logos/', blank=True, null=True, help_text="Business logo image")
     default_service_duration = models.IntegerField(help_text="Default duration in minutes")
     work_start_hour = models.IntegerField(help_text="0-23")
@@ -66,13 +67,47 @@ class Business(models.Model):
         max_length=10,
         choices=PAYMENT_METHOD_CHOICES,
         default='NONE',
-        help_text="How clients are charged when booking"
+        help_text="How clients are charged when booking (Legacy)"
     )
+    accepted_payment_methods = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of accepted payment methods e.g. ['ONLINE', 'CARD', 'CASH']"
+    )
+
+    # ── Advanced Capacity & Deposit Settings ───────────────────────────────
+    max_appointments_per_hour = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum concurrent appointments per hour. Null means unlimited."
+    )
+    
+    DEPOSIT_MODE_CHOICES = [
+        ('NONE', 'بدون بیعانه'),
+        ('MANDATORY', 'بیعانه اجباری'),
+        ('OPTIONAL', 'بیعانه اختیاری'),
+    ]
+    deposit_mode = models.CharField(
+        max_length=20,
+        choices=DEPOSIT_MODE_CHOICES,
+        default='NONE',
+        help_text="Deposit requirement mode"
+    )
+    deposit_amount = models.PositiveIntegerField(
+        default=0,
+        help_text="Deposit amount in Toman"
+    )
+
     merchant_id = models.CharField(
         max_length=100,
         blank=True,
         default='',
         help_text="Zibal merchant ID — required when payment_method=GATEWAY"
+    )
+    payment_link = models.URLField(
+        blank=True,
+        default='',
+        help_text="Direct payment link (e.g. zarinpal.com/pay/...)"
     )
     card_number = models.CharField(
         max_length=19,

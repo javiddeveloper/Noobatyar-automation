@@ -41,6 +41,7 @@ fun SettingsScreen(
     onNavigateToAbout: () -> Unit = {},
     onChangeBusiness: () -> Unit = {},
     onNavigateToEditBusiness: (Long) -> Unit = {},
+    onNavigateToAdvancedSettings: (Long) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
@@ -135,6 +136,11 @@ fun SettingsScreen(
             uiState.currentBusiness?.let {
                 onNavigateToEditBusiness(it.id)
             }
+        },
+        onAdvancedSettings = {
+            uiState.currentBusiness?.let {
+                onNavigateToAdvancedSettings(it.id)
+            }
         }
     )
 }
@@ -147,7 +153,8 @@ fun SettingsContent(
     onShowThemeSheet: () -> Unit,
     onShowDeleteDialog: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onEditBusiness: () -> Unit
+    onEditBusiness: () -> Unit,
+    onAdvancedSettings: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -232,6 +239,16 @@ fun SettingsContent(
                         title = "ویرایش کسب‌وکار",
                         subtitle = null,
                         onClick = onEditBusiness,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsItem(
+                        icon = Icons.Rounded.Settings,
+                        title = "تنظیمات پیشرفته",
+                        subtitle = "ظرفیت، بیعانه، روش پرداخت",
+                        onClick = onAdvancedSettings,
                         tint = MaterialTheme.colorScheme.onSurface
                     )
 

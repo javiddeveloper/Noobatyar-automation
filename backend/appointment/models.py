@@ -92,6 +92,12 @@ class Appointment(models.Model):
         null=True,
         help_text="Receipt / transaction number submitted by the client for card-to-card payment"
     )
+    payment_receipt = models.ImageField(
+        upload_to='payment_receipts/',
+        blank=True,
+        null=True,
+        help_text="Uploaded receipt image for card-to-card payment"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
