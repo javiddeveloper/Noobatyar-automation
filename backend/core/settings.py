@@ -116,7 +116,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Zibal Payment Gateway
-ZIBAL_MERCHANT_ID = '6a0d8775dc2e6664d8adf3fd'  # Use 'zibal' for testing, replace with your actual merchant ID in production
+ZIBAL_MERCHANT_ID = 'zibal'  # Temporarily changed for testing, real ID: 6a0d8775dc2e6664d8adf3fd
 SITE_URL = 'http://localhost:8000'  # Your site's base URL
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
