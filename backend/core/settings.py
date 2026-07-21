@@ -120,3 +120,7 @@ ZIBAL_MERCHANT_ID = '6a0d8775dc2e6664d8adf3fd'  # Use 'zibal' for testing, repla
 SITE_URL = 'http://localhost:8000'  # Your site's base URL
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Melipayamak SMS Config
+MELIPAYAMAK_OTP_TOKEN = os.getenv('MELIPAYAMAK_OTP_TOKEN', '')
+MELIPAYAMAK_FROM = os.getenv('MELIPAYAMAK_FROM', '')
