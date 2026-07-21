@@ -177,9 +177,8 @@ def _dispatch_sms(phone: str, code: str) -> None:
             logger.error("MELIPAYAMAK_OTP_TOKEN is not configured — OTP SMS not sent")
             return
 
-        url = f"https://console.melipayamak.com/api/send/simple/{otp_token}"
+        url = f"https://console.melipayamak.com/api/send/otp/{otp_token}"
         payload = {
-            "from": getattr(settings, "MELIPAYAMAK_FROM", ""),
             "to": phone,
             "text": f"کد تأیید نوبت‌یار: {code}\nاعتبار: ۳ دقیقه",
         }
