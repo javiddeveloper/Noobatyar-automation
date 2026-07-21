@@ -3,6 +3,6 @@ from .models import Business
 
 @admin.register(Business)
 class BusinessAdmin(admin.ModelAdmin):
-    list_display = ('title', 'owner', 'unique_code', 'category', 'is_active', 'created_at')
-    list_filter = ('is_active', 'category')
-    search_fields = ('title', 'unique_code', 'owner__phone')
+    list_display = ('title', 'user', 'unique_code', 'category', 'created_at')
+    list_filter = ('category',)
+    search_fields = ('title', 'unique_code', 'user__phone')
