@@ -30,6 +30,13 @@ services:
       - db
     restart: always
 
+  frontend:
+    build:
+      context: ../front_client
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://93.127.223.93/api
+
   nginx:
     image: nginx:1.25
     ports:
@@ -40,6 +47,7 @@ services:
       - media_volume:/app/media
     depends_on:
       - web
+      - frontend
     restart: always
 
 volumes:
