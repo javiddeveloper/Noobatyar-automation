@@ -138,7 +138,7 @@ fun ProfileBottomSheet(
             if (business != null && business.uniqueCode != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val clipboardManager = LocalClipboardManager.current
-                val bookingLink = "https://noobatyar.ir/b/${business.uniqueCode}"
+                val bookingLink = "http://93.127.223.93/b/${business.uniqueCode}"
                 
                 OutlinedButton(
                     onClick = {
