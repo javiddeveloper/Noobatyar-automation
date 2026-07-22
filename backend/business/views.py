@@ -9,6 +9,8 @@ import logging
 from .models import Business
 from .serializers import BusinessSerializer
 from api.responses import APIResponse
+from accounting import entitlements
+from accounting.permissions import validate_business_settings
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +73,33 @@ class BusinessView(APIView):
             message="لیست کسب و کارها با موفقیت دریافت شد"
         )
 
+    @sync_to_async
+    def _check_business_quota(self, user):
+        """Return an error message if the user has hit their max_businesses quota."""
+        quota = entitlements.get_quota(user, entitlements.QUOTA_MAX_BUSINESSES)
+        if entitlements.is_unlimited(quota):
+            return None
+        current = Business.objects.filter(user=user, is_locked=False).count()
+        if current >= quota:
+            return (
+                f"با پلن فعلی حداکثر می‌توانید {quota} کسب‌وکار فعال داشته باشید. "
+                f"برای افزودن کسب‌وکار بیشتر، پلن خود را ارتقا دهید."
+            )
+        return None
+
     async def post(self, request):
         """Create new business."""
         user = request.user
+
+        # Entitlement checks: business count quota + capability-gated settings.
+        quota_error = await self._check_business_quota(user)
+        if quota_error:
+            return APIResponse.error(message=quota_error, code=403)
+
+        settings_error = await sync_to_async(validate_business_settings)(user, request.data)
+        if settings_error:
+            return APIResponse.error(message=settings_error, code=403)
+
         serializer = BusinessSerializer(data=request.data)
 
         try:
@@ -102,6 +128,11 @@ class BusinessView(APIView):
                 message="کسب و کار مورد نظر یافت نشد",
                 code=404
             )
+
+        # Capability-gated settings (gateway, deposit, promo SMS, capacity).
+        settings_error = await sync_to_async(validate_business_settings)(user, request.data)
+        if settings_error:
+            return APIResponse.error(message=settings_error, code=403)
 
         serializer = BusinessSerializer(business, data=request.data, partial=True)
 

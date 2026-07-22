@@ -39,7 +39,7 @@ class AvailableSlotsView(APIView):
             return APIResponse.success(data=cached, message="ساعات خالی با موفقیت دریافت شد")
 
         try:
-            business = await Business.objects.aget(id=business_id)
+            business = await Business.objects.aget(id=business_id, is_locked=False)
         except Business.DoesNotExist:
             return APIResponse.error(message="کسب‌وکار یافت نشد", code=404)
 

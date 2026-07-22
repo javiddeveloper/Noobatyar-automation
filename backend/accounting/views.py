@@ -1,14 +1,20 @@
 from asgiref.sync import sync_to_async
 from django.shortcuts import render
+from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from adrf.decorators import api_view
 
 from api.responses import APIResponse
 from api.views import _extract_error
-from .models import Plan, Subscription
+from .models import Plan, Subscription, AddOnPack
 from .payment.zibal_payment import ZibalPaymentService
 from .payment.zibal_payment_verification import PaymentVerificationService
-from .serializers import PlanSerializer, SubscriptionSerializer, BuyPlanSerializer
+from .payment.addon_payment import AddOnPaymentService, AddOnVerificationService
+from .serializers import (
+    PlanSerializer, SubscriptionSerializer, BuyPlanSerializer,
+    AddOnPackSerializer, BuyAddOnSerializer,
+)
+from . import entitlements, usage
 from rest_framework.decorators import api_view, permission_classes
 
 
@@ -72,6 +78,10 @@ def buy_plan(request):
         user.role = 'BUSINESS_OWNER'
         user.save(update_fields=['role'])
 
+    # Unlock businesses that were locked under a smaller/expired plan.
+    from business.services import sync_locks
+    sync_locks(user)
+
     serializer = SubscriptionSerializer(subscription)
     return APIResponse.success(
         data=serializer.data,
@@ -98,14 +108,99 @@ def my_subscription(request):  # ✅ sync
             user=request.user
         ).select_related('plan').order_by('-started_at').first()
 
+    user = request.user
+    ent = entitlements.get_entitlements(user)
+    usage_summary = {
+        'appointments': {
+            'used': usage.get_usage(user, usage.METRIC_APPOINTMENTS),
+            'quota': ent.get(entitlements.QUOTA_MONTHLY_APPOINTMENTS),
+        },
+        'sms': usage.sms_balance(user),
+    }
+
     if not subscription:
         return APIResponse.success(
-            data=None,
+            data={'subscription': None, 'entitlements': ent, 'usage': usage_summary},
             message='اشتراک فعالی ندارید'
         )
 
     serializer = SubscriptionSerializer(subscription)
-    return APIResponse.success(data=serializer.data)
+    return APIResponse.success(data={
+        'subscription': serializer.data,
+        'entitlements': ent,
+        'usage': usage_summary,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_entitlements(request):
+    """قابلیت‌ها و سقف‌های پلن فعلی کاربر + میزان مصرف این ماه."""
+    user = request.user
+    ent = entitlements.get_entitlements(user)
+    return APIResponse.success(data={
+        'entitlements': ent,
+        'usage': {
+            'appointments': {
+                'used': usage.get_usage(user, usage.METRIC_APPOINTMENTS),
+                'quota': ent.get(entitlements.QUOTA_MONTHLY_APPOINTMENTS),
+            },
+            'sms': usage.sms_balance(user),
+        },
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def addon_list(request):
+    """لیست بسته‌های افزودنی فعال."""
+    packs = AddOnPack.objects.filter(is_active=True)
+    return APIResponse.success(data=AddOnPackSerializer(packs, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def buy_addon(request):
+    """خرید بسته‌ی افزودنی از طریق درگاه زیبال."""
+    serializer = BuyAddOnSerializer(data=request.data)
+    if not serializer.is_valid():
+        return APIResponse.error(message=_extract_error(serializer.errors))
+
+    try:
+        pack = AddOnPack.objects.get(id=serializer.validated_data['pack_id'], is_active=True)
+    except AddOnPack.DoesNotExist:
+        return APIResponse.error(message='بسته پیدا نشد', code=404)
+
+    result = AddOnPaymentService().create_payment(
+        user=request.user,
+        pack=pack,
+        callback_url='https://noobatyar.ir/home/payment-result-addon',
+    )
+    if not result['success']:
+        return APIResponse.error(message=result.get('error', 'خطا در ایجاد درخواست پرداخت'))
+
+    return APIResponse.success(
+        data={'payment_url': result['payment_url'], 'track_id': result.get('track_id')},
+        message='درخواست پرداخت ایجاد شد'
+    )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def addon_payment_callback(request):
+    """Zibal callback for add-on purchases."""
+    track_id = request.GET.get('trackId')
+    if not track_id:
+        return render(request, 'payment_result.html', {
+            'success': False, 'message': 'شناسه پرداخت یافت نشد', 'data': {}
+        })
+
+    result = AddOnVerificationService(track_id).verify_and_grant()
+    return render(request, 'payment_result.html', {
+        'success': result['success'],
+        'message': result['message'],
+        'data': result.get('data', {}),
+    })
 
 
 

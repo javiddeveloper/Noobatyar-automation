@@ -6,6 +6,7 @@ from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
 from .cache_utils import invalidate_slots_cache
 from api.pagination import StandardPagination
+from accounting import usage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,20 @@ class ClientAppointmentListView(APIView):
         except Business.DoesNotExist:
             return APIResponse.error(message="کسب و کار یافت نم‌شد", code=404)
 
+        # A locked business (subscription downgrade) does not accept new bookings.
+        if business.is_locked:
+            return APIResponse.error(
+                message="این کسب‌وکار در حال حاضر نوبت جدید نمی‌پذیرد",
+                code=403,
+            )
+
+        # Monthly appointment quota belongs to the business owner's plan.
+        if not await sync_to_async(usage.can_book_appointment)(business.user_id):
+            return APIResponse.error(
+                message="ظرفیت نوبت‌های این کسب‌وکار برای این ماه تکمیل شده است",
+                code=409,
+            )
+
         # Ensure visitor exists for this user
         # Visitor model fields: user, full_name, phone_number
         visitor, created = await Visitor.objects.aget_or_create(
@@ -79,6 +94,9 @@ class ClientAppointmentListView(APIView):
             description=serializer.validated_data.get('description', ''),
             status='LOCKED'
         )
+
+        # Count this booking against the owner's monthly appointment quota.
+        await sync_to_async(usage.record_appointment)(business.user_id)
 
         # Slot occupancy changed → drop cached slot views for this business/date.
         await sync_to_async(invalidate_slots_cache)(business_id, app_date)
@@ -176,23 +194,36 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
     """
     from api.sms import send_sms
     from visitor.models import SmsLog
+    from business.models import Business
 
-    # Send to client
+    # Resolve the owner whose plan pays for these SMS.
     try:
-        client_ok = send_sms(client_phone, client_msg)
-        SmsLog.objects.create(
-            business_id=business_id,
-            visitor_id=visitor_id,
-            message_text=client_msg,
-            status='SENT' if client_ok else 'FAILED',
-        )
-        logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
+        owner_id = Business.objects.values_list('user_id', flat=True).get(id=business_id)
+    except Business.DoesNotExist:
+        owner_id = None
+
+    # Send to client (consumes one SMS credit from the owner's plan/wallet)
+    try:
+        if owner_id is not None and not usage.consume_sms(owner_id):
+            logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+        else:
+            client_ok = send_sms(client_phone, client_msg)
+            SmsLog.objects.create(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                message_text=client_msg,
+                status='SENT' if client_ok else 'FAILED',
+            )
+            logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
 
-    # Send to business owner
+    # Send to business owner (also consumes one credit)
     try:
-        owner_ok = send_sms(owner_phone, owner_msg)
-        logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
+        if owner_id is not None and not usage.consume_sms(owner_id):
+            logger.warning(f"SMS→owner skipped for business {business_id}: SMS quota exhausted")
+        else:
+            owner_ok = send_sms(owner_phone, owner_msg)
+            logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→owner error: {e}")

@@ -79,7 +79,7 @@ class PublicAvailableSlotsView(APIView):
 
         # ── 3. Resolve business ───────────────────────────────────────────
         try:
-            business = Business.objects.get(pk=business_id)
+            business = Business.objects.get(pk=business_id, is_locked=False)
         except Business.DoesNotExist:
             return Response(
                 {"detail": "کسب و کار یافت نشد."},

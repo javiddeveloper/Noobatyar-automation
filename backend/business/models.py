@@ -42,8 +42,18 @@ class Business(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     allow_anonymous_view = models.BooleanField(
-        default=True, 
+        default=True,
         help_text="If True, guests can view contact details (phone, address, etc.)"
+    )
+
+    # ── Subscription-driven lock (graceful downgrade) ──────────────────────
+    # When a subscription expires or is downgraded below the number of
+    # businesses the user owns, excess businesses are locked (read-only, hidden
+    # from public booking) instead of deleted. Renewing/upgrading unlocks them.
+    is_locked = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="If True, this business is locked due to subscription limits (data kept, but hidden/read-only)."
     )
 
     # ── Client-facing notice & booking control ────────────────────────────

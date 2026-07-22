@@ -83,6 +83,19 @@ docker compose exec web python manage.py shell < seed_test_data.py
 
 > **نکته برای تیم موبایل:** به‌خاطر کاهش عمر access token به ۲۴ ساعت، اپ‌ها باید منطق **refresh token** را پیاده کرده باشند؛ در غیر این صورت یا رفرش را اضافه کنید یا موقتاً `JWT_ACCESS_HOURS=168` بگذارید. همچنین اگر اپ polling تهاجمی دارد، مراقب سقف `THROTTLE_USER` (پاسخ `429`) باشید.
 
+## ۸. پلن‌ها، قابلیت‌ها و کرون چرخه‌ی عمر اشتراک
+سیستم اشتراک بر پایه‌ی **نردبان تعهد** است (هر پلن یک بسته‌ی قابلیت باز می‌کند). مرجع کامل در [PLANS.md](PLANS.md) آمده است. دو نکته‌ی دیپلوی:
+
+- **ساخت پلن‌ها و بسته‌های افزودنی** روی سرور:
+  ```bash
+  docker compose exec web python manage.py seed_plans
+  ```
+- **کرون چرخه‌ی عمر اشتراک** (یادآوری تمدید، انقضای گریسفول، قفل کسب‌وکار مازاد) باید به‌صورت دوره‌ای اجرا شود. یک نمونه‌ی کرون ساعتی روی سرور:
+  ```bash
+  0 * * * * cd /root/app/backend && docker compose exec -T web python manage.py run_subscription_lifecycle >> /var/log/nobatyar_lifecycle.log 2>&1
+  ```
+  متغیرهای قابل تنظیم: `SUBSCRIPTION_REMINDER_DAYS` (پیش‌فرض ۳)، `SUBSCRIPTION_GRACE_DAYS` (پیش‌فرض ۳).
+
 ---
 
 ### راهنمای آپدیت برای آینده

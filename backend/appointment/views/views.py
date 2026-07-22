@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from appointment.models import Appointment, Business, Visitor
 from appointment.serializers import AppointmentSerializer, AppointmentQuerySerializer
 from appointment.cache_utils import invalidate_slots_cache
+from accounting import usage
 from api.responses import APIResponse
 from api.views import _extract_error
 
@@ -134,6 +135,13 @@ class AppointmentView(APIView):
                 )
                 return APIResponse.error('فرمت تاریخ نامعتبر است', code=status.HTTP_400_BAD_REQUEST)
 
+            # Monthly appointment quota (owner's plan)
+            if not await sync_to_async(usage.can_book_appointment)(business.user_id):
+                return APIResponse.error(
+                    'ظرفیت نوبت‌های این ماه بر اساس پلن شما تکمیل شده است',
+                    code=status.HTTP_409_CONFLICT,
+                )
+
             # Check hourly capacity
             capacity_error = await self._check_hourly_capacity(business, appointment_datetime)
             if capacity_error:
@@ -171,6 +179,9 @@ class AppointmentView(APIView):
                 request_id=request_id,
                 user = user
             )
+
+            # Count against the owner's monthly appointment quota.
+            await sync_to_async(usage.record_appointment)(business.user_id)
 
             # Serialize response
             serializer = await sync_to_async(AppointmentQuerySerializer)(appointment)
