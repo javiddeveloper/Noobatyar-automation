@@ -29,6 +29,42 @@ SUCCESS_CODE = 100
 TIMEOUT = 10.0
 
 
+def grant_addon_benefit(purchase: AddOnPurchase, response_data: Optional[Dict] = None) -> Dict[str, Any]:
+    """
+    Mark ``purchase`` as successful and apply its benefit:
+      * sms_pack → credits ``sms_amount`` into the buyer's SMS wallet.
+      * feature  → activates ``feature_key`` for ``duration_days`` days.
+
+    Idempotent guard is the caller's responsibility (check ``activated_at is
+    None`` before calling) — this always (re-)applies the benefit when called.
+    Shared by the Zibal verification flow and the Django admin manual-grant
+    flow, so a staff member can grant a pack to a user without a real payment.
+    """
+    pack = purchase.pack
+    with db_transaction.atomic():
+        purchase.status = "success"
+        purchase.zibal_response = response_data if response_data is not None else purchase.zibal_response
+        purchase.activated_at = timezone.now()
+
+        if pack.kind == AddOnPack.KIND_SMS:
+            usage.add_wallet(purchase.user_id, pack.sms_amount)
+        elif pack.kind == AddOnPack.KIND_FEATURE:
+            purchase.expires_at = timezone.now() + timedelta(days=pack.duration_days)
+
+        purchase.save(update_fields=["status", "zibal_response", "activated_at", "expires_at", "updated_at"])
+
+    return {
+        "success": True,
+        "message": f"بسته‌ی «{pack.name}» با موفقیت فعال شد",
+        "data": {
+            "pack": pack.name,
+            "kind": pack.kind,
+            "sms_amount": pack.sms_amount,
+            "expires_at": purchase.expires_at.isoformat() if purchase.expires_at else None,
+        },
+    }
+
+
 class AddOnPaymentService:
     """Create a Zibal payment request for an add-on pack."""
 
@@ -117,29 +153,7 @@ class AddOnVerificationService:
                 return {"success": False, "message": "خطا در ارتباط با درگاه پرداخت", "data": {"error": str(e)}}
 
     def _grant(self, verify_data: Dict) -> Dict[str, Any]:
-        pack = self.purchase.pack
-        with db_transaction.atomic():
-            self.purchase.status = "success"
-            self.purchase.zibal_response = verify_data
-            self.purchase.activated_at = timezone.now()
-
-            if pack.kind == AddOnPack.KIND_SMS:
-                usage.add_wallet(self.purchase.user_id, pack.sms_amount)
-            elif pack.kind == AddOnPack.KIND_FEATURE:
-                self.purchase.expires_at = timezone.now() + timedelta(days=pack.duration_days)
-
-            self.purchase.save(update_fields=["status", "zibal_response", "activated_at", "expires_at", "updated_at"])
-
-        return {
-            "success": True,
-            "message": f"بسته‌ی «{pack.name}» با موفقیت فعال شد",
-            "data": {
-                "pack": pack.name,
-                "kind": pack.kind,
-                "sms_amount": pack.sms_amount,
-                "expires_at": self.purchase.expires_at.isoformat() if self.purchase.expires_at else None,
-            },
-        }
+        return grant_addon_benefit(self.purchase, response_data=verify_data)
 
     def _mark_failed(self, error_data: Dict):
         if self.purchase:
