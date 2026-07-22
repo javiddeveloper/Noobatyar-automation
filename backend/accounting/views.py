@@ -108,28 +108,16 @@ def my_subscription(request):  # ✅ sync
             user=request.user
         ).select_related('plan').order_by('-started_at').first()
 
-    user = request.user
-    ent = entitlements.get_entitlements(user)
-    usage_summary = {
-        'appointments': {
-            'used': usage.get_usage(user, usage.METRIC_APPOINTMENTS),
-            'quota': ent.get(entitlements.QUOTA_MONTHLY_APPOINTMENTS),
-        },
-        'sms': usage.sms_balance(user),
-    }
-
+    # NOTE: kept as a flat SubscriptionDto for backward compatibility with the
+    # released clients. Entitlements + usage are served by /my-entitlements/.
     if not subscription:
         return APIResponse.success(
-            data={'subscription': None, 'entitlements': ent, 'usage': usage_summary},
+            data=None,
             message='اشتراک فعالی ندارید'
         )
 
     serializer = SubscriptionSerializer(subscription)
-    return APIResponse.success(data={
-        'subscription': serializer.data,
-        'entitlements': ent,
-        'usage': usage_summary,
-    })
+    return APIResponse.success(data=serializer.data)
 
 
 @api_view(['GET'])
