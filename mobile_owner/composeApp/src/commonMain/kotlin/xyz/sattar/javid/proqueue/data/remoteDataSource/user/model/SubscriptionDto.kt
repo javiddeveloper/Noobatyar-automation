@@ -2,6 +2,7 @@ package xyz.sattar.javid.proqueue.data.remoteDataSource.user.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class SubscriptionDto(
@@ -23,5 +24,7 @@ data class PlanDto(
     @SerialName("price_display") val priceDisplay: String,
     @SerialName("duration_display") val durationDisplay: String,
     val description: List<String> = emptyList(),
-    @SerialName("is_vip") val isVip: Boolean
+    @SerialName("is_vip") val isVip: Boolean,
+    // Capabilities/quotas unlocked by this plan (see accounting/entitlements.py).
+    val features: Map<String, JsonElement> = emptyMap()
 )

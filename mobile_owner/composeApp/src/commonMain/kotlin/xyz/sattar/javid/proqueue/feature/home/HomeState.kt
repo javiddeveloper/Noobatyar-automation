@@ -3,6 +3,9 @@ package xyz.sattar.javid.proqueue.feature.home
 import androidx.compose.runtime.Immutable
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto
 import xyz.sattar.javid.proqueue.domain.model.appointment.Appointment
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.model.message.Message
@@ -15,7 +18,10 @@ data class HomeState(
     val queue: List<QueueItem> = emptyList(),
     val stats: DashboardStats = DashboardStats(),
     val plans: List<PlanDto> = emptyList(),
-    val paymentResult: PaymentResultInfo? = null
+    val paymentResult: PaymentResultInfo? = null,
+    val subscription: SubscriptionDto? = null,
+    val entitlements: EntitlementsResponseDto? = null,
+    val dailyCounts: List<DailyCountDto> = emptyList()
 ) {
     sealed class PartialState {
         data class IsLoading(val isLoading: Boolean) : PartialState()
@@ -25,6 +31,9 @@ data class HomeState(
         data class LoadStats(val stats: DashboardStats) : PartialState()
         data class LoadPlans(val plans: List<PlanDto>) : PartialState()
         data class ShowPaymentResult(val info: PaymentResultInfo?) : PartialState()
+        data class LoadSubscription(val subscription: SubscriptionDto?) : PartialState()
+        data class LoadEntitlements(val entitlements: EntitlementsResponseDto?) : PartialState()
+        data class LoadDailyCounts(val counts: List<DailyCountDto>) : PartialState()
     }
 }
 

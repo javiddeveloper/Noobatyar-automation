@@ -16,6 +16,8 @@ import xyz.sattar.javid.proqueue.domain.usecase.SendMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.SyncAppointmentsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.collectLatest
@@ -33,7 +35,9 @@ class HomeViewModel(
     private val sendMessageUseCase: SendMessageUseCase,
     private val getPlansUseCase: GetPlansUseCase,
     private val createPaymentUseCase: CreatePaymentUseCase,
-    private val syncAppointmentsUseCase: SyncAppointmentsUseCase
+    private val syncAppointmentsUseCase: SyncAppointmentsUseCase,
+    private val getMySubscriptionUseCase: GetMySubscriptionUseCase,
+    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase
 ) : BaseViewModel<HomeState, HomeState.PartialState, HomeEvent, HomeIntent>(
     initialState = HomeState()
 ) {
@@ -76,6 +80,12 @@ class HomeViewModel(
 
             is HomeState.PartialState.ShowPaymentResult ->
                 currentState.copy(paymentResult = partialState.info)
+            is HomeState.PartialState.LoadSubscription ->
+                currentState.copy(subscription = partialState.subscription)
+            is HomeState.PartialState.LoadEntitlements ->
+                currentState.copy(entitlements = partialState.entitlements)
+            is HomeState.PartialState.LoadDailyCounts ->
+                currentState.copy(dailyCounts = partialState.counts)
         }
     }
 
@@ -93,6 +103,22 @@ class HomeViewModel(
                 is ApiResponse.Success -> {
                     emit(HomeState.PartialState.LoadPlans(plansResponse.data))
                 }
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {}
+
+        // Load Subscription (for the home subscription card)
+        try {
+            when (val subResponse = getMySubscriptionUseCase()) {
+                is ApiResponse.Success -> emit(HomeState.PartialState.LoadSubscription(subResponse.data))
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {}
+
+        // Load Entitlements + usage (for the usage meter)
+        try {
+            when (val entResponse = getMyEntitlementsUseCase()) {
+                is ApiResponse.Success -> emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
                 is ApiResponse.Error -> {}
             }
         } catch (e: Exception) {}

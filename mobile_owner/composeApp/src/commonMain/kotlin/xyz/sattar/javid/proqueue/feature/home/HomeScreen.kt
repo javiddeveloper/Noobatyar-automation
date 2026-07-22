@@ -40,6 +40,8 @@ import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
 import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
@@ -173,7 +175,21 @@ fun HomeScreenContent(
                 }
             }
 
-            // ۴. آمار داشبورد
+            // ۴. مصرف‌سنج ماهانه (بر اساس پلن)
+            if (uiState.entitlements != null) {
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 250)
+                        )
+                    ) {
+                        UsageMeterSection(entitlements = uiState.entitlements)
+                    }
+                }
+            }
+
+            // ۵. آمار داشبورد
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -646,6 +662,139 @@ fun BusinessInfoHeader(uiState: HomeState) {
     }
 }
 
+
+@Composable
+fun UsageMeterSection(entitlements: EntitlementsResponseDto) {
+    val appt = entitlements.usage.appointments
+    val sms = entitlements.usage.sms
+    // SMS "used this month" = quota - remaining (guard for unlimited).
+    val smsUsed = if (sms.quota == EntitlementKeys.UNLIMITED) 0 else (sms.quota - sms.monthlyRemaining).coerceAtLeast(0)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.DataUsage,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "مصرف این ماه",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            UsageRow(
+                label = "نوبت‌ها",
+                icon = Icons.Rounded.Event,
+                used = appt.used,
+                quota = appt.quota
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            UsageRow(
+                label = "پیامک",
+                icon = Icons.Rounded.Sms,
+                used = smsUsed,
+                quota = sms.quota,
+                trailingNote = if (sms.wallet > 0) "کیف‌پول: ${sms.wallet}" else null
+            )
+        }
+    }
+}
+
+@Composable
+fun UsageRow(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    used: Int,
+    quota: Int,
+    trailingNote: String? = null
+) {
+    val unlimited = quota == EntitlementKeys.UNLIMITED
+    val fraction = if (unlimited || quota <= 0) 0f else (used.toFloat() / quota.toFloat()).coerceIn(0f, 1f)
+    val nearLimit = !unlimited && fraction >= 0.85f
+    val barColor = if (nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = if (unlimited) "$used / ∞" else "$used / $quota",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        if (unlimited) {
+            // A subtle full track to convey "unlimited".
+            LinearProgressIndicator(
+                progress = { 1f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            )
+        } else {
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                color = barColor,
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+            )
+        }
+
+        if (trailingNote != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = trailingNote,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
 
 @Composable
 fun HandleEvents(

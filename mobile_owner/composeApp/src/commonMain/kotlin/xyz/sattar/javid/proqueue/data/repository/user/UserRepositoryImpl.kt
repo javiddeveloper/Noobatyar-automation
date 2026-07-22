@@ -90,6 +90,18 @@ class UserRepositoryImpl(
         return userApiService.createPayment(PaymentRequestDto(planId))
     }
 
+    override suspend fun getMyEntitlements(): ApiResponse<xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto> {
+        return userApiService.getMyEntitlements()
+    }
+
+    override suspend fun getAddons(): ApiResponse<List<xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.AddOnPackDto>> {
+        return userApiService.getAddons()
+    }
+
+    override suspend fun buyAddon(packId: Int): ApiResponse<PaymentResponseDto> {
+        return userApiService.buyAddon(packId)
+    }
+
     override fun getLocalUser(id: Int): Flow<UserDto?> {
         return userDao.getUserById(id).map { entity ->
             entity?.let {

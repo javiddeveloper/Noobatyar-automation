@@ -47,6 +47,9 @@ import xyz.sattar.javid.proqueue.domain.usecase.user.ResetPasswordUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.SendOTPUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.VerifyOTPUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetAddonsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.BuyAddonUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetCurrentUserUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
@@ -109,6 +112,9 @@ val appModule: Module = module {
     factory { GetCurrentUserUseCase(get()) }
     factory { GetPlansUseCase(get()) }
     factory { CreatePaymentUseCase(get()) }
+    factory { GetMyEntitlementsUseCase(get()) }
+    factory { GetAddonsUseCase(get()) }
+    factory { BuyAddonUseCase(get()) }
 
     // --- Business UseCases ---
     factory { xyz.sattar.javid.proqueue.domain.usecase.ObserveBusinessesUseCase(get()) }
@@ -150,6 +156,8 @@ val appModule: Module = module {
     viewModel { CreateAppointmentViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel {
         HomeViewModel(
+            get(),
+            get(),
             get(),
             get(),
             get(),
