@@ -123,9 +123,9 @@ fun ProfileBottomSheet(
                 )
             }
 
-            // Subscription status, booking link and business details now live on
-            // the home screen; the profile sheet stays minimal.
-
+            // Subscription status and business details.
+            Spacer(modifier = Modifier.height(24.dp))
+            xyz.sattar.javid.proqueue.feature.home.SubscriptionCard(subscription = subscription)
             Spacer(modifier = Modifier.height(24.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(24.dp))

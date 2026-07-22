@@ -147,19 +147,7 @@ fun HomeScreenContent(
                 .padding(top = paddingValues.calculateTopPadding()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ۱. بخش بنرهای پلن اشتراک (دقیقاً در ابتدای لیست)
-            if (uiState.plans.isNotEmpty()) {
-                item {
-                    PlanBannerSection(
-                        plans = uiState.plans,
-                        onPlanClick = { plan ->
-                            onIntent(HomeIntent.PurchasePlan(plan.id))
-                        }
-                    )
-                }
-            }
-
-            // ۲. اطلاعات کسب‌وکار
+            // ۱. اطلاعات کسب‌وکار
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -171,7 +159,7 @@ fun HomeScreenContent(
                 }
             }
 
-            // ۲.۵ اشتراک + لینک دریافت نوبت
+            // ۲. لینک دریافت نوبت
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -179,64 +167,80 @@ fun HomeScreenContent(
                         animationSpec = tween(500, delayMillis = 150)
                     )
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SubscriptionCard(uiState.subscription)
-                        uiState.business?.let { BookingLinkButton(it) }
+                    uiState.business?.let { BookingLinkButton(it) }
+                }
+            }
+
+            // ۳. بنرهای پلن اشتراک
+            if (uiState.plans.isNotEmpty()) {
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 200)
+                        )
+                    ) {
+                        PlanBannerSection(
+                            plans = uiState.plans,
+                            onPlanClick = { plan ->
+                                onIntent(HomeIntent.PurchasePlan(plan.id))
+                            }
+                        )
                     }
                 }
             }
 
-            // ۳. هدر تاریخ
+            // ۴. هدر تاریخ
             item {
                 AnimatedVisibility(
                     visible = visible,
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 200)
+                        animationSpec = tween(500, delayMillis = 250)
                     )
                 ) {
                     DateHeader()
                 }
             }
 
-            // ۴. مصرف‌سنج ماهانه (بر اساس پلن)
-            if (uiState.entitlements != null) {
+            // ۵. نمودار خطی نئونی نوبت‌های ۷ روز اخیر
+            if (uiState.dailyCounts.isNotEmpty()) {
                 item {
                     AnimatedVisibility(
                         visible = visible,
                         enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                            animationSpec = tween(500, delayMillis = 250)
+                            animationSpec = tween(500, delayMillis = 300)
                         )
                     ) {
-                        UsageMeterSection(
-                            entitlements = uiState.entitlements,
-                            onNavigateToAddons = onNavigateToAddons
-                        )
+                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
                     }
                 }
             }
 
-            // ۵. آمار داشبورد
+            // ۶. آمار داشبورد (گرید ویو ۴ تایی)
             item {
                 AnimatedVisibility(
                     visible = visible,
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 300)
+                        animationSpec = tween(500, delayMillis = 350)
                     )
                 ) {
                     DashboardStatsSection(stats = uiState.stats)
                 }
             }
 
-            // ۶. نمودار خطی نئونی نوبت‌های ۷ روز اخیر
-            if (uiState.dailyCounts.isNotEmpty()) {
+            // ۷. مصرف‌سنج ماهانه
+            if (uiState.entitlements != null) {
                 item {
                     AnimatedVisibility(
                         visible = visible,
                         enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                            animationSpec = tween(500, delayMillis = 350)
+                            animationSpec = tween(500, delayMillis = 400)
                         )
                     ) {
-                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
+                        UsageMeterSection(
+                            entitlements = uiState.entitlements,
+                            onNavigateToAddons = onNavigateToAddons
+                        )
                     }
                 }
             }
