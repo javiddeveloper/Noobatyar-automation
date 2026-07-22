@@ -68,6 +68,7 @@ import xyz.sattar.javid.proqueue.feature.login.LoginViewModel
 import xyz.sattar.javid.proqueue.feature.messages.MessagesViewModel
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsViewModel
 import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
+import xyz.sattar.javid.proqueue.feature.addons.AddonsViewModel
 import xyz.sattar.javid.proqueue.feature.register.RegisterViewModel
 import xyz.sattar.javid.proqueue.feature.settings.SettingsViewModel
 import xyz.sattar.javid.proqueue.feature.version.VersionViewModel
@@ -152,7 +153,8 @@ val appModule: Module = module {
     factory { CreateVisitorState() }
 
     // --- ViewModels ---
-     viewModel { CreateBusinessViewModel(get(), get(), get()) }
+     viewModel { CreateBusinessViewModel(get(), get(), get(), get(), get(), get()) }
+     viewModel { AddonsViewModel(get(), get()) }
     viewModel { CreateVisitorViewModel(get(), get(), get()) }
     viewModel { CreateAppointmentViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel {

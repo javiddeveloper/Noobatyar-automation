@@ -54,7 +54,8 @@ import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel<HomeViewModel>(),
     onNavigateToCalendar: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToAddons: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -75,7 +76,8 @@ fun HomeScreen(
         snackbarHostState = snackbarHostState,
         onIntent = viewModel::sendIntent,
         onNavigateToCalendar = onNavigateToCalendar,
-        onNavigateToLogin = onNavigateToLogin
+        onNavigateToLogin = onNavigateToLogin,
+        onNavigateToAddons = onNavigateToAddons
     )
 }
 
@@ -87,7 +89,8 @@ fun HomeScreenContent(
     snackbarHostState: SnackbarHostState,
     onIntent: (HomeIntent) -> Unit,
     onNavigateToCalendar: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToAddons: () -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -204,7 +207,10 @@ fun HomeScreenContent(
                             animationSpec = tween(500, delayMillis = 250)
                         )
                     ) {
-                        UsageMeterSection(entitlements = uiState.entitlements)
+                        UsageMeterSection(
+                            entitlements = uiState.entitlements,
+                            onNavigateToAddons = onNavigateToAddons
+                        )
                     }
                 }
             }
@@ -726,7 +732,10 @@ fun BookingLinkButton(business: Business) {
 }
 
 @Composable
-fun UsageMeterSection(entitlements: EntitlementsResponseDto) {
+fun UsageMeterSection(
+    entitlements: EntitlementsResponseDto,
+    onNavigateToAddons: () -> Unit = {}
+) {
     val appt = entitlements.usage.appointments
     val sms = entitlements.usage.sms
     // SMS "used this month" = quota - remaining (guard for unlimited).
@@ -777,6 +786,18 @@ fun UsageMeterSection(entitlements: EntitlementsResponseDto) {
                 quota = sms.quota,
                 trailingNote = if (sms.wallet > 0) "کیف‌پول: ${sms.wallet}" else null
             )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            TextButton(
+                onClick = onNavigateToAddons,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 6.dp)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("خرید بسته‌ی افزودنی", style = MaterialTheme.typography.labelMedium)
+            }
         }
     }
 }

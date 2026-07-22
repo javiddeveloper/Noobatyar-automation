@@ -77,6 +77,8 @@ sealed class AppScreens {
     ) : AppScreens()
     @Serializable
     object AboutUs : AppScreens()
+    @Serializable
+    object AddOns : AppScreens()
 }
 
 

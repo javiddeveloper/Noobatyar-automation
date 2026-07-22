@@ -1,0 +1,411 @@
+package xyz.sattar.javid.proqueue.feature.createBusiness
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
+
+/**
+ * The business "advanced settings" area, organized as commitment-ladder tabs:
+ * شروع (free) → حرفه‌ای → ویژه. A tab's gated fields are either editable (the
+ * user's plan includes that capability) or replaced by an upgrade card naming
+ * the cheapest plan that unlocks it — mirroring a Premium/Max upgrade prompt.
+ *
+ * Tier → capability mapping mirrors backend/accounting/entitlements.py exactly,
+ * so nothing shown as "unlocked" here can be rejected by the server.
+ */
+@Composable
+fun AdvancedSettingsTabs(
+    entitlements: EntitlementsResponseDto?,
+    plans: List<PlanDto>,
+    onUpgrade: (Int) -> Unit,
+    isLoading: Boolean,
+    // شروع — always available, no gating
+    acceptedPaymentMethods: Set<String>,
+    onAcceptedPaymentMethods: (Set<String>) -> Unit,
+    cardNumber: String,
+    onCardNumber: (String) -> Unit,
+    cardOwnerName: String,
+    onCardOwnerName: (String) -> Unit,
+    // حرفه‌ای — gated
+    maxAppointmentsPerHour: String,
+    onMaxAppointmentsPerHour: (String) -> Unit,
+    depositEnabled: Boolean,
+    onDepositEnabled: (Boolean) -> Unit,
+    depositAmount: String,
+    onDepositAmount: (String) -> Unit,
+    merchantId: String,
+    onMerchantId: (String) -> Unit,
+    paymentLink: String,
+    onPaymentLink: (String) -> Unit,
+) {
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("شروع", "حرفه‌ای", "ویژه")
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = androidx.compose.ui.graphics.Color.Transparent
+        ) {
+            tabs.forEachIndexed { index, label ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = { Text(label, style = MaterialTheme.typography.labelLarge) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        when (selectedTab) {
+            0 -> StarterTab(
+                acceptedPaymentMethods = acceptedPaymentMethods,
+                onAcceptedPaymentMethods = onAcceptedPaymentMethods,
+                cardNumber = cardNumber,
+                onCardNumber = onCardNumber,
+                cardOwnerName = cardOwnerName,
+                onCardOwnerName = onCardOwnerName,
+                isLoading = isLoading
+            )
+            1 -> ProTab(
+                entitlements = entitlements,
+                plans = plans,
+                onUpgrade = onUpgrade,
+                isLoading = isLoading,
+                maxAppointmentsPerHour = maxAppointmentsPerHour,
+                onMaxAppointmentsPerHour = onMaxAppointmentsPerHour,
+                depositEnabled = depositEnabled,
+                onDepositEnabled = onDepositEnabled,
+                depositAmount = depositAmount,
+                onDepositAmount = onDepositAmount,
+                acceptedPaymentMethods = acceptedPaymentMethods,
+                onAcceptedPaymentMethods = onAcceptedPaymentMethods,
+                merchantId = merchantId,
+                onMerchantId = onMerchantId,
+                paymentLink = paymentLink,
+                onPaymentLink = onPaymentLink
+            )
+            2 -> PremiumTab(entitlements = entitlements, plans = plans, onUpgrade = onUpgrade)
+        }
+    }
+}
+
+@Composable
+private fun StarterTab(
+    acceptedPaymentMethods: Set<String>,
+    onAcceptedPaymentMethods: (Set<String>) -> Unit,
+    cardNumber: String,
+    onCardNumber: (String) -> Unit,
+    cardOwnerName: String,
+    onCardOwnerName: (String) -> Unit,
+    isLoading: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "روش‌های پرداخت پایه، در همه‌ی پلن‌ها فعال است.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        listOf("CASH" to "پرداخت در محل", "CARD" to "کارت به کارت").forEach { (method, label) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = acceptedPaymentMethods.contains(method),
+                    onCheckedChange = { checked ->
+                        val newSet = acceptedPaymentMethods.toMutableSet()
+                        if (checked) newSet.add(method) else newSet.remove(method)
+                        onAcceptedPaymentMethods(newSet)
+                    }
+                )
+                Text(label, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (acceptedPaymentMethods.contains(method) && method == "CARD") {
+                AppTextField(
+                    enabled = !isLoading,
+                    value = cardNumber,
+                    onValueChange = onCardNumber,
+                    label = "شماره کارت (۱۶ رقم)",
+                    modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                    keyboardType = KeyboardType.Number,
+                    maxLength = 16,
+                    visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CardNumberVisualTransformation()
+                )
+                AppTextField(
+                    enabled = !isLoading,
+                    value = cardOwnerName,
+                    onValueChange = onCardOwnerName,
+                    label = "نام صاحب کارت",
+                    modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                    keyboardType = KeyboardType.Text
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProTab(
+    entitlements: EntitlementsResponseDto?,
+    plans: List<PlanDto>,
+    onUpgrade: (Int) -> Unit,
+    isLoading: Boolean,
+    maxAppointmentsPerHour: String,
+    onMaxAppointmentsPerHour: (String) -> Unit,
+    depositEnabled: Boolean,
+    onDepositEnabled: (Boolean) -> Unit,
+    depositAmount: String,
+    onDepositAmount: (String) -> Unit,
+    acceptedPaymentMethods: Set<String>,
+    onAcceptedPaymentMethods: (Set<String>) -> Unit,
+    merchantId: String,
+    onMerchantId: (String) -> Unit,
+    paymentLink: String,
+    onPaymentLink: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.CAPACITY_CONTROL,
+            title = "کنترل ظرفیت ساعتی",
+            description = "محدود کردن حداکثر تعداد نوبت در هر ساعت.",
+            onUpgrade = onUpgrade
+        ) {
+            AppTextField(
+                enabled = !isLoading,
+                value = maxAppointmentsPerHour,
+                onValueChange = onMaxAppointmentsPerHour,
+                label = "حداکثر نوبت در هر ساعت (خالی = نامحدود)",
+                modifier = Modifier.fillMaxWidth(),
+                keyboardType = KeyboardType.Number
+            )
+        }
+
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.DEPOSIT,
+            title = "دریافت بیعانه",
+            description = "از مشتری هنگام رزرو بیعانه دریافت کنید.",
+            onUpgrade = onUpgrade
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("دریافت بیعانه", style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = depositEnabled, onCheckedChange = onDepositEnabled)
+                }
+                if (depositEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = depositAmount,
+                        onValueChange = onDepositAmount,
+                        label = "مبلغ بیعانه (تومان)",
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardType = KeyboardType.Number,
+                        visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CurrencyVisualTransformation()
+                    )
+                }
+            }
+        }
+
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.ONLINE_GATEWAY,
+            title = "درگاه پرداخت آنلاین",
+            description = "دریافت مبلغ نوبت مستقیم از طریق درگاه بانکی.",
+            onUpgrade = onUpgrade
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = acceptedPaymentMethods.contains("ONLINE"),
+                        onCheckedChange = { checked ->
+                            val newSet = acceptedPaymentMethods.toMutableSet()
+                            if (checked) newSet.add("ONLINE") else newSet.remove("ONLINE")
+                            onAcceptedPaymentMethods(newSet)
+                        }
+                    )
+                    Text("فعال‌سازی درگاه آنلاین", style = MaterialTheme.typography.bodyMedium)
+                }
+                if (acceptedPaymentMethods.contains("ONLINE")) {
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = merchantId,
+                        onValueChange = onMerchantId,
+                        label = "مرچنت آیدی (Merchant ID)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        keyboardType = KeyboardType.Text
+                    )
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = paymentLink,
+                        onValueChange = onPaymentLink,
+                        label = "لینک درگاه پرداخت (مثال: zarinpal.com/pay/...)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        keyboardType = KeyboardType.Uri
+                    )
+                }
+            }
+        }
+
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.PROMOTIONAL_SMS,
+            title = "پیامک تبلیغاتی",
+            description = "ارسال پیامک کمپین و تبلیغات به مشتریان.",
+            onUpgrade = onUpgrade
+        ) {
+            IncludedFeatureRow("امکان ارسال پیامک تبلیغاتی برای این کسب‌وکار فعال است.")
+        }
+    }
+}
+
+@Composable
+private fun PremiumTab(
+    entitlements: EntitlementsResponseDto?,
+    plans: List<PlanDto>,
+    onUpgrade: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.MULTI_CHANNEL,
+            title = "یادآوری چندکاناله",
+            description = "یادآوری خودکار نوبت از طریق واتساپ و تلگرام، علاوه بر پیامک.",
+            onUpgrade = onUpgrade
+        ) {
+            IncludedFeatureRow("یادآوری خودکار از طریق پیامک، واتساپ و تلگرام برای این کسب‌وکار فعال است.")
+        }
+    }
+}
+
+@Composable
+private fun FeatureGate(
+    entitlements: EntitlementsResponseDto?,
+    plans: List<PlanDto>,
+    featureKey: String,
+    title: String,
+    description: String,
+    onUpgrade: (Int) -> Unit,
+    unlockedContent: @Composable () -> Unit
+) {
+    val unlocked = entitlements?.hasFeature(featureKey) == true
+    if (unlocked) {
+        unlockedContent()
+    } else {
+        LockedFeatureCard(plans, featureKey, title, description, onUpgrade)
+    }
+}
+
+@Composable
+private fun LockedFeatureCard(
+    plans: List<PlanDto>,
+    featureKey: String,
+    title: String,
+    description: String,
+    onUpgrade: (Int) -> Unit
+) {
+    val unlockingPlan = remember(plans, featureKey) { findUnlockingPlan(plans, featureKey) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = SolidColor(MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (unlockingPlan != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "این قابلیت با پلن «${unlockingPlan.name}» فعال می‌شود",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { onUpgrade(unlockingPlan.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("ارتقا به ${unlockingPlan.name} · ${unlockingPlan.priceDisplay}")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IncludedFeatureRow(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Rounded.CheckCircle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Cheapest active plan whose features unlock [featureKey], or null if none do (or plans not loaded yet). */
+private fun findUnlockingPlan(plans: List<PlanDto>, featureKey: String): PlanDto? {
+    return plans
+        .filter { plan ->
+            (plan.features[featureKey] as? JsonPrimitive)?.booleanOrNull == true
+        }
+        .minByOrNull { it.discountPrice ?: it.price }
+}

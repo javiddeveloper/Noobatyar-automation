@@ -38,6 +38,7 @@ import xyz.sattar.javid.proqueue.feature.settings.SettingsScreen
 import xyz.sattar.javid.proqueue.feature.visitorDetails.VisitorDetailsScreen
 import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionScreen
 import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
+import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
 
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -125,6 +126,9 @@ fun MainNavHost(
                         navController.navigate(AppScreens.Calendar())
                     },
                     onNavigateToLogin = onNavigateToLogin,
+                    onNavigateToAddons = {
+                        navController.navigate(AppScreens.AddOns)
+                    },
                 )
             }
 
@@ -315,6 +319,12 @@ fun MainNavHost(
 
             composable<AppScreens.AboutUs> {
                 AboutUsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable<AppScreens.AddOns> {
+                AddonsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

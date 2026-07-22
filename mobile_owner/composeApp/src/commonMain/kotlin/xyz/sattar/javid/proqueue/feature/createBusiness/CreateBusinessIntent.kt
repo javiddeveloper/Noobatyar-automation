@@ -26,4 +26,6 @@ sealed class CreateBusinessIntent {
     object BackPress : CreateBusinessIntent()
     object BusinessCreated : CreateBusinessIntent()
     data class LoadBusiness(val businessId: Long) : CreateBusinessIntent()
+    object LoadEntitlements : CreateBusinessIntent()
+    data class UpgradePlan(val planId: Int) : CreateBusinessIntent()
 }

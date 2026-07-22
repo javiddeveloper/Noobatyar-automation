@@ -129,6 +129,10 @@ fun CreateBusinessRoute(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.sendIntent(CreateBusinessIntent.LoadEntitlements)
+    }
+
     LaunchedEffect(uiState.business) {
         uiState.business?.let {
             title = it.title
@@ -187,6 +191,7 @@ fun CreateBusinessRoute(
         onCardOwnerName = { cardOwnerName = it },
         onMerchantId = { merchantId = it },
         onPaymentLink = { paymentLink = it },
+        onUpgrade = { planId -> viewModel.sendIntent(CreateBusinessIntent.UpgradePlan(planId)) },
         onTitle = {
             title = it
             titleError = null
@@ -272,6 +277,7 @@ fun CreateBusinessScreen(
     onCardOwnerName: (String) -> Unit,
     onMerchantId: (String) -> Unit,
     onPaymentLink: (String) -> Unit,
+    onUpgrade: (Int) -> Unit,
     titleError: String? = null,
     phoneError: String? = null,
     addressError: String? = null,
@@ -623,142 +629,38 @@ fun CreateBusinessScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
             androidx.compose.material3.HorizontalDivider()
+            Spacer(modifier = Modifier.height(16.dp))
 
-            var showAdvancedSettings by remember { mutableStateOf(false) }
-            Row(
+            Text(
+                text = "تنظیمات پیشرفته",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth()
-                    .clickable { showAdvancedSettings = !showAdvancedSettings }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "تنظیمات پیشرفته (اختیاری)",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Icon(
-                    imageVector = if (showAdvancedSettings) Icons.Default.ArrowDropDown else Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            if (showAdvancedSettings) {
-                AppTextField(
-                    enabled = !uiState.isLoading,
-                    value = maxAppointmentsPerHour,
-                    onValueChange = onMaxAppointmentsPerHour,
-                    label = "حداکثر نوبت در هر ساعت (خالی = نامحدود)",
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardType = KeyboardType.Number
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Deposit Mode selection
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .clickable { onDepositEnabled(!depositEnabled) }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "دریافت بیعانه",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    androidx.compose.material3.Switch(
-                        checked = depositEnabled,
-                        onCheckedChange = { onDepositEnabled(it) }
-                    )
-                }
-
-                if (depositEnabled) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    AppTextField(
-                        enabled = !uiState.isLoading,
-                        value = depositAmount,
-                        onValueChange = onDepositAmount,
-                        label = "مبلغ بیعانه (تومان)",
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardType = KeyboardType.Number,
-                        visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CurrencyVisualTransformation()
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Payment Methods
-                Text("روش‌های پرداخت مجاز", style = MaterialTheme.typography.bodyMedium)
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    listOf(
-                        "CASH" to "پرداخت در محل",
-                        "CARD" to "کارت به کارت",
-                        "ONLINE" to "پرداخت آنلاین"
-                    ).forEach { (method, label) ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            androidx.compose.material3.Checkbox(
-                                checked = acceptedPaymentMethods.contains(method),
-                                onCheckedChange = { checked ->
-                                    val newSet = acceptedPaymentMethods.toMutableSet()
-                                    if (checked) newSet.add(method) else newSet.remove(method)
-                                    onAcceptedPaymentMethods(newSet)
-                                }
-                            )
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.clickable {
-                                    val newSet = acceptedPaymentMethods.toMutableSet()
-                                    if (acceptedPaymentMethods.contains(method)) newSet.remove(
-                                        method
-                                    ) else newSet.add(method)
-                                    onAcceptedPaymentMethods(newSet)
-                                })
-                        }
-                        
-                        if (acceptedPaymentMethods.contains(method) && method == "CARD") {
-                            AppTextField(
-                                enabled = !uiState.isLoading,
-                                value = cardNumber,
-                                onValueChange = onCardNumber,
-                                label = "شماره کارت (۱۶ رقم)",
-                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                                keyboardType = KeyboardType.Number,
-                                maxLength = 16,
-                                visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CardNumberVisualTransformation()
-                            )
-                            AppTextField(
-                                enabled = !uiState.isLoading,
-                                value = cardOwnerName,
-                                onValueChange = onCardOwnerName,
-                                label = "نام صاحب کارت",
-                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                                keyboardType = KeyboardType.Text
-                            )
-                        }
-
-                        if (acceptedPaymentMethods.contains(method) && method == "ONLINE") {
-                            AppTextField(
-                                enabled = !uiState.isLoading,
-                                value = merchantId,
-                                onValueChange = onMerchantId,
-                                label = "مرچنت آیدی (Merchant ID)",
-                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                                keyboardType = KeyboardType.Text
-                            )
-                            AppTextField(
-                                enabled = !uiState.isLoading,
-                                value = paymentLink,
-                                onValueChange = onPaymentLink,
-                                label = "لینک درگاه پرداخت (مثال: zarinpal.com/pay/...)",
-                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                                keyboardType = KeyboardType.Uri
-                            )
-                        }
-                    }
-                }
-            }
+            AdvancedSettingsTabs(
+                entitlements = uiState.entitlements,
+                plans = uiState.plans,
+                onUpgrade = onUpgrade,
+                isLoading = uiState.isLoading,
+                acceptedPaymentMethods = acceptedPaymentMethods,
+                onAcceptedPaymentMethods = onAcceptedPaymentMethods,
+                cardNumber = cardNumber,
+                onCardNumber = onCardNumber,
+                cardOwnerName = cardOwnerName,
+                onCardOwnerName = onCardOwnerName,
+                maxAppointmentsPerHour = maxAppointmentsPerHour,
+                onMaxAppointmentsPerHour = onMaxAppointmentsPerHour,
+                depositEnabled = depositEnabled,
+                onDepositEnabled = onDepositEnabled,
+                depositAmount = depositAmount,
+                onDepositAmount = onDepositAmount,
+                merchantId = merchantId,
+                onMerchantId = onMerchantId,
+                paymentLink = paymentLink,
+                onPaymentLink = onPaymentLink
+            )
 
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(24.dp))
@@ -902,6 +804,7 @@ fun HandleEvents(
     onNavigateBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     events.collectWithLifecycleAware {
         when (it) {
             CreateBusinessEvent.NavigateToBusiness -> {
@@ -910,6 +813,10 @@ fun HandleEvents(
 
             CreateBusinessEvent.BackPressed -> {
                 onNavigateBack()
+            }
+
+            is CreateBusinessEvent.OpenUrl -> {
+                uriHandler.openUri(it.url)
             }
         }
     }
@@ -968,6 +875,7 @@ fun PreviewDashboardScreen() {
             onCardOwnerName = {},
             onMerchantId = {},
             onPaymentLink = {},
+            onUpgrade = {},
         )
     }
 }
