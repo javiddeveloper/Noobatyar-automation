@@ -40,7 +40,6 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
     onNavigateToAbout: () -> Unit = {},
     onChangeBusiness: () -> Unit = {},
-    onNavigateToEditBusiness: (Long) -> Unit = {},
     onNavigateToAdvancedSettings: (Long) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
@@ -62,7 +61,6 @@ fun SettingsScreen(
         events = viewModel.events,
         onNavigateToAbout = onNavigateToAbout,
         onChangeBusiness = onChangeBusiness,
-        onNavigateToEditBusiness = onNavigateToEditBusiness,
         onNavigateToNotifications = onNavigateToNotifications,
         onNavigateToMessages = onNavigateToMessages
     )
@@ -132,11 +130,6 @@ fun SettingsScreen(
         onShowThemeSheet = { showThemeSheet = true },
         onShowDeleteDialog = { showDeleteDialog = true },
         onNavigateToLogin = onNavigateToLogin,
-        onEditBusiness = {
-            uiState.currentBusiness?.let {
-                onNavigateToEditBusiness(it.id)
-            }
-        },
         onAdvancedSettings = {
             uiState.currentBusiness?.let {
                 onNavigateToAdvancedSettings(it.id)
@@ -153,7 +146,6 @@ fun SettingsContent(
     onShowThemeSheet: () -> Unit,
     onShowDeleteDialog: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onEditBusiness: () -> Unit,
     onAdvancedSettings: () -> Unit
 ) {
     Scaffold(
@@ -232,16 +224,6 @@ fun SettingsContent(
                         onClick = { onIntent(SettingsIntent.OnChangeBusinessClick) },
                         tint = MaterialTheme.colorScheme.onSurface
                     )
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Edit,
-                        title = "ویرایش کسب‌وکار",
-                        subtitle = null,
-                        onClick = onEditBusiness,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-
                     HorizontalDivider()
 
                     SettingsItem(
@@ -467,7 +449,6 @@ private fun HandleEvents(
     events: kotlinx.coroutines.flow.Flow<SettingsEvent>,
     onNavigateToAbout: () -> Unit,
     onChangeBusiness: () -> Unit,
-    onNavigateToEditBusiness: (Long) -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToMessages: () -> Unit
 ) {

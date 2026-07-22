@@ -14,6 +14,7 @@ import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentNoShowUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.RemoveAppointmentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.SendMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.SyncAppointmentsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetDailyCountsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
@@ -37,7 +38,8 @@ class HomeViewModel(
     private val createPaymentUseCase: CreatePaymentUseCase,
     private val syncAppointmentsUseCase: SyncAppointmentsUseCase,
     private val getMySubscriptionUseCase: GetMySubscriptionUseCase,
-    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase
+    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase,
+    private val getDailyCountsUseCase: GetDailyCountsUseCase
 ) : BaseViewModel<HomeState, HomeState.PartialState, HomeEvent, HomeIntent>(
     initialState = HomeState()
 ) {
@@ -138,6 +140,10 @@ class HomeViewModel(
                 // Load Stats
                 val stats = getTodayStatsUseCase(business.id)
                  emit(HomeState.PartialState.LoadStats(stats))
+
+                // Load 7-day appointment counts for the neon chart
+                val daily = getDailyCountsUseCase(business.id, 7)
+                emit(HomeState.PartialState.LoadDailyCounts(daily))
             } catch (e: Exception) {
                 emit(HomeState.PartialState.ShowMessage(e.message ?: "Error loading data"))
             }

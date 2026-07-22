@@ -90,4 +90,17 @@ class AppointmentApiService(private val httpClient: HttpClient) {
                 }
                 .toApiResponse()
     }
+
+    suspend fun getDailyCounts(
+            businessId: Long,
+            days: Int
+    ): ApiResponse<List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto>> {
+        return httpClient
+                .get("appointment/daily-counts/") {
+                    contentType(ContentType.Application.Json)
+                    parameter("business_id", businessId)
+                    parameter("days", days)
+                }
+                .toApiResponse()
+    }
 }

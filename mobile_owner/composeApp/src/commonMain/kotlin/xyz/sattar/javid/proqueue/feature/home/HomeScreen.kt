@@ -22,7 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.buildAnnotatedString
+import coil3.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +46,7 @@ import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
+import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
@@ -163,6 +168,21 @@ fun HomeScreenContent(
                 }
             }
 
+            // ۲.۵ اشتراک + لینک دریافت نوبت
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 150)
+                    )
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SubscriptionCard(uiState.subscription)
+                        uiState.business?.let { BookingLinkButton(it) }
+                    }
+                }
+            }
+
             // ۳. هدر تاریخ
             item {
                 AnimatedVisibility(
@@ -198,6 +218,20 @@ fun HomeScreenContent(
                     )
                 ) {
                     DashboardStatsSection(stats = uiState.stats)
+                }
+            }
+
+            // ۶. نمودار خطی نئونی نوبت‌های ۷ روز اخیر
+            if (uiState.dailyCounts.isNotEmpty()) {
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 350)
+                        )
+                    ) {
+                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
+                    }
                 }
             }
 
@@ -644,6 +678,7 @@ fun BusinessInfoHeader(uiState: HomeState) {
                 }
             }
             
+            val logoPath = uiState.business?.logoPath
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -651,17 +686,44 @@ fun BusinessInfoHeader(uiState: HomeState) {
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Storefront,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
+                if (!logoPath.isNullOrEmpty()) {
+                    val url = if (logoPath.startsWith("http")) logoPath
+                        else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$logoPath"
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Business Logo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Storefront,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
             }
         }
     }
 }
 
+
+@Composable
+fun BookingLinkButton(business: Business) {
+    val uniqueCode = business.uniqueCode ?: return
+    val clipboard = LocalClipboardManager.current
+    val link = "${xyz.sattar.javid.proqueue.BuildKonfig.BOOKING_BASE_URL}/b/$uniqueCode"
+    OutlinedButton(
+        onClick = { clipboard.setText(buildAnnotatedString { append(link) }) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("کپی لینک دریافت نوبت")
+    }
+}
 
 @Composable
 fun UsageMeterSection(entitlements: EntitlementsResponseDto) {
