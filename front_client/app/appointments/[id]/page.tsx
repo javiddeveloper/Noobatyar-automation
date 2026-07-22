@@ -54,16 +54,16 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   if (error || !appointment) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <p style={{ color: '#6b7280' }}>{error}</p>
+        <p style={{ color: 'var(--color-muted)' }}>{error}</p>
         <button className="btn-primary" style={{ marginTop: 20 }} onClick={() => router.back()}>بازگشت</button>
       </div>
     );
   }
 
-  const st = STATUS_LABELS[appointment.status] || { label: appointment.status, color: '#6b7280', bg: '#f3f4f6' };
+  const st = STATUS_LABELS[appointment.status] || { label: appointment.status, color: 'var(--color-muted)', bg: '#f3f4f6' };
 
   return (
-    <div className="page-content" style={{ background: '#f9fafb', minHeight: '100dvh' }}>
+    <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
       
       <div className="toolbar">
         <div className="toolbar-placeholder" />
@@ -79,7 +79,7 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
             {st.label}
           </div>
           {appointment.status === 'WAITING' && (
-            <div style={{ marginTop: 12, fontSize: 13, color: '#047857', fontWeight: 600 }}>
+            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--color-success-text)', fontWeight: 600 }}>
               {appointment.queue_position === 0 ? 'نوبت شما رسیده است' : `${appointment.queue_position} نفر جلوتر از شما هستند`}
             </div>
           )}
@@ -87,36 +87,36 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
 
         {/* Business Info */}
         <div style={{
-          background: 'white', borderRadius: 16, border: '1px solid #e5e7eb',
+          background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
           padding: 24, marginBottom: 16
         }}>
-          <h2 style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>کسب‌وکار</h2>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>{appointment.business.title}</div>
-          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{appointment.business.category}</div>
+          <h2 style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 12 }}>کسب‌وکار</h2>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)' }}>{appointment.business.title}</div>
+          <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 4 }}>{appointment.business.category}</div>
           
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed #e5e7eb' }}>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>آدرس</div>
-            <div style={{ fontSize: 13, color: '#111827', lineHeight: 1.6 }}>{appointment.business.address || 'ثبت نشده'}</div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)' }}>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 4 }}>آدرس</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.6 }}>{appointment.business.address || 'ثبت نشده'}</div>
           </div>
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed #e5e7eb' }}>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>تلفن تماس</div>
-            <div style={{ fontSize: 13, color: '#111827' }}>{appointment.business.phone || 'ثبت نشده'}</div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)' }}>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 4 }}>تلفن تماس</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text)' }}>{appointment.business.phone || 'ثبت نشده'}</div>
           </div>
         </div>
 
         {/* Appointment Info */}
         <div style={{
-          background: 'white', borderRadius: 16, border: '1px solid #e5e7eb',
+          background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
           padding: 24, marginBottom: 24
         }}>
-          <h2 style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>اطلاعات نوبت</h2>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', direction: 'rtl' }}>
+          <h2 style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 12 }}>اطلاعات نوبت</h2>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)', direction: 'rtl' }}>
             {formatDate(appointment.appointment_date)}
           </div>
           
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 13, color: '#6b7280' }}>کد پیگیری نوبت</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>#{appointment.id}</div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>کد پیگیری نوبت</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'monospace' }}>#{appointment.id}</div>
           </div>
         </div>
 
@@ -134,8 +134,8 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
         <button
           onClick={() => router.push(`/b/Noobatyar-${appointment.business.unique_code}`)}
           style={{
-            width: '100%', height: 52, borderRadius: 14, border: '1px solid #d1d5db',
-            background: 'white', color: '#374151', fontSize: 14, fontWeight: 600,
+            width: '100%', height: 52, borderRadius: 14, border: '1px solid var(--color-border)',
+            background: 'var(--color-surface)', color: 'var(--color-muted)', fontSize: 14, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit'
           }}
         >

@@ -25,23 +25,45 @@
   font-display: swap;
 }
 
-/* ── Design Tokens ── */
+/* ── Design Tokens ──────────────────────────────────────────────
+   Palette mirrors the owner app (mobile_owner) Material 3 theme:
+   primary purple #8B5CF6, Tailwind-gray neutrals, light + dark.
+   Every color is a token so both themes work through inline styles. */
 :root {
-  --color-primary:       #d735a9;
-  --color-primary-dark:  #9e2983;
-  --color-primary-light: #f65cca;
-  --color-purple:        #8b5cf6;
-  --color-purple-dark:   #52299e;
+  /* Brand */
+  --color-primary:       #8b5cf6;
+  --color-primary-dark:  #7c3aed;
+  --color-primary-light: #a78bfa;
+  --color-on-primary:    #ffffff;
+  --color-primary-tint:  #f5f3ff;   /* subtle purple hover ground */
+  --color-primary-shadow: rgba(139, 92, 246, 0.35);
+
+  /* Neutrals (light) — match owner LightColorScheme */
   --color-bg:            #f9fafb;
   --color-surface:       #ffffff;
+  --color-surface-variant:#f3f4f6;
+  --color-surface-high:  #f0f0f0;
   --color-border:        #e5e7eb;
   --color-text:          #111827;
   --color-muted:         #6b7280;
+  --color-faint:         #9ca3af;
+
+  /* Semantic */
   --color-warning-bg:    #fff7ed;
   --color-warning:       #b45309;
+  --color-warning-border:#fed7aa;
   --color-error-bg:      #fef2f2;
   --color-error:         #dc2626;
+  --color-success:       #10b981;
+  --color-success-text:  #047857;
   --color-slot-disabled: #f3f4f6;
+
+  /* Overlays / misc */
+  --color-toast-bg:      #1f2937;
+  --color-toast-text:    #ffffff;
+  --bar-bg:              rgba(255, 255, 255, 0.96);
+  --skeleton-a:          #f0f0f0;
+  --skeleton-b:          #e8e8e8;
 
   --radius-card:   16px;
   --radius-slot:   10px;
@@ -51,11 +73,71 @@
   --radius-input:  14px;
 
   --shadow-card: 0 1px 6px rgba(0,0,0,0.06);
-  --shadow-btn:  0 4px 14px rgba(215,53,169,0.35);
+  --shadow-btn:  0 4px 14px var(--color-primary-shadow);
 
   /* Yekan Bakh with Persian-friendly fallbacks */
   --font-base: 'YekanBakh', 'Vazirmatn', 'Tahoma', system-ui, sans-serif;
   --max-w: 390px;
+
+  color-scheme: light;
+}
+
+/* ── Dark theme — match owner DarkColorScheme ───────────────────
+   Applied automatically by OS preference, and overridable by the
+   in-app toggle which stamps data-theme on <html>. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-primary-tint:  rgba(139, 92, 246, 0.14);
+    --color-bg:            #0f0f0f;
+    --color-surface:       #1a1a1a;
+    --color-surface-variant:#2a2a2a;
+    --color-surface-high:  #252525;
+    --color-border:        #374151;
+    --color-text:          #ffffff;
+    --color-muted:         #9ca3af;
+    --color-faint:         #6b7280;
+    --color-warning-bg:    #2a2113;
+    --color-warning:       #fbbf24;
+    --color-warning-border:#4d3b12;
+    --color-error-bg:      #2a1414;
+    --color-error:         #f87171;
+    --color-success-text:  #34d399;
+    --color-slot-disabled: #222222;
+    --color-toast-bg:      #f3f4f6;
+    --color-toast-text:    #111827;
+    --bar-bg:              rgba(26, 26, 26, 0.96);
+    --skeleton-a:          #1f1f1f;
+    --skeleton-b:          #2a2a2a;
+    --shadow-card: 0 1px 6px rgba(0,0,0,0.4);
+    color-scheme: dark;
+  }
+}
+
+/* Manual dark (toggle) — wins over the media query in both directions */
+:root[data-theme="dark"] {
+  --color-primary-tint:  rgba(139, 92, 246, 0.14);
+  --color-bg:            #0f0f0f;
+  --color-surface:       #1a1a1a;
+  --color-surface-variant:#2a2a2a;
+  --color-surface-high:  #252525;
+  --color-border:        #374151;
+  --color-text:          #ffffff;
+  --color-muted:         #9ca3af;
+  --color-faint:         #6b7280;
+  --color-warning-bg:    #2a2113;
+  --color-warning:       #fbbf24;
+  --color-warning-border:#4d3b12;
+  --color-error-bg:      #2a1414;
+  --color-error:         #f87171;
+  --color-success-text:  #34d399;
+  --color-slot-disabled: #222222;
+  --color-toast-bg:      #f3f4f6;
+  --color-toast-text:    #111827;
+  --bar-bg:              rgba(26, 26, 26, 0.96);
+  --skeleton-a:          #1f1f1f;
+  --skeleton-b:          #2a2a2a;
+  --shadow-card: 0 1px 6px rgba(0,0,0,0.4);
+  color-scheme: dark;
 }
 
 /* ── Reset & Base ── */
@@ -94,6 +176,29 @@ body {
   position: relative;
   overflow-x: hidden;
 }
+
+/* ── Theme toggle (floating, anchored to the shell's edge) ── */
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  left: max(12px, calc(50% - (var(--max-w) / 2) + 12px));
+  z-index: 200;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  transition: background 0.15s, transform 0.1s;
+}
+.theme-toggle:hover { background: var(--color-surface-variant); }
+.theme-toggle:active { transform: scale(0.94); }
+.theme-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 /* ── Typography ── */
 h1, h2, h3, p, span, label, button, input, textarea {
@@ -144,7 +249,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 /* ── Notice Banner ── */
 .notice-banner {
   background: var(--color-warning-bg);
-  border: 1px solid #fed7aa;
+  border: 1px solid var(--color-warning-border);
   border-radius: 12px;
   padding: 12px 16px;
   font-size: 13px;
@@ -203,7 +308,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   height: 68px;
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--color-border);
-  background: white;
+  background: var(--color-surface);
   cursor: pointer;
   transition: all 0.18s ease;
   flex-shrink: 0;
@@ -237,14 +342,14 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   cursor: pointer;
   transition: all 0.18s ease;
   border: 1.5px solid var(--color-border);
-  background: white;
+  background: var(--color-surface);
   color: var(--color-text);
   font-family: var(--font-base);
 }
 .time-slot:hover:not(.disabled):not(.selected) {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: #fdf2fb;
+  background: var(--color-primary-tint);
 }
 .time-slot.selected {
   background: var(--color-primary);
@@ -266,11 +371,11 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   bottom: 0;
   width: 100%;
   max-width: var(--max-w);
-  background: rgba(255,255,255,0.96);
+  background: var(--bar-bg);
   backdrop-filter: blur(8px);
   padding: 16px 24px 24px;
   z-index: 100;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--color-border);
 }
 
 .btn-primary {
@@ -322,12 +427,12 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   transition: border-color 0.2s, box-shadow 0.2s;
   text-align: right;
   direction: rtl;
-  background: white;
+  background: var(--color-surface);
 }
-.form-input::placeholder { color: #9ca3af; }
+.form-input::placeholder { color: var(--color-faint); }
 .form-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(215, 53, 169, 0.1);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
 }
 
 /* Input for phone number (LTR, centered) */
@@ -358,7 +463,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 }
 .skeleton {
   border-radius: 10px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%);
   background-size: 800px 100%;
   animation: shimmer 1.4s infinite linear;
 }
@@ -382,8 +487,8 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1f2937;
-  color: white;
+  background: var(--color-toast-bg);
+  color: var(--color-toast-text);
   padding: 12px 24px;
   border-radius: 14px;
   font-size: 13px;
@@ -403,8 +508,8 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 .biz-avatar {
   width: 72px; height: 72px;
   border-radius: 50%;
-  border: 3px solid white;
-  background: white;
+  border: 3px solid var(--color-surface);
+  background: var(--color-surface);
   object-fit: cover;
   box-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
@@ -419,11 +524,11 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background: white;
+  background: var(--color-surface);
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border);
   /* Use LTR so we control exact side placement */
   direction: ltr;
 }
@@ -431,7 +536,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 .toolbar-title {
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text);
   text-align: center;
   flex: 1;
   /* Ensure Persian text renders correctly even in LTR container */
@@ -440,7 +545,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 }
 
 .toolbar-back {
-  background: #f3f4f6;
+  background: var(--color-surface-variant);
   border: none;
   cursor: pointer;
   width: 36px;
@@ -450,11 +555,11 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  color: #374151;
+  color: var(--color-muted);
   transition: background 0.15s;
   flex-shrink: 0;
 }
-.toolbar-back:hover { background: #e5e7eb; }
+.toolbar-back:hover { background: var(--color-surface-high); }
 
 .toolbar-placeholder {
   width: 36px;

@@ -143,7 +143,7 @@ export default function BookingPage({ params }: Props) {
   if (error || !business) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <p style={{ color: '#6b7280', fontSize: 14 }}>{error || 'خطا در بارگذاری'}</p>
+        <p style={{ color: 'var(--color-muted)', fontSize: 14 }}>{error || 'خطا در بارگذاری'}</p>
         <button className="btn-primary" style={{ marginTop: 20, width: 'auto', padding: '0 24px' }}
           onClick={() => router.back()}>
           بازگشت
@@ -157,7 +157,7 @@ export default function BookingPage({ params }: Props) {
 
   if (!bookingEnabled) {
     return (
-      <div className="page-content" style={{ background: '#f9fafb' }}>
+      <div className="page-content" style={{ background: 'var(--color-bg)' }}>
         <div className="toolbar">
           <div className="toolbar-placeholder" />
           <h1 className="toolbar-title">رزرو نوبت</h1>
@@ -165,7 +165,7 @@ export default function BookingPage({ params }: Props) {
         </div>
         <div style={{ padding: 40, textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 16 }}>🚫</div>
-          <h2 style={{ fontSize: 16, color: '#111827', fontWeight: 700, marginBottom: 8 }}>
+          <h2 style={{ fontSize: 16, color: 'var(--color-text)', fontWeight: 700, marginBottom: 8 }}>
             ثبت نوبت غیرفعال است
           </h2>
           {business.notice_message && (
@@ -194,9 +194,9 @@ export default function BookingPage({ params }: Props) {
         <button className="toolbar-back" onClick={() => router.back()}>›</button>
       </div>
 
-      <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f3f4f6' }}>
+      <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-surface-variant)' }}>
         <div style={{
-          width: 48, height: 48, borderRadius: '50%', background: '#f3f4f6',
+          width: 48, height: 48, borderRadius: '50%', background: 'var(--color-surface-variant)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0
         }}>
           {business.logo ? (
@@ -208,9 +208,9 @@ export default function BookingPage({ params }: Props) {
           ) : '🏢'}
         </div>
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: '#111827' }}>{business.title}</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>{business.title}</h2>
           {business.notice_message && (
-            <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>{business.notice_message}</p>
+            <p style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 0 0' }}>{business.notice_message}</p>
           )}
         </div>
       </div>
@@ -227,7 +227,7 @@ export default function BookingPage({ params }: Props) {
                 key={day.toISOString()}
                 className={`day-pill ${isSelected ? 'selected' : ''}`}
                 onClick={() => setSelectedDay(day)}
-                style={{ border: isSelected ? 'none' : '1px solid #e5e7eb', fontFamily: 'inherit' }}
+                style={{ border: isSelected ? 'none' : '1px solid var(--color-border)', fontFamily: 'inherit' }}
               >
                 <span className="day-name">{weekday}</span>
                 <span className="day-num">{dayNum}</span>
@@ -252,7 +252,7 @@ export default function BookingPage({ params }: Props) {
         ) : slots.length === 0 ? (
           <div style={{
             textAlign: 'center', padding: '40px 0',
-            color: '#6b7280', fontSize: 13,
+            color: 'var(--color-muted)', fontSize: 13,
           }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🗓</div>
             ساعت خالی در این روز وجود ندارد
@@ -267,7 +267,7 @@ export default function BookingPage({ params }: Props) {
                   key={slot.timestamp}
                   className={`time-slot ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
                   onClick={() => !isDisabled && setSelectedSlot(slot)}
-                  style={{ border: isSelected ? 'none' : '1px solid #e5e7eb', fontFamily: 'inherit' }}
+                  style={{ border: isSelected ? 'none' : '1px solid var(--color-border)', fontFamily: 'inherit' }}
                   disabled={isDisabled}
                 >
                   {toPersianNumerals(slot.time)}
@@ -279,12 +279,12 @@ export default function BookingPage({ params }: Props) {
 
         {/* ── Legend ── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-muted)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-border)' }} />
             رزرو شده
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d735a9' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-muted)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)' }} />
             انتخاب شما
           </div>
         </div>
@@ -297,9 +297,9 @@ export default function BookingPage({ params }: Props) {
           style={{
             width: '100%',
             height: 52,
-            background: 'white',
-            color: '#d735a9',
-            border: '1.5px solid #d735a9',
+            background: 'var(--color-surface)',
+            color: 'var(--color-primary)',
+            border: '1.5px solid var(--color-primary)',
             borderRadius: 14,
             fontSize: 16,
             fontWeight: 600,

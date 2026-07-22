@@ -27,7 +27,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
 
       {/* ── Header Card ── */}
       <div style={{
-        background: 'linear-gradient(135deg, #f65cca, #d735a9)',
+        background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-primary))',
         borderRadius: '0 0 40px 40px',
         padding: '32px 24px 32px',
         color: 'white',
@@ -72,7 +72,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
             {business.address && (
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: 'white', color: '#111827',
+                background: 'var(--color-surface)', color: 'var(--color-text)',
                 borderRadius: 20, padding: '8px 16px',
                 fontSize: 12, fontWeight: 600
               }}>
@@ -168,7 +168,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
                 نوبت‌دهی آنلاین با نوبت‌یار برای کسب‌وکار شما
               </p>
               <a href="https://noobatyar.ir" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
-                <div className="promo-badge" style={{ color: '#7c3bed', marginTop: 10 }}>
+                <div className="promo-badge" style={{ color: 'var(--color-primary-dark)', marginTop: 10 }}>
                   <span>شروع رایگان در noobatyar.ir</span>
                 </div>
               </a>
@@ -191,7 +191,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
           className="btn-primary"
           onClick={() => router.push(`/b/${slug}/book`)}
           disabled={!bookingEnabled}
-          style={!bookingEnabled ? { background: '#9ca3af', boxShadow: 'none', cursor: 'not-allowed' } : {}}
+          style={!bookingEnabled ? { background: 'var(--color-faint)', boxShadow: 'none', cursor: 'not-allowed' } : {}}
         >
           {bookingEnabled ? 'دریافت/مشاهده نوبت' : 'ثبت نوبت غیرفعال است'}
         </button>
