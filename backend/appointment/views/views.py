@@ -16,6 +16,7 @@ from rest_framework.response import Response
 
 from appointment.models import Appointment, Business, Visitor
 from appointment.serializers import AppointmentSerializer, AppointmentQuerySerializer
+from appointment.cache_utils import invalidate_slots_cache
 from api.responses import APIResponse
 from api.views import _extract_error
 
@@ -438,6 +439,7 @@ class AppointmentView(APIView):
         try:
             appointment.full_clean()
             appointment.save()
+            invalidate_slots_cache(appointment.business_id, appointment.appointment_date)
             logger.debug(
                 f"[{request_id}] Appointment saved to database",
                 extra={'appointment_id': appointment.id}
@@ -505,6 +507,7 @@ class AppointmentView(APIView):
         old_status = appointment.status
         appointment.status = new_status
         appointment.save(update_fields=['status', 'updated_at'])
+        invalidate_slots_cache(appointment.business_id, appointment.appointment_date)
 
         serializer = AppointmentQuerySerializer(appointment)
         elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -572,6 +575,10 @@ class AppointmentView(APIView):
         #             status=status.HTTP_409_CONFLICT
         #         )
 
+        # Remember the original date so we can invalidate its cached slots too
+        # if the appointment is being rescheduled to a different day.
+        old_date = appointment.appointment_date
+
         # Apply updates
         appointment.status = new_status
         updated_fields = ['updated_at', "status"]
@@ -596,6 +603,9 @@ class AppointmentView(APIView):
             )
             error_message = _extract_error(e.message_dict) if hasattr(e, 'message_dict') else str(e)
             return APIResponse.error(error_message, code=status.HTTP_400_BAD_REQUEST)
+
+        invalidate_slots_cache(appointment.business_id, old_date)
+        invalidate_slots_cache(appointment.business_id, appointment.appointment_date)
 
         serializer = AppointmentQuerySerializer(appointment)
         elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -655,7 +665,10 @@ class AppointmentView(APIView):
     def _delete_appointment(self, appointment: Appointment, request_id: str) -> None:
         """Hard delete appointment from database"""
         appointment_id = appointment.id
+        business_id = appointment.business_id
+        appointment_date = appointment.appointment_date
         appointment.delete()
+        invalidate_slots_cache(business_id, appointment_date)
         logger.debug(
             f"[{request_id}] Appointment deleted permanently",
             extra={'appointment_id': appointment_id}

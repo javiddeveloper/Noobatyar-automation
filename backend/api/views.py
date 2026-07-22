@@ -1,7 +1,8 @@
 # api/views.py
 from .responses import APIResponse
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
+from .throttles import OTPRateThrottle
 from .services.otp import send_otp as otp_send, verify_otp as otp_verify
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import check_password
@@ -43,6 +44,7 @@ def _extract_error(errors: dict) -> str:
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([OTPRateThrottle])
 def send_otp_view(request):
     serializer = SendOTPSerializer(data=request.data)
     if not serializer.is_valid():
@@ -184,6 +186,7 @@ def logout_view(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([OTPRateThrottle])
 def forgot_password_send_otp(request):
     serializer = ForgotPasswordSendOTPSerializer(data=request.data)
     if not serializer.is_valid():
@@ -194,13 +197,14 @@ def forgot_password_send_otp(request):
     phone = serializer.validated_data['phone']
 
     if not User.objects.filter(phone=phone).exists():
+        # Don't reveal whether the phone is registered (account enumeration).
         return APIResponse.success(message='اگر شماره ثبت شده باشد، کد ارسال می‌شود')
 
-    code = otp_send(phone)
-    if not code:
-        return APIResponse.error('خطا در ارسال پیامک')
-
-    cache.set(f'reset_otp:{phone}', str(code), timeout=OTP_EXPIRY)
+    # Reuse the Redis-backed OTP service (rate limit + daily ban + async SMS).
+    # It stores the code internally and is verified later via otp_verify().
+    result = otp_send(phone)
+    if not result['success']:
+        return APIResponse.error(result.get('error', 'خطا در ارسال پیامک'))
 
     return APIResponse.success(
         data={'expires_in': OTP_EXPIRY},
@@ -220,14 +224,13 @@ def forgot_password_verify_otp(request):
     phone = serializer.validated_data['phone']
     code = str(serializer.validated_data['code'])
 
-    cached_code = cache.get(f'reset_otp:{phone}')
-
-    if not cached_code or cached_code != code:
-        return APIResponse.error('کد نامعتبر یا منقضی شده است')
+    # Verify against the same OTP service used to send it.
+    result = otp_verify(phone, code)
+    if not result['success']:
+        return APIResponse.error(result.get('error', 'کد نامعتبر یا منقضی شده است'))
 
     reset_token = secrets.token_urlsafe(32)
     cache.set(f'reset_token:{phone}', reset_token, timeout=RESET_TOKEN_EXPIRY)
-    cache.delete(f'reset_otp:{phone}')
 
     return APIResponse.success(
         data={'reset_token': reset_token, 'expires_in': RESET_TOKEN_EXPIRY},

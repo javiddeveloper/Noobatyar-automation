@@ -1,8 +1,12 @@
 from adrf.views import APIView
+from asgiref.sync import sync_to_async
+from django.core.cache import cache
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from api.responses import APIResponse
 from business.models import Business
 from .models import Appointment
+from .cache_utils import available_slots_key, SLOT_CACHE_TTL
 from datetime import datetime, timedelta, timezone
 import logging
 
@@ -15,6 +19,8 @@ class AvailableSlotsView(APIView):
     GET /api/client/appointments/{business_id}/available-slots/?date=YYYY-MM-DD
     """
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'public_slots'
 
     async def get(self, request, business_id):
         date_str = request.query_params.get('date', '')
@@ -25,6 +31,12 @@ class AvailableSlotsView(APIView):
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             return APIResponse.error(message="فرمت تاریخ نامعتبر است. از YYYY-MM-DD استفاده کنید", code=400)
+
+        # Serve from cache when available (high-traffic public endpoint).
+        cache_key = available_slots_key(business_id, target_date)
+        cached = await sync_to_async(cache.get)(cache_key)
+        if cached is not None:
+            return APIResponse.success(data=cached, message="ساعات خالی با موفقیت دریافت شد")
 
         try:
             business = await Business.objects.aget(id=business_id)
@@ -79,12 +91,12 @@ class AvailableSlotsView(APIView):
                 'status': 'PAST' if is_past else ('BOOKED' if is_booked else 'AVAILABLE'),
             })
 
-        return APIResponse.success(
-            data={
-                'business_id': business_id,
-                'date': date_str,
-                'duration_minutes': duration,
-                'slots': slots,
-            },
-            message="ساعات خالی با موفقیت دریافت شد"
-        )
+        data = {
+            'business_id': business_id,
+            'date': date_str,
+            'duration_minutes': duration,
+            'slots': slots,
+        }
+        await sync_to_async(cache.set)(cache_key, data, SLOT_CACHE_TTL)
+
+        return APIResponse.success(data=data, message="ساعات خالی با موفقیت دریافت شد")

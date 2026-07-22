@@ -19,14 +19,17 @@ date  (required)  ISO date string, e.g. 2026-07-14
 
 from datetime import datetime, timedelta, timezone as dt_timezone
 
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework import status
 
 from business.models import Business
 from ..models import Appointment
+from ..cache_utils import public_slots_key, SLOT_CACHE_TTL
 
 
 class PublicAvailableSlotsView(APIView):
@@ -48,18 +51,11 @@ class PublicAvailableSlotsView(APIView):
     """
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "public_slots"
 
     def get(self, request, business_id: int) -> Response:
-        # ── 1. Resolve business ───────────────────────────────────────────
-        try:
-            business = Business.objects.get(pk=business_id)
-        except Business.DoesNotExist:
-            return Response(
-                {"detail": "کسب و کار یافت نشد."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # ── 2. Parse & validate the date query param ──────────────────────
+        # ── 1. Parse & validate the date query param ──────────────────────
         date_str = request.query_params.get("date")
         if not date_str:
             return Response(
@@ -73,6 +69,21 @@ class PublicAvailableSlotsView(APIView):
             return Response(
                 {"detail": "فرمت تاریخ نامعتبر است. از YYYY-MM-DD استفاده کنید."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ── 2. Serve from cache when available (high-traffic public endpoint) ─
+        cache_key = public_slots_key(business_id, query_date)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
+        # ── 3. Resolve business ───────────────────────────────────────────
+        try:
+            business = Business.objects.get(pk=business_id)
+        except Business.DoesNotExist:
+            return Response(
+                {"detail": "کسب و کار یافت نشد."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         # ── 3. Build day boundaries (aware datetimes) ─────────────────────
@@ -134,11 +145,11 @@ class PublicAvailableSlotsView(APIView):
                 }
             )
 
-        return Response(
-            {
-                "business_id": business_id,
-                "date": date_str,
-                "occupied_slots": slots,
-            },
-            status=status.HTTP_200_OK,
-        )
+        payload = {
+            "business_id": business_id,
+            "date": date_str,
+            "occupied_slots": slots,
+        }
+        cache.set(cache_key, payload, SLOT_CACHE_TTL)
+
+        return Response(payload, status=status.HTTP_200_OK)
