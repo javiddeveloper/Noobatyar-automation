@@ -218,7 +218,7 @@ function LoginForm() {
                     border: `2px solid ${digit ? 'var(--color-primary)' : 'var(--color-border)'}`,
                     textAlign: 'center', fontSize: 22, fontWeight: 700,
                     fontFamily: 'inherit', outline: 'none',
-                    background: digit ? 'var(--color-primary-tint)' : 'white',
+                    background: digit ? 'var(--color-primary-tint)' : 'var(--color-surface)',
                     color: 'var(--color-text)', transition: 'all 0.15s',
                   }}
                   onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
@@ -281,9 +281,9 @@ function LoginForm() {
         {/* Error */}
         {error && (
           <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca',
+            background: 'var(--color-error-bg)', border: '1px solid var(--color-error)',
             borderRadius: 12, padding: '12px 16px',
-            color: '#dc2626', fontSize: 13, textAlign: 'right', marginTop: 12,
+            color: 'var(--color-error)', fontSize: 13, textAlign: 'right', marginTop: 12,
           }}>
             {error}
           </div>

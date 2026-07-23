@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getMyAppointments, type Appointment } from '@/lib/api';
+import { getMyAppointments, categoryLabel, type Appointment } from '@/lib/api';
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  BEAUTY_SALON: '💅',
+  DOCTOR: '🏥',
+  CONSULTANT: '💼',
+  OTHER: '🏢',
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   LOCKED:               { label: 'در انتظار پرداخت', color: '#b45309', bg: '#fef3c7' },
@@ -71,7 +78,7 @@ export default function AppointmentsPage() {
               onClick={() => setActiveTab(tab)}
               style={{
                 flex: 1, padding: '10px 0', border: 'none',
-                background: activeTab === tab ? 'white' : 'none',
+                background: activeTab === tab ? 'var(--color-surface)' : 'none',
                 borderRadius: 10,
                 color: activeTab === tab ? 'var(--color-text)' : 'var(--color-muted)',
                 fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
@@ -131,9 +138,18 @@ export default function AppointmentsPage() {
                 }}>
                   {st.label}
                 </span>
-                <div style={{ textAlign: 'right' }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{appt.business.title}</h3>
-                  <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>{appt.business.category}</div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{appt.business.title}</h3>
+                    <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>{categoryLabel(appt.business.category)}</div>
+                  </div>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--color-primary-tint)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                  }}>
+                    {CATEGORY_EMOJI[appt.business.category] || '🏢'}
+                  </div>
                 </div>
               </div>
 
@@ -145,7 +161,7 @@ export default function AppointmentsPage() {
               {appt.status === 'LOCKED' && (
                 <div style={{ marginTop: 12, textAlign: 'center' }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); router.push(`/b/${appt.business.unique_code}/checkout/${appt.id}`); }}
+                    onClick={(e) => { e.stopPropagation(); router.push(`/b/Noobatyar-${appt.business.unique_code}/checkout/${appt.id}`); }}
                     style={{ background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
                   >
                     تکمیل پرداخت

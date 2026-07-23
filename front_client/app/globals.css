@@ -37,6 +37,9 @@
   --color-on-primary:    #ffffff;
   --color-primary-tint:  #f5f3ff;   /* subtle purple hover ground */
   --color-primary-shadow: rgba(139, 92, 246, 0.35);
+  /* Deep violet used by the promo banner (was undefined → transparent) */
+  --color-purple:        #7c3aed;
+  --color-purple-dark:   #5b21b6;
 
   /* Neutrals (light) — match owner LightColorScheme */
   --color-bg:            #f9fafb;
@@ -563,6 +566,196 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 
 .toolbar-placeholder {
   width: 36px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Business Profile — hero + stats
+   ============================================================ */
+
+/* ── Hero ── */
+.biz-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 44px 24px 34px;
+  border-radius: 0 0 34px 34px;
+  background: linear-gradient(155deg,
+    var(--color-primary-light) 0%,
+    var(--color-primary) 52%,
+    var(--color-primary-dark) 100%);
+  color: #fff;
+  text-align: center;
+}
+/* Soft decorative glow blobs */
+.biz-hero::before,
+.biz-hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.biz-hero::before {
+  top: -46px; inset-inline-start: -34px;
+  width: 150px; height: 150px;
+  background: rgba(255, 255, 255, 0.10);
+}
+.biz-hero::after {
+  bottom: -50px; inset-inline-end: -24px;
+  width: 120px; height: 120px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.biz-hero > * { position: relative; z-index: 1; }
+
+.biz-hero-avatar {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 44px;
+  line-height: 1;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.18);
+  border: 3px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.20);
+}
+.biz-hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biz-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 10px;
+  line-height: 1.35;
+}
+
+.biz-hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  backdrop-filter: blur(4px);
+}
+
+.biz-hero-bio {
+  max-width: 300px;
+  margin: 16px auto 0;
+  font-size: 13px;
+  line-height: 1.9;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: pre-line;
+}
+
+.biz-hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+.biz-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--color-primary-dark);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+  transition: transform 0.12s ease;
+}
+.biz-action:active { transform: scale(0.96); }
+.biz-action.call {
+  color: #fff;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+.biz-action.call span[dir="ltr"] { letter-spacing: 0.5px; }
+
+/* ── Stats strip ── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.stat-card {
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: 16px;
+  padding: 15px 8px 13px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.stat-card .ico {
+  font-size: 20px;
+  line-height: 1;
+}
+.stat-card .k {
+  font-size: 10px;
+  color: var(--color-muted);
+  margin-top: 8px;
+}
+.stat-card .v {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+/* ── Address row ── */
+.biz-address {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  text-align: right;
+  text-decoration: none;
+}
+.biz-address .pin {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  background: var(--color-primary-tint);
+}
+.biz-address .addr-text {
+  flex: 1;
+  min-width: 0;
+}
+.biz-address .addr-k {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-bottom: 3px;
+}
+.biz-address .addr-v {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+.biz-address .chevron {
+  color: var(--color-faint);
+  font-size: 18px;
   flex-shrink: 0;
 }
 

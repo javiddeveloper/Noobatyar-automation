@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAppointment, payAppointment, type Appointment } from '@/lib/api';
+import { getAppointment, payAppointment, payAppointmentWithReceipt, type Appointment } from '@/lib/api';
 
 export default function CheckoutPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const router = useRouter();
@@ -15,6 +15,25 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string>('CARD');
+  const [toast, setToast] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  };
+
+  const copyCard = async () => {
+    const card = appointment?.business?.card_number;
+    if (!card) return;
+    try {
+      await navigator.clipboard.writeText(card.replace(/\s/g, ''));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast('امکان کپی وجود ندارد');
+    }
+  };
 
   useEffect(() => {
     params.then((p) => {
@@ -46,10 +65,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
   const handleSubmit = async () => {
     if (selectedMethod === 'CARD' && !file && !paymentRef.trim()) {
-      alert('لطفا شماره پیگیری را وارد کنید یا تصویر فیش را آپلود نمایید');
+      showToast('لطفا شماره پیگیری را وارد کنید یا تصویر فیش را آپلود نمایید');
       return;
     }
-    
+
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
@@ -61,21 +80,34 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         if (paymentRef.trim()) {
           formData.append('payment_reference', paymentRef);
         }
-        await import('@/lib/api').then(m => m.payAppointmentWithReceipt(id, formData, token));
+        await payAppointmentWithReceipt(id, formData, token);
       } else {
-        await import('@/lib/api').then(m => m.payAppointment(id, paymentRef, token));
+        await payAppointment(id, paymentRef, token);
       }
-      alert('پرداخت شما با موفقیت ثبت شد و در انتظار تایید است.');
-      router.push('/appointments');
-    } catch (err: any) {
-      alert(err.message || 'خطا در ثبت پرداخت');
+      showToast('✅ پرداخت شما ثبت شد و در انتظار تایید است.');
+      setTimeout(() => router.push('/appointments'), 1500);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'خطا در ثبت پرداخت');
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center' }}>در حال بارگذاری...</div>;
+    return (
+      <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
+        <div className="toolbar">
+          <div className="toolbar-placeholder" />
+          <h1 className="toolbar-title">پرداخت و نهایی‌سازی</h1>
+          <button className="toolbar-back" onClick={() => router.back()}>›</button>
+        </div>
+        <div style={{ padding: 24 }}>
+          <div className="skeleton" style={{ height: 52, borderRadius: 14, marginBottom: 16 }} />
+          <div className="skeleton" style={{ height: 180, borderRadius: 16, marginBottom: 16 }} />
+          <div className="skeleton" style={{ height: 52, borderRadius: 12 }} />
+        </div>
+      </div>
+    );
   }
 
   if (error || !appointment) {
@@ -103,21 +135,21 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           {appointment?.business?.accepted_payment_methods?.includes('ONLINE') && (
             <button 
               onClick={() => setSelectedMethod('ONLINE')}
-              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'ONLINE' ? 'white' : 'none', borderRadius: selectedMethod === 'ONLINE' ? 10 : 0, color: selectedMethod === 'ONLINE' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'ONLINE' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
+              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'ONLINE' ? 'var(--color-surface)' : 'none', borderRadius: selectedMethod === 'ONLINE' ? 10 : 0, color: selectedMethod === 'ONLINE' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'ONLINE' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
               درگاه آنلاین
             </button>
           )}
           {(!appointment?.business?.accepted_payment_methods || appointment?.business?.accepted_payment_methods?.includes('CARD')) && (
             <button 
               onClick={() => setSelectedMethod('CARD')}
-              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'CARD' ? 'white' : 'none', borderRadius: selectedMethod === 'CARD' ? 10 : 0, color: selectedMethod === 'CARD' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'CARD' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
+              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'CARD' ? 'var(--color-surface)' : 'none', borderRadius: selectedMethod === 'CARD' ? 10 : 0, color: selectedMethod === 'CARD' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'CARD' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
               کارت به کارت
             </button>
           )}
           {appointment?.business?.accepted_payment_methods?.includes('CASH') && (
             <button 
               onClick={() => setSelectedMethod('CASH')}
-              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'CASH' ? 'white' : 'none', borderRadius: selectedMethod === 'CASH' ? 10 : 0, color: selectedMethod === 'CASH' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'CASH' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
+              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'CASH' ? 'var(--color-surface)' : 'none', borderRadius: selectedMethod === 'CASH' ? 10 : 0, color: selectedMethod === 'CASH' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'CASH' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
               پرداخت نقدی/محل
             </button>
           )}
@@ -133,8 +165,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
               <h2 style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 20 }}>انتقال به شماره کارت زیر</h2>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <button style={{ color: 'var(--color-primary)', background: 'none', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  کپی
+                <button
+                  onClick={copyCard}
+                  disabled={!appointment?.business?.card_number}
+                  style={{ color: copied ? 'var(--color-success-text)' : 'var(--color-primary)', background: 'none', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {copied ? '✓ کپی شد' : 'کپی'}
                 </button>
                 <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: 2, direction: 'ltr' }}>
                   {appointment?.business?.card_number || 'شماره کارت ثبت نشده'}
@@ -233,6 +268,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         )}
 
       </div>
+
+      {/* ── Toast ── */}
+      {toast && <div className="toast">{toast}</div>}
 
       {/* ── Fixed Bottom Button ── */}
       <div className="btn-group">

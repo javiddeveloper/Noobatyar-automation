@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAppointment, type Appointment } from '@/lib/api';
+import { getAppointment, categoryLabel, type Appointment } from '@/lib/api';
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  BEAUTY_SALON: '💅',
+  DOCTOR: '🏥',
+  CONSULTANT: '💼',
+  OTHER: '🏢',
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   LOCKED:               { label: 'در انتظار پرداخت', color: '#b45309', bg: '#fef3c7' },
@@ -48,23 +55,40 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   }, [params, router]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center' }}>در حال بارگذاری...</div>;
+    return (
+      <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
+        <div className="toolbar">
+          <div className="toolbar-placeholder" />
+          <h1 className="toolbar-title">جزئیات نوبت</h1>
+          <button className="toolbar-back" onClick={() => router.back()}>›</button>
+        </div>
+        <div style={{ padding: 24 }}>
+          <div className="skeleton" style={{ width: 72, height: 72, borderRadius: '50%', margin: '8px auto 16px' }} />
+          <div className="skeleton" style={{ height: 20, width: 160, borderRadius: 8, margin: '0 auto 24px' }} />
+          <div className="skeleton" style={{ height: 150, borderRadius: 16, marginBottom: 16 }} />
+          <div className="skeleton" style={{ height: 110, borderRadius: 16 }} />
+        </div>
+      </div>
+    );
   }
 
   if (error || !appointment) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
+        <div style={{ fontSize: 44, marginBottom: 12 }}>😕</div>
         <p style={{ color: 'var(--color-muted)' }}>{error}</p>
-        <button className="btn-primary" style={{ marginTop: 20 }} onClick={() => router.back()}>بازگشت</button>
+        <button className="btn-primary" style={{ marginTop: 20, width: 'auto', padding: '0 32px' }} onClick={() => router.back()}>بازگشت</button>
       </div>
     );
   }
 
   const st = STATUS_LABELS[appointment.status] || { label: appointment.status, color: 'var(--color-muted)', bg: '#f3f4f6' };
+  const biz = appointment.business;
+  const emoji = CATEGORY_EMOJI[biz.category] || '🏢';
 
   return (
     <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
-      
+
       <div className="toolbar">
         <div className="toolbar-placeholder" />
         <h1 className="toolbar-title">جزئیات نوبت</h1>
@@ -72,9 +96,20 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
       </div>
 
       <div style={{ padding: '24px 24px' }}>
-        
-        {/* Status Box */}
+
+        {/* ── Header ── */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{
+            width: 76, height: 76, borderRadius: '50%', margin: '0 auto 12px',
+            background: 'var(--color-primary-tint)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', fontSize: 36,
+          }}>
+            {emoji}
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text)' }}>{biz.title}</h2>
+          <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 4, marginBottom: 14 }}>
+            {categoryLabel(biz.category)}
+          </div>
           <div style={{ display: 'inline-block', background: st.bg, color: st.color, padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
             {st.label}
           </div>
@@ -85,58 +120,73 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
           )}
         </div>
 
-        {/* Business Info */}
+        {/* ── Appointment Info ── */}
         <div style={{
           background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
-          padding: 24, marginBottom: 16
-        }}>
-          <h2 style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 12 }}>کسب‌وکار</h2>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)' }}>{appointment.business.title}</div>
-          <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 4 }}>{appointment.business.category}</div>
-          
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)' }}>
-            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 4 }}>آدرس</div>
-            <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.6 }}>{appointment.business.address || 'ثبت نشده'}</div>
-          </div>
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)' }}>
-            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 4 }}>تلفن تماس</div>
-            <div style={{ fontSize: 13, color: 'var(--color-text)' }}>{appointment.business.phone || 'ثبت نشده'}</div>
-          </div>
-        </div>
-
-        {/* Appointment Info */}
-        <div style={{
-          background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
-          padding: 24, marginBottom: 24
+          padding: 24, marginBottom: 16,
         }}>
           <h2 style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 12 }}>اطلاعات نوبت</h2>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)', direction: 'rtl' }}>
             {formatDate(appointment.appointment_date)}
           </div>
-          
+
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)', display: 'flex', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>کد پیگیری نوبت</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'monospace' }}>#{appointment.id}</div>
           </div>
         </div>
 
-        {/* Actions */}
+        {/* ── Contact ── */}
+        <div style={{
+          background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
+          padding: 24, marginBottom: 24,
+        }}>
+          <h2 style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 12 }}>راه‌های ارتباطی</h2>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', flexShrink: 0 }}>آدرس</div>
+            {biz.address ? (
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent(biz.address)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 13, color: 'var(--color-primary)', lineHeight: 1.7, textAlign: 'left', textDecoration: 'none', fontWeight: 600 }}
+              >
+                {biz.address}
+              </a>
+            ) : (
+              <div style={{ fontSize: 13, color: 'var(--color-text)' }}>ثبت نشده</div>
+            )}
+          </div>
+
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>تلفن تماس</div>
+            {biz.phone ? (
+              <a href={`tel:${biz.phone}`} dir="ltr" style={{ fontSize: 14, color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 700 }}>
+                {biz.phone}
+              </a>
+            ) : (
+              <div style={{ fontSize: 13, color: 'var(--color-text)' }}>ثبت نشده</div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Actions ── */}
         {appointment.status === 'LOCKED' && (
           <button
             className="btn-primary"
-            onClick={() => router.push(`/b/${appointment.business.unique_code}/checkout/${appointment.id}`)}
+            onClick={() => router.push(`/b/Noobatyar-${biz.unique_code}/checkout/${appointment.id}`)}
             style={{ marginBottom: 12 }}
           >
             تکمیل پرداخت
           </button>
         )}
-        
+
         <button
-          onClick={() => router.push(`/b/Noobatyar-${appointment.business.unique_code}`)}
+          onClick={() => router.push(`/b/Noobatyar-${biz.unique_code}`)}
           style={{
             width: '100%', height: 52, borderRadius: 14, border: '1px solid var(--color-border)',
             background: 'var(--color-surface)', color: 'var(--color-muted)', fontSize: 14, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit'
+            cursor: 'pointer', fontFamily: 'inherit',
           }}
         >
           مشاهده پروفایل کسب‌وکار
