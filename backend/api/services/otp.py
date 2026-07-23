@@ -15,12 +15,11 @@ Red Line #3 rules
 -----------------
 1. Max 1 OTP request per phone per 3 minutes.
 2. After 5 wrong verifications in 24 h  → phone banned for the rest of that 24 h.
-3. Sending SMS is ALWAYS non-blocking — the HTTP call to Melipayamak runs in a
-   background daemon thread so the API response is instant.
+3. Melipayamak's /api/send/otp/ endpoint generates the OTP itself and returns it
+   in the response; we store THAT code (not a locally generated one) so that the
+   code the user receives always matches what we verify against.
 """
 
-import random
-import threading
 import logging
 
 from django.core.cache import cache
@@ -80,22 +79,24 @@ def send_otp(phone: str) -> dict:
             "error": "لطفاً ۳ دقیقه صبر کنید و سپس دوباره درخواست کنید",
         }
 
-    # 3. Generate code and store it atomically
-    code = _generate_otp()
-    cache.set(_key_code(phone),    code, timeout=OTP_TTL)
-    cache.set(_key_rate(phone),    True, timeout=OTP_RATE_TTL)
-    cache.set(_key_attempts(phone), 0,   timeout=OTP_TTL)
+    # 3. Ask Melipayamak to send the OTP. IMPORTANT: the /api/send/otp/ endpoint
+    #    GENERATES the code itself and returns it in the response — it does NOT
+    #    send any text we supply. We must therefore store the code Melipayamak
+    #    returns as the source of truth, otherwise every verification fails with
+    #    "wrong code" (user receives Melipayamak's code, we stored our own).
+    code = _send_via_melipayamak(phone)
+    if not code:
+        return {
+            "success": False,
+            "error": "خطا در ارسال پیامک. لطفاً کمی بعد دوباره تلاش کنید",
+        }
 
-    # 4. Fire-and-forget — do NOT await or join; response returns immediately
-    thread = threading.Thread(
-        target=_dispatch_sms,
-        args=(phone, code),
-        daemon=True,          # won't block server shutdown
-        name=f"otp-sms-{phone[-4:]}",
-    )
-    thread.start()
+    # 4. Store the code Melipayamak actually sent, atomically with rate/attempts
+    cache.set(_key_code(phone),     str(code), timeout=OTP_TTL)
+    cache.set(_key_rate(phone),     True,      timeout=OTP_RATE_TTL)
+    cache.set(_key_attempts(phone), 0,         timeout=OTP_TTL)
 
-    logger.info("OTP generated and SMS thread started for %s", phone[-4:] + "****")
+    logger.info("OTP sent and stored for %s****", phone[-4:])
     return {"success": True}
 
 
@@ -111,6 +112,7 @@ def verify_otp(phone: str, code: str) -> dict:
     """
     stored_code = cache.get(_key_code(phone))
     if not stored_code:
+        logger.warning(f"OTP Verify Failed: missing code for {phone}. Submitted: {code}")
         return {"success": False, "error": "کد منقضی شده یا ارسال نشده است"}
 
     attempts = cache.get(_key_attempts(phone), 0)
@@ -121,6 +123,7 @@ def verify_otp(phone: str, code: str) -> dict:
         return {"success": False, "error": "تعداد تلاش بیش از حد مجاز — لطفاً کد جدید دریافت کنید"}
 
     if stored_code != str(code):
+        logger.warning(f"OTP Verify Failed: mismatch for {phone}. Stored: {stored_code}, Submitted: {code}")
         # Wrong code — increment counters
         cache.set(_key_attempts(phone), attempts + 1, timeout=OTP_TTL)
         _increment_daily_fail(phone)
@@ -136,10 +139,6 @@ def verify_otp(phone: str, code: str) -> dict:
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
-
-def _generate_otp() -> str:
-    return str(random.randint(100000, 999999))
-
 
 def _invalidate_otp(phone: str) -> None:
     """Remove all per-OTP keys (called on success or max-attempt breach)."""
@@ -161,36 +160,39 @@ def _increment_daily_fail(phone: str) -> None:
             cache.set(_key_daily_fail(phone), 1, timeout=OTP_DAILY_FAIL_TTL)
 
 
-def _dispatch_sms(phone: str, code: str) -> None:
+def _send_via_melipayamak(phone: str) -> str | None:
     """
-    Background thread target — calls Melipayamak API.
-    Any exception is logged and swallowed; the main request has already returned.
+    Call Melipayamak's OTP endpoint and return the code it generated & sent.
+
+    The `/api/send/otp/{token}` service creates the OTP on Melipayamak's side and
+    delivers it by SMS; the generated code is returned in the JSON response as
+    `code`. We return that code so the caller can store it for verification.
+
+    Returns the code as a string on success, or None on any failure.
     """
     import requests
 
+    otp_token = getattr(settings, "MELIPAYAMAK_OTP_TOKEN", None)
+    if not otp_token:
+        logger.error("MELIPAYAMAK_OTP_TOKEN is not configured — OTP SMS not sent")
+        return None
+
+    if phone.startswith("98"):
+        phone = "0" + phone[2:]
+
+    url = f"https://console.melipayamak.com/api/send/otp/{otp_token}"
     try:
-        if phone.startswith("98"):
-            phone = "0" + phone[2:]
-
-        otp_token = getattr(settings, "MELIPAYAMAK_OTP_TOKEN", None)
-        if not otp_token:
-            logger.error("MELIPAYAMAK_OTP_TOKEN is not configured — OTP SMS not sent")
-            return
-
-        url = f"https://console.melipayamak.com/api/send/otp/{otp_token}"
-        payload = {
-            "to": phone,
-            "text": f"کد تأیید نوبت‌یار: {code}\nاعتبار: ۳ دقیقه",
-        }
-        response = requests.post(url, json=payload, timeout=10)
+        response = requests.post(url, json={"to": phone}, timeout=10)
         result = response.json() if response.text.strip() else {}
-
-        if result.get("code") == 0 or response.status_code == 200:
-            logger.info("OTP SMS delivered to %s****", phone[-4:])
-        else:
-            logger.warning("OTP SMS failed for %s****: %s", phone[-4:], result)
-
+        code = result.get("code")
+        if code:
+            logger.info("OTP SMS delivered to %s**** (code captured)", phone[-4:])
+            return str(code)
+        logger.warning("Melipayamak returned no code for %s****: %s", phone[-4:], result)
+        return None
     except requests.Timeout:
         logger.error("OTP SMS timeout for %s****", phone[-4:])
+        return None
     except Exception as exc:
         logger.exception("OTP SMS unexpected error for %s****: %s", phone[-4:], exc)
+        return None
