@@ -66,7 +66,7 @@ class AppointmentRepositoryImpl(
                 appointmentDao.upsertAppointment(entity)
                 dto.id
             } else if (response is ApiResponse.Error) {
-                throw Exception(response.message)
+                throw xyz.sattar.javid.proqueue.core.network.ApiException(response.message, response.code)
             } else {
                 -1L
             }

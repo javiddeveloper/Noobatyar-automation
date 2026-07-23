@@ -118,6 +118,7 @@ fun MainNavHost(
             startDestination = AppScreens.Home,
             modifier = Modifier
                 .fillMaxSize()
+                .padding(bottom = paddingValues.calculateBottomPadding())
                 .navigationBarsPadding()
         ) {
             composable<AppScreens.Home> {

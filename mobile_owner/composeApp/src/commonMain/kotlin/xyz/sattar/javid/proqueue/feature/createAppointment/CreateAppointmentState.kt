@@ -19,6 +19,7 @@ data class CreateAppointmentState(
     val editingAppointmentId: Long? = null,
     val showConflictDialog: Boolean = false,
     val conflictingVisitorName: String? = null,
+    val quotaDialogMessage: String? = null,
     val dailyAppointments: List<AppointmentWithDetails> = emptyList(),
     val dailyAppointmentsCount: Int = 0,
     val appointmentDeleted: Boolean = false
@@ -38,6 +39,8 @@ data class CreateAppointmentState(
         data object AppointmentCreated : PartialState()
         data class ShowConflictDialog(val visitorName: String) : PartialState()
         data object DismissConflictDialog : PartialState()
+        data class ShowQuotaDialog(val message: String) : PartialState()
+        data object DismissQuotaDialog : PartialState()
         data class LoadDailyAppointments(val appointments: List<AppointmentWithDetails>) : PartialState()
         data object AppointmentDeleted : PartialState()
     }

@@ -564,6 +564,37 @@ fun CreateAppointmentScreenContent(
                     }
                 )
             }
+
+            // Quota / capacity reached dialog — explains what happened and what to do.
+            if (uiState.quotaDialogMessage != null) {
+                AlertDialog(
+                    onDismissRequest = { onIntent(CreateAppointmentIntent.DismissQuotaDialog) },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Lock,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    title = { Text("امکان ثبت نوبت نیست") },
+                    text = {
+                        Column {
+                            Text(uiState.quotaDialogMessage ?: "")
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "برای رزرو نوبت بیشتر، از صفحه‌ی خانه پلن خود را ارتقا دهید یا منتظر شروع ماه بعد بمانید.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { onIntent(CreateAppointmentIntent.DismissQuotaDialog) }) {
+                            Text("متوجه شدم")
+                        }
+                    }
+                )
+            }
         }
     }
 }
