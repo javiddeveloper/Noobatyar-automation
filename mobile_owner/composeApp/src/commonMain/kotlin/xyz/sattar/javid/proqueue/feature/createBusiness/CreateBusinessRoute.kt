@@ -627,40 +627,9 @@ fun CreateBusinessScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            androidx.compose.material3.HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "تنظیمات پیشرفته",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            AdvancedSettingsTabs(
-                entitlements = uiState.entitlements,
-                plans = uiState.plans,
-                onUpgrade = onUpgrade,
-                isLoading = uiState.isLoading,
-                acceptedPaymentMethods = acceptedPaymentMethods,
-                onAcceptedPaymentMethods = onAcceptedPaymentMethods,
-                cardNumber = cardNumber,
-                onCardNumber = onCardNumber,
-                cardOwnerName = cardOwnerName,
-                onCardOwnerName = onCardOwnerName,
-                maxAppointmentsPerHour = maxAppointmentsPerHour,
-                onMaxAppointmentsPerHour = onMaxAppointmentsPerHour,
-                depositEnabled = depositEnabled,
-                onDepositEnabled = onDepositEnabled,
-                depositAmount = depositAmount,
-                onDepositAmount = onDepositAmount,
-                merchantId = merchantId,
-                onMerchantId = onMerchantId,
-                paymentLink = paymentLink,
-                onPaymentLink = onPaymentLink
-            )
+            // Advanced settings (payment / capacity / reminders) now live on a
+            // separate screen, reachable from the profile. The values are still
+            // loaded and saved here so editing the business doesn't drop them.
 
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(24.dp))
