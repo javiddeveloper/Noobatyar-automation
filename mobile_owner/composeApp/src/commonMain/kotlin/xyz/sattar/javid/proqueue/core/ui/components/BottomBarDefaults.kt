@@ -15,10 +15,14 @@ import androidx.compose.ui.unit.dp
  */
 object BottomBarDefaults {
     /** Extra scroll/FAB clearance so content sits above the floating bottom bar. */
-    val ContentClearance: Dp = 140.dp
+    val ContentClearance: Dp = 150.dp
 
-    /** FAB lift so it sits above the bar instead of under the home cutout. */
-    val FabClearance: Dp = 100.dp
+    /**
+     * FAB lift so it sits above the floating bar instead of under the home
+     * cutout. Accounts for the bar's bottom margin + height + the home button
+     * that pokes above it.
+     */
+    val FabClearance: Dp = 124.dp
 }
 
 @Composable
