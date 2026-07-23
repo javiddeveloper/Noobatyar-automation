@@ -15,12 +15,12 @@ class APIResponse:
         }, status=status)
 
     @staticmethod
-    def error(message, code=http_status.HTTP_400_BAD_REQUEST):
+    def error(message, code=http_status.HTTP_400_BAD_REQUEST, data=None):
         return Response({
             'status': 'error',
             'code': code,
             'message': message,
-            'data': None
+            'data': data
         }, status=code)
 
     @staticmethod

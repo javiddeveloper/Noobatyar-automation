@@ -72,9 +72,11 @@ services:
   frontend:
     build:
       context: ../front_client
+      args:
+        - NEXT_PUBLIC_API_URL=http://93.127.223.93
     restart: always
     environment:
-      - NEXT_PUBLIC_API_URL=http://93.127.223.93/api
+      - NEXT_PUBLIC_API_URL=http://93.127.223.93
 
   nginx:
     image: nginx:1.25

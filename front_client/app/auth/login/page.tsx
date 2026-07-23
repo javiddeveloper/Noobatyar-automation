@@ -13,7 +13,7 @@ function LoginForm() {
 
   const [step, setStep] = useState<Step>('PHONE');
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState(['', '', '', '', '']);
+  const [code, setCode] = useState(['', '', '', '', '', '']);
   const [name, setName] = useState('');
   const [registerToken, setRegisterToken] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,8 +57,8 @@ function LoginForm() {
   /* ── Step 2: Verify OTP ── */
   const handleVerifyOtp = async () => {
     const fullCode = code.join('');
-    if (fullCode.length !== 5) {
-      setError('کد ۵ رقمی را کامل وارد کنید');
+    if (fullCode.length !== 6) {
+      setError('کد ۶ رقمی را کامل وارد کنید');
       return;
     }
     setError('');
@@ -108,11 +108,11 @@ function LoginForm() {
     const next = [...code];
     next[index] = latinDigit;
     setCode(next);
-    if (latinDigit && index < 4) {
+    if (latinDigit && index < 5) {
       codeRefs.current[index + 1]?.focus();
     }
-    if (next.every(Boolean) && next.join('').length === 5) {
-      // auto-submit when all 5 digits entered
+    if (next.every(Boolean) && next.join('').length === 6) {
+      // auto-submit when all 6 digits entered
       setTimeout(() => {
         const el = document.getElementById('otp-submit-btn');
         el?.click();
@@ -195,7 +195,7 @@ function LoginForm() {
                 کد تأیید ارسال شد
               </h2>
               <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
-                کد ۵ رقمی ارسال‌شده به {phone} را وارد کنید
+                کد ۶ رقمی ارسال‌شده به {phone} را وارد کنید
               </p>
             </div>
 
@@ -235,7 +235,7 @@ function LoginForm() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setCode(['','','','','']); handleSendOtp(); }}
+                  onClick={() => { setCode(['','','','','','']); handleSendOtp(); }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}
                 >
                   ارسال مجدد کد
