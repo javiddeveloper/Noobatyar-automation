@@ -12,11 +12,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import xyz.sattar.javid.proqueue.core.ui.LocalHazeState
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -63,6 +67,9 @@ fun MainNavHost(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Shared blur source/target state for the glass top & bottom bars.
+    val hazeState = remember { HazeState() }
+
     LaunchedEffect(Unit) {
         GlobalErrorManager.errorFlow.collect { error ->
             if (error is GlobalError.RateLimit) {
@@ -99,8 +106,9 @@ fun MainNavHost(
         } == true
     } ?: MainTab.Home
 
+    CompositionLocalProvider(LocalHazeState provides hazeState) {
     Scaffold(
-        snackbarHost = { 
+        snackbarHost = {
             Box(modifier = Modifier.navigationBarsPadding()) {
                 SnackbarHost(snackbarHostState) 
             }
@@ -133,12 +141,16 @@ fun MainNavHost(
             }
         }
     ) { paddingValues ->
+        // Note: we intentionally do NOT pad the content by the bottom bar height.
+        // The bottom bar floats (with a gradient scrim), so screens scroll under
+        // it with no solid gap. Tab screens add BottomBarSpacer / FabClearance
+        // so the last items and FABs clear the bar.
         NavHost(
             navController = navController,
             startDestination = AppScreens.Home,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = paddingValues.calculateBottomPadding())
+                .hazeSource(hazeState)
         ) {
             composable<AppScreens.Home> {
                 HomeScreen(
@@ -376,5 +388,6 @@ fun MainNavHost(
                 )
             }
         }
+    }
     }
 }

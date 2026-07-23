@@ -33,6 +33,7 @@ import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.AppThemeMode
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 
 @Composable
@@ -53,9 +54,9 @@ fun SettingsScreen(
     val sheetState = rememberModalBottomSheetState()
     val themeMode by ThemeStateHolder.themeMode.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.sendIntent(SettingsIntent.LoadSettings)
-    }
+    // Initial load happens once in SettingsViewModel.init (it observes the
+    // selected business). Not re-triggered here to avoid repeat requests when
+    // returning to this tab.
 
     HandleEvents(
         events = viewModel.events,
@@ -151,6 +152,7 @@ fun SettingsContent(
     onAdvancedSettings: () -> Unit
 ) {
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             MainTopAppBar(
                 onNavigateToLogin = onNavigateToLogin,
@@ -286,7 +288,7 @@ fun SettingsContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(180.dp))
+            BottomBarSpacer()
         }
     }
 }

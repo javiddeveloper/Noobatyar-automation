@@ -1,26 +1,43 @@
 package xyz.sattar.javid.proqueue.feature.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
-import xyz.sattar.javid.proqueue.domain.model.business.Business
-import androidx.compose.ui.text.style.TextAlign
-import coil3.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
+import xyz.sattar.javid.proqueue.feature.home.SubscriptionCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,12 +45,18 @@ fun ProfileBottomSheet(
     userName: String?,
     userEmail: String?,
     subscription: SubscriptionDto?,
-    business: Business?,
     onDismiss: () -> Unit,
     onLogout: () -> Unit,
-    onChangeBusiness: () -> Unit,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
+    val ring = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.tertiary,
+            MaterialTheme.colorScheme.secondary
+        )
+    )
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -42,9 +65,9 @@ fun ProfileBottomSheet(
             Box(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
-                    .size(width = 32.dp, height = 4.dp)
+                    .size(width = 36.dp, height = 4.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                         shape = CircleShape
                     )
             )
@@ -54,188 +77,108 @@ fun ProfileBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 36.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Owner Info Section
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // Avatar
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .border(width = 2.dp, brush = ring, shape = CircleShape)
+                    .padding(4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val displayChar = userName?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                val displayChar = userName?.trim()?.firstOrNull()?.uppercaseChar()?.toString()
+                if (displayChar != null) {
                     Text(
                         text = displayChar,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.displaySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold
                     )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column {
-                    Text(
-                        text = userName ?: "کاربر نوبت یار",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(40.dp)
                     )
-                    if (userEmail != null) {
-                        Text(
-                            text = userEmail,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Current Business Section
-            if (business != null) {
+            Text(
+                text = userName ?: "کاربر نوبت‌یار",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (!userEmail.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "کسب و کار فعلی",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Start
+                    text = userEmail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            SubscriptionCard(subscription = subscription)
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable(onClick = onLogout),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.18f)
+                ),
+                shape = RoundedCornerShape(18.dp),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
+                    )
+                )
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp, horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (!business.logoPath.isNullOrEmpty()) {
-                            val url = if (business.logoPath.startsWith("http")) business.logoPath else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${business.logoPath}"
-                            AsyncImage(
-                                model = url,
-                                contentDescription = "Business Logo",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Business,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = business.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = business.category.persianName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Subscription status
-            xyz.sattar.javid.proqueue.feature.home.SubscriptionCard(subscription = subscription)
-            
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Change Business Button
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(onClick = onChangeBusiness),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Business,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "تغییر کسب و کار",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                // Logout Button
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(onClick = onLogout),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Logout,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "خروج از حساب",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.Logout,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "خروج از حساب",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
     }
 }
-

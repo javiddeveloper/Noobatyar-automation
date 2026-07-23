@@ -42,6 +42,12 @@ import proqueue.composeapp.generated.resources.home_menu_item
 import proqueue.composeapp.generated.resources.phone
 import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomePlanBannerShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeUsageShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
@@ -62,9 +68,9 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val uriHandler = LocalUriHandler.current
 
-    LaunchedEffect(Unit) {
-        viewModel.sendIntent(HomeIntent.LoadData)
-    }
+    // Initial data load happens once in HomeViewModel.init (it observes the
+    // selected business). We deliberately don't re-trigger it here, so returning
+    // to this tab does not fire a new server request.
 
     HandleEvents(
         events = viewModel.events,
@@ -108,6 +114,7 @@ fun HomeScreenContent(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             MainTopAppBar(
                 onNavigateToLogin = onNavigateToLogin,
@@ -140,11 +147,13 @@ fun HomeScreenContent(
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp)
-                .padding(top = paddingValues.calculateTopPadding()),
+                .padding(horizontal = 16.dp),
+            // contentPadding (not a padding modifier) so items scroll *under* the
+            // glass top bar rather than starting below an opaque gap.
+            contentPadding = PaddingValues(top = paddingValues.calculateTopPadding()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ۲. لینک دریافت نوبت
+            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز)
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -152,19 +161,87 @@ fun HomeScreenContent(
                         animationSpec = tween(500, delayMillis = 150)
                     )
                 ) {
-                    uiState.business?.let { BookingLinkButton(it) }
+                    DateHeader()
                 }
             }
 
-            // ۳. بنرهای پلن اشتراک
-            if (uiState.plans.isNotEmpty()) {
-                item {
-                    AnimatedVisibility(
-                        visible = visible,
-                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                            animationSpec = tween(500, delayMillis = 200)
+            // ۲. آمار داشبورد امروز
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 200)
+                    )
+                ) {
+                    when {
+                        !uiState.statsLoaded -> HomeDashboardShimmer()
+                        else -> DashboardStatsSection(stats = uiState.stats)
+                    }
+                }
+            }
+
+            // ۳. نمودار روند نوبت‌های ۷ روز اخیر
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 250)
+                    )
+                ) {
+                    if (!uiState.chartLoaded) {
+                        HomeChartShimmer()
+                    } else if (uiState.dailyCounts.isNotEmpty()) {
+                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
+                    }
+                }
+            }
+
+            // ۴. مصرف‌سنج ماهانه
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 300)
+                    )
+                ) {
+                    if (!uiState.entitlementsLoaded) {
+                        HomeUsageShimmer()
+                    } else if (uiState.entitlements != null) {
+                        UsageMeterSection(
+                            entitlements = uiState.entitlements,
+                            onNavigateToAddons = onNavigateToAddons
                         )
-                    ) {
+                    }
+                }
+            }
+
+            // ۵. لینک دریافت نوبت
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 350)
+                    )
+                ) {
+                    if (uiState.business == null && uiState.isLoading) {
+                        HomeButtonShimmer()
+                    } else if (uiState.business != null) {
+                        BookingLinkButton(uiState.business)
+                    }
+                }
+            }
+
+            // ۶. بنرهای پلن اشتراک
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 400)
+                    )
+                ) {
+                    if (!uiState.plansLoaded) {
+                        HomePlanBannerShimmer()
+                    } else if (uiState.plans.isNotEmpty()) {
                         PlanBannerSection(
                             plans = uiState.plans,
                             onPlanClick = { plan ->
@@ -175,70 +252,7 @@ fun HomeScreenContent(
                 }
             }
 
-            // ۴. هدر تاریخ
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 250)
-                    )
-                ) {
-                    DateHeader()
-                }
-            }
-
-            // ۵. نمودار خطی نئونی نوبت‌های ۷ روز اخیر
-            if (uiState.dailyCounts.isNotEmpty()) {
-                item {
-                    AnimatedVisibility(
-                        visible = visible,
-                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                            animationSpec = tween(500, delayMillis = 300)
-                        )
-                    ) {
-                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
-                    }
-                }
-            }
-
-            // ۶. آمار داشبورد (گرید ویو ۴ تایی)
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 350)
-                    )
-                ) {
-                    DashboardStatsSection(stats = uiState.stats)
-                }
-            }
-
-            // ۷. مصرف‌سنج ماهانه
-            if (uiState.entitlements != null) {
-                item {
-                    AnimatedVisibility(
-                        visible = visible,
-                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                            animationSpec = tween(500, delayMillis = 400)
-                        )
-                    ) {
-                        UsageMeterSection(
-                            entitlements = uiState.entitlements,
-                            onNavigateToAddons = onNavigateToAddons
-                        )
-                    }
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            item { BottomBarSpacer() }
         }
     }
 }

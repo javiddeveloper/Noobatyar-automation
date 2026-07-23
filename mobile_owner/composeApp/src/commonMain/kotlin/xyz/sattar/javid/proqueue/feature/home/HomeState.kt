@@ -17,14 +17,20 @@ data class HomeState(
     val message: String? = null,
     val queue: List<QueueItem> = emptyList(),
     val stats: DashboardStats = DashboardStats(),
+    val statsLoaded: Boolean = false,
     val plans: List<PlanDto> = emptyList(),
+    val plansLoaded: Boolean = false,
     val paymentResult: PaymentResultInfo? = null,
     val subscription: SubscriptionDto? = null,
     val entitlements: EntitlementsResponseDto? = null,
-    val dailyCounts: List<DailyCountDto> = emptyList()
+    val entitlementsLoaded: Boolean = false,
+    val dailyCounts: List<DailyCountDto> = emptyList(),
+    val chartLoaded: Boolean = false
 ) {
     sealed class PartialState {
         data class IsLoading(val isLoading: Boolean) : PartialState()
+        /** Clears section-ready flags so shimmer placeholders show again. */
+        data object ResetSectionLoaders : PartialState()
         data class ShowMessage(val message: String) : PartialState()
         data class LoadBusinessName(val business: Business?) : PartialState()
         data class LoadQueue(val queue: List<QueueItem>) : PartialState()

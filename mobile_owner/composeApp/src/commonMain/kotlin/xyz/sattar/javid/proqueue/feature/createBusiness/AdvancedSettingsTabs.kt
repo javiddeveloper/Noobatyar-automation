@@ -25,13 +25,16 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsRe
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 
 /**
- * The business "advanced settings" area, organized as commitment-ladder tabs:
- * شروع (free) → حرفه‌ای → ویژه. A tab's gated fields are either editable (the
- * user's plan includes that capability) or replaced by an upgrade card naming
- * the cheapest plan that unlocks it — mirroring a Premium/Max upgrade prompt.
+ * The business "advanced settings" area, organized by *topic* rather than by
+ * pricing tier: پرداخت (payments) → ظرفیت (capacity & deposit) → یادآوری
+ * (reminders & SMS). Within each topic, a capability that the user's plan does
+ * not include is replaced inline by an upgrade card naming the cheapest plan
+ * that unlocks it — so, e.g., all the ways of receiving money live together and
+ * only the premium ones (online gateway) show a lock, instead of card-to-card
+ * and the online gateway being split across separate tabs.
  *
- * Tier → capability mapping mirrors backend/accounting/entitlements.py exactly,
- * so nothing shown as "unlocked" here can be rejected by the server.
+ * Feature → capability mapping mirrors backend/accounting/entitlements.py
+ * exactly, so nothing shown as "unlocked" here can be rejected by the server.
  */
 @Composable
 fun AdvancedSettingsTabs(
@@ -39,14 +42,12 @@ fun AdvancedSettingsTabs(
     plans: List<PlanDto>,
     onUpgrade: (Int) -> Unit,
     isLoading: Boolean,
-    // شروع — always available, no gating
     acceptedPaymentMethods: Set<String>,
     onAcceptedPaymentMethods: (Set<String>) -> Unit,
     cardNumber: String,
     onCardNumber: (String) -> Unit,
     cardOwnerName: String,
     onCardOwnerName: (String) -> Unit,
-    // حرفه‌ای — gated
     maxAppointmentsPerHour: String,
     onMaxAppointmentsPerHour: (String) -> Unit,
     depositEnabled: Boolean,
@@ -59,7 +60,7 @@ fun AdvancedSettingsTabs(
     onPaymentLink: (String) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("شروع", "حرفه‌ای", "ویژه")
+    val tabs = listOf("پرداخت", "ظرفیت و بیعانه", "یادآوری")
 
     Column(modifier = Modifier.fillMaxWidth()) {
         TabRow(
@@ -78,16 +79,23 @@ fun AdvancedSettingsTabs(
         Spacer(modifier = Modifier.height(16.dp))
 
         when (selectedTab) {
-            0 -> StarterTab(
+            0 -> PaymentTab(
+                entitlements = entitlements,
+                plans = plans,
+                onUpgrade = onUpgrade,
+                isLoading = isLoading,
                 acceptedPaymentMethods = acceptedPaymentMethods,
                 onAcceptedPaymentMethods = onAcceptedPaymentMethods,
                 cardNumber = cardNumber,
                 onCardNumber = onCardNumber,
                 cardOwnerName = cardOwnerName,
                 onCardOwnerName = onCardOwnerName,
-                isLoading = isLoading
+                merchantId = merchantId,
+                onMerchantId = onMerchantId,
+                paymentLink = paymentLink,
+                onPaymentLink = onPaymentLink
             )
-            1 -> ProTab(
+            1 -> CapacityTab(
                 entitlements = entitlements,
                 plans = plans,
                 onUpgrade = onUpgrade,
@@ -97,36 +105,42 @@ fun AdvancedSettingsTabs(
                 depositEnabled = depositEnabled,
                 onDepositEnabled = onDepositEnabled,
                 depositAmount = depositAmount,
-                onDepositAmount = onDepositAmount,
-                acceptedPaymentMethods = acceptedPaymentMethods,
-                onAcceptedPaymentMethods = onAcceptedPaymentMethods,
-                merchantId = merchantId,
-                onMerchantId = onMerchantId,
-                paymentLink = paymentLink,
-                onPaymentLink = onPaymentLink
+                onDepositAmount = onDepositAmount
             )
-            2 -> PremiumTab(entitlements = entitlements, plans = plans, onUpgrade = onUpgrade)
+            2 -> RemindersTab(entitlements = entitlements, plans = plans, onUpgrade = onUpgrade)
         }
     }
 }
 
+/**
+ * All the ways of receiving money in one place. Cash and card-to-card are free
+ * on every plan; the online bank gateway is gated inline for premium plans.
+ */
 @Composable
-private fun StarterTab(
+private fun PaymentTab(
+    entitlements: EntitlementsResponseDto?,
+    plans: List<PlanDto>,
+    onUpgrade: (Int) -> Unit,
+    isLoading: Boolean,
     acceptedPaymentMethods: Set<String>,
     onAcceptedPaymentMethods: (Set<String>) -> Unit,
     cardNumber: String,
     onCardNumber: (String) -> Unit,
     cardOwnerName: String,
     onCardOwnerName: (String) -> Unit,
-    isLoading: Boolean
+    merchantId: String,
+    onMerchantId: (String) -> Unit,
+    paymentLink: String,
+    onPaymentLink: (String) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            "روش‌های پرداخت پایه، در همه‌ی پلن‌ها فعال است.",
+            "روش‌های دریافت وجه را انتخاب کنید.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        // پرداخت در محل و کارت به کارت — رایگان در همه‌ی پلن‌ها
         listOf("CASH" to "پرداخت در محل", "CARD" to "کارت به کارت").forEach { (method, label) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
@@ -160,11 +174,54 @@ private fun StarterTab(
                 )
             }
         }
+
+        // درگاه پرداخت آنلاین — قابلیت پلن‌های ویژه (به‌صورت درجا قفل می‌شود)
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.ONLINE_GATEWAY,
+            title = "درگاه پرداخت آنلاین",
+            description = "دریافت مبلغ نوبت مستقیم از طریق درگاه بانکی.",
+            onUpgrade = onUpgrade
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = acceptedPaymentMethods.contains("ONLINE"),
+                        onCheckedChange = { checked ->
+                            val newSet = acceptedPaymentMethods.toMutableSet()
+                            if (checked) newSet.add("ONLINE") else newSet.remove("ONLINE")
+                            onAcceptedPaymentMethods(newSet)
+                        }
+                    )
+                    Text("فعال‌سازی درگاه آنلاین", style = MaterialTheme.typography.bodyMedium)
+                }
+                if (acceptedPaymentMethods.contains("ONLINE")) {
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = merchantId,
+                        onValueChange = onMerchantId,
+                        label = "مرچنت آیدی (Merchant ID)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        keyboardType = KeyboardType.Text
+                    )
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = paymentLink,
+                        onValueChange = onPaymentLink,
+                        label = "لینک درگاه پرداخت (مثال: zarinpal.com/pay/...)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        keyboardType = KeyboardType.Uri
+                    )
+                }
+            }
+        }
     }
 }
 
+/** Capacity control and deposit — both gated capabilities, grouped together. */
 @Composable
-private fun ProTab(
+private fun CapacityTab(
     entitlements: EntitlementsResponseDto?,
     plans: List<PlanDto>,
     onUpgrade: (Int) -> Unit,
@@ -175,12 +232,6 @@ private fun ProTab(
     onDepositEnabled: (Boolean) -> Unit,
     depositAmount: String,
     onDepositAmount: (String) -> Unit,
-    acceptedPaymentMethods: Set<String>,
-    onAcceptedPaymentMethods: (Set<String>) -> Unit,
-    merchantId: String,
-    onMerchantId: (String) -> Unit,
-    paymentLink: String,
-    onPaymentLink: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         FeatureGate(
@@ -232,48 +283,17 @@ private fun ProTab(
                 }
             }
         }
+    }
+}
 
-        FeatureGate(
-            entitlements = entitlements,
-            plans = plans,
-            featureKey = EntitlementKeys.ONLINE_GATEWAY,
-            title = "درگاه پرداخت آنلاین",
-            description = "دریافت مبلغ نوبت مستقیم از طریق درگاه بانکی.",
-            onUpgrade = onUpgrade
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = acceptedPaymentMethods.contains("ONLINE"),
-                        onCheckedChange = { checked ->
-                            val newSet = acceptedPaymentMethods.toMutableSet()
-                            if (checked) newSet.add("ONLINE") else newSet.remove("ONLINE")
-                            onAcceptedPaymentMethods(newSet)
-                        }
-                    )
-                    Text("فعال‌سازی درگاه آنلاین", style = MaterialTheme.typography.bodyMedium)
-                }
-                if (acceptedPaymentMethods.contains("ONLINE")) {
-                    AppTextField(
-                        enabled = !isLoading,
-                        value = merchantId,
-                        onValueChange = onMerchantId,
-                        label = "مرچنت آیدی (Merchant ID)",
-                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                        keyboardType = KeyboardType.Text
-                    )
-                    AppTextField(
-                        enabled = !isLoading,
-                        value = paymentLink,
-                        onValueChange = onPaymentLink,
-                        label = "لینک درگاه پرداخت (مثال: zarinpal.com/pay/...)",
-                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                        keyboardType = KeyboardType.Uri
-                    )
-                }
-            }
-        }
-
+/** Messaging capabilities — promotional SMS and multi-channel reminders. */
+@Composable
+private fun RemindersTab(
+    entitlements: EntitlementsResponseDto?,
+    plans: List<PlanDto>,
+    onUpgrade: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         FeatureGate(
             entitlements = entitlements,
             plans = plans,
@@ -284,16 +304,7 @@ private fun ProTab(
         ) {
             IncludedFeatureRow("امکان ارسال پیامک تبلیغاتی برای این کسب‌وکار فعال است.")
         }
-    }
-}
 
-@Composable
-private fun PremiumTab(
-    entitlements: EntitlementsResponseDto?,
-    plans: List<PlanDto>,
-    onUpgrade: (Int) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         FeatureGate(
             entitlements = entitlements,
             plans = plans,

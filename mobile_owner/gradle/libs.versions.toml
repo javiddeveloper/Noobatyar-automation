@@ -26,9 +26,12 @@ sqlite = "2.6.0"
 ksp = "2.3.10"
 chucker = "4.1.0"
 coil3 = "3.5.0"
+haze = "1.7.2"
 
 [libraries]
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-materials = { module = "dev.chrisbanes.haze:haze-materials", version.ref = "haze" }
 coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", version.ref = "peekaboo" }
 easycrop = { module = "io.github.mr0xf00:easycrop", version.ref = "easycrop" }

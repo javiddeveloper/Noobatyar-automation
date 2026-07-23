@@ -23,9 +23,12 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarDefaults
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
+import xyz.sattar.javid.proqueue.core.ui.components.LastVisitorsListShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.QueueItemCard
 import xyz.sattar.javid.proqueue.core.ui.components.SectionTabs
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
@@ -46,9 +49,9 @@ fun LastVisitorsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.sendIntent(LastVisitorsIntent.LoadAppointments)
-    }
+    // Initial load happens once in LastVisitorsViewModel.init (it observes the
+    // selected business). Not re-triggered here, so switching back to this tab
+    // does not re-request the server.
 
     HandleEvents(
         events = viewModel.events,
@@ -97,6 +100,7 @@ fun LastVisitorsScreenContent(
                 onClick = {
                     onIntent(LastVisitorsIntent.OnCreateAppointmentClick)
                 },
+                modifier = Modifier.padding(bottom = BottomBarDefaults.FabClearance),
                 containerColor = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -115,9 +119,14 @@ fun LastVisitorsScreenContent(
         ) {
             when {
                 uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        LastVisitorsListShimmer()
+                        BottomBarSpacer()
+                    }
                 }
 
                 uiState.appointments.isEmpty() -> {
@@ -235,7 +244,7 @@ fun LastVisitorsScreenContent(
                                             onGenerateMessage = onGenerateMessage
                                         )
                                     }
-                                    item { Spacer(modifier = Modifier.height(180.dp)) }
+                                    item { BottomBarSpacer() }
                                 }
                             }
                         } else {
@@ -448,7 +457,7 @@ fun AppointmentsList(
                 onItemClick = { onItemClick(appointment.appointment.visitorId) }
             )
         }
-        item { Spacer(modifier = Modifier.height(180.dp)) }
+        item { BottomBarSpacer() }
     }
 }
 

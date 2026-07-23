@@ -23,9 +23,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import xyz.sattar.javid.proqueue.core.navigation.MainTab
+import xyz.sattar.javid.proqueue.core.ui.LocalHazeState
 import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.runtime.collectAsState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 
 class BottomBarShape(private val cutoutRadius: androidx.compose.ui.unit.Dp) : Shape {
     override fun createOutline(
@@ -38,7 +42,7 @@ class BottomBarShape(private val cutoutRadius: androidx.compose.ui.unit.Dp) : Sh
             val width = size.width
             val height = size.height
             val centerX = width / 2
-            
+
             val r = with(density) { cutoutRadius.toPx() }
             val curveWidth = r * 2.5f
 
@@ -49,7 +53,7 @@ class BottomBarShape(private val cutoutRadius: androidx.compose.ui.unit.Dp) : Sh
                 centerX - r * 1.2f, r,
                 centerX, r
             )
-            
+
             cubicTo(
                 centerX + r * 1.2f, r,
                 centerX + r * 1.5f, 0f,
@@ -65,6 +69,7 @@ class BottomBarShape(private val cutoutRadius: androidx.compose.ui.unit.Dp) : Sh
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun BottomNavigationBar(
     tabs: List<MainTab>,
@@ -73,6 +78,7 @@ fun BottomNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val hazeState = LocalHazeState.current
 
     Box(
         modifier = modifier
@@ -89,12 +95,13 @@ fun BottomNavigationBar(
             .wrapContentHeight(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Main Navigation Bar Background
+        // Main Navigation Bar Background — frosted glass over the scrolling content.
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+                .height(80.dp)
+                .hazeEffect(state = hazeState, style = HazeMaterials.thin(MaterialTheme.colorScheme.surfaceContainer)),
+            color = Color.Transparent,
             shape = BottomBarShape(48.dp),
             shadowElevation = 12.dp
         ) {
@@ -107,7 +114,7 @@ fun BottomNavigationBar(
             ) {
                 tabs.forEach { tab ->
                     val isSelected = selectedTab == tab
-                    
+
                     if (tab is MainTab.Home) {
                         Spacer(modifier = Modifier.width(90.dp))
                     } else {
@@ -158,7 +165,7 @@ private fun StandardNavigationItem(
         if (tab is MainTab.Settings) {
             val userViewModel: UserViewModel = koinViewModel()
             val userState by userViewModel.uiState.collectAsState()
-            
+
             Box(
                 modifier = Modifier
                     .size(24.dp)
@@ -181,7 +188,7 @@ private fun StandardNavigationItem(
                 modifier = Modifier.size(24.dp)
             )
         }
-        
+
         AnimatedVisibility(
             visible = isSelected,
             enter = fadeIn() + expandVertically(),

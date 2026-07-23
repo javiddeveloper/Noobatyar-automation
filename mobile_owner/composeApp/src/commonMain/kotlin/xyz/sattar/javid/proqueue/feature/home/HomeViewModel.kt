@@ -69,25 +69,34 @@ class HomeViewModel(
         return when (partialState) {
             is HomeState.PartialState.IsLoading ->
                 currentState.copy(isLoading = partialState.isLoading)
+            HomeState.PartialState.ResetSectionLoaders ->
+                currentState.copy(
+                    statsLoaded = false,
+                    chartLoaded = false,
+                    entitlementsLoaded = false,
+                    plansLoaded = false
+                )
             is HomeState.PartialState.ShowMessage ->
                 currentState.copy(message = partialState.message, isLoading = false)
             is HomeState.PartialState.LoadBusinessName ->
-                currentState.copy(business = partialState.business, isLoading = false)
+                currentState.copy(business = partialState.business)
             is HomeState.PartialState.LoadQueue ->
-                currentState.copy(queue = partialState.queue, isLoading = false)
+                currentState.copy(queue = partialState.queue)
             is HomeState.PartialState.LoadStats ->
-                currentState.copy(stats = partialState.stats, isLoading = false)
+                currentState.copy(stats = partialState.stats, statsLoaded = true)
             is HomeState.PartialState.LoadPlans ->
-                currentState.copy(plans = partialState.plans)
-
+                currentState.copy(plans = partialState.plans, plansLoaded = true)
             is HomeState.PartialState.ShowPaymentResult ->
                 currentState.copy(paymentResult = partialState.info)
             is HomeState.PartialState.LoadSubscription ->
                 currentState.copy(subscription = partialState.subscription)
             is HomeState.PartialState.LoadEntitlements ->
-                currentState.copy(entitlements = partialState.entitlements)
+                currentState.copy(
+                    entitlements = partialState.entitlements,
+                    entitlementsLoaded = true
+                )
             is HomeState.PartialState.LoadDailyCounts ->
-                currentState.copy(dailyCounts = partialState.counts)
+                currentState.copy(dailyCounts = partialState.counts, chartLoaded = true)
         }
     }
 
@@ -95,6 +104,7 @@ class HomeViewModel(
         HomeState.PartialState.ShowMessage(message)
 
     private fun loadData(): Flow<HomeState.PartialState> = flow {
+        emit(HomeState.PartialState.ResetSectionLoaders)
         emit(HomeState.PartialState.IsLoading(true))
         val business = BusinessStateHolder.selectedBusiness.value
         emit(HomeState.PartialState.LoadBusinessName(business))
@@ -102,12 +112,12 @@ class HomeViewModel(
         // Load Plans
         try {
             when (val plansResponse = getPlansUseCase()) {
-                is ApiResponse.Success -> {
-                    emit(HomeState.PartialState.LoadPlans(plansResponse.data))
-                }
-                is ApiResponse.Error -> {}
+                is ApiResponse.Success -> emit(HomeState.PartialState.LoadPlans(plansResponse.data))
+                is ApiResponse.Error -> emit(HomeState.PartialState.LoadPlans(emptyList()))
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            emit(HomeState.PartialState.LoadPlans(emptyList()))
+        }
 
         // Load Subscription (for the home subscription card)
         try {
@@ -121,9 +131,11 @@ class HomeViewModel(
         try {
             when (val entResponse = getMyEntitlementsUseCase()) {
                 is ApiResponse.Success -> emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
-                is ApiResponse.Error -> {}
+                is ApiResponse.Error -> emit(HomeState.PartialState.LoadEntitlements(null))
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            emit(HomeState.PartialState.LoadEntitlements(null))
+        }
 
         if (business != null) {
             try {
@@ -139,14 +151,19 @@ class HomeViewModel(
 
                 // Load Stats
                 val stats = getTodayStatsUseCase(business.id)
-                 emit(HomeState.PartialState.LoadStats(stats))
+                emit(HomeState.PartialState.LoadStats(stats))
 
                 // Load 7-day appointment counts for the neon chart
                 val daily = getDailyCountsUseCase(business.id, 7)
                 emit(HomeState.PartialState.LoadDailyCounts(daily))
             } catch (e: Exception) {
+                emit(HomeState.PartialState.LoadStats(DashboardStats()))
+                emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
                 emit(HomeState.PartialState.ShowMessage(e.message ?: "Error loading data"))
             }
+        } else {
+            emit(HomeState.PartialState.LoadStats(DashboardStats()))
+            emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
         }
         emit(HomeState.PartialState.IsLoading(false))
     }
