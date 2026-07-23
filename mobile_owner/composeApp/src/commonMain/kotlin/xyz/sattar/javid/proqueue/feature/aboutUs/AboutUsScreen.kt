@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.painter.Painter
@@ -76,31 +77,71 @@ fun AboutUsContent(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // App Info Card
-            SettingsCard {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            // App Hero — gradient identity header.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            )
+                        )
                 ) {
-                    Image(
-                        painter = painterResource(Res.drawable.main_icon),
-                        contentDescription = stringResource(Res.string.about_us_app_name),
+                    Column(
                         modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                    )
-                    Text(
-                        text = stringResource(Res.string.about_us_app_name),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = stringResource(Res.string.about_us_app_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(Color.White.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(Res.drawable.main_icon),
+                                contentDescription = stringResource(Res.string.about_us_app_name),
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                            )
+                        }
+                        Text(
+                            text = stringResource(Res.string.about_us_app_name),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = stringResource(Res.string.about_us_app_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.85f),
+                            textAlign = TextAlign.Center
+                        )
+                        Surface(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text(
+                                text = "${stringResource(Res.string.app_version)} ۱.۰.۰",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
 
@@ -109,9 +150,9 @@ fun AboutUsContent(
                 Text(
                     text = stringResource(Res.string.about_us_description),
                     style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Justify,
                     color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.5f,
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.6f,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -198,22 +239,32 @@ private fun SocialItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .width(84.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(8.dp)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            painter = painter,
-            contentDescription = title,
-            tint = tint,
-            modifier = Modifier.size(56.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painter,
+                contentDescription = title,
+                tint = tint,
+                modifier = Modifier.size(32.dp)
+            )
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
         )
     }
 }
