@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.resources.stringResource
@@ -485,23 +486,30 @@ fun AppointmentCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
-            val dateText = DateTimeUtils.formatDateTime(appointment.appointmentDate)
-            val endTimeMs = appointment.appointmentDate + (appointment.serviceDuration
-                ?: appointmentWithDetails.business.defaultServiceDuration) * 60 * 1000L
+            val durationMinutes = appointment.serviceDuration
+                ?: appointmentWithDetails.business.defaultServiceDuration
+            val endTimeMs = appointment.appointmentDate + durationMinutes * 60 * 1000L
+            val dateText = DateTimeUtils.formatDate(appointment.appointmentDate)
             val startTimeOnly = DateTimeUtils.formatTime(appointment.appointmentDate)
             val endTimeOnly = DateTimeUtils.formatTime(endTimeMs)
+            val overdue =
+                DateTimeUtils.systemCurrentMilliseconds() > endTimeMs && appointment.status == "WAITING"
 
+            // Header: identity + status, on a single line.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(42.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
@@ -514,12 +522,14 @@ fun AppointmentCard(
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = visitor.fullName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = visitor.phoneNumber ?: "--",
@@ -528,47 +538,44 @@ fun AppointmentCard(
                         )
                     }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = dateText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "$endTimeOnly ${stringResource(Res.string.to_label)} $startTimeOnly",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                StatusBadge(status = appointment.status, overdue = overdue)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val durationMinutes = appointment.serviceDuration
-                ?: appointmentWithDetails.business.defaultServiceDuration
-            val endTime = appointment.appointmentDate + durationMinutes * 60 * 1000L
-            val overdue =
-                DateTimeUtils.systemCurrentMilliseconds() > endTime && appointment.status == "WAITING"
-
-            Row(
+            // Compact info strip: time range · date · duration grouped in one bar,
+            // so the width is used instead of leaving a big empty gap.
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(14.dp)
             ) {
-                StatusBadge(status = appointment.status, overdue = overdue)
-                
-                Text(
-                    text = "${durationMinutes} دقیقه",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MetaItem(
+                        icon = Icons.Rounded.Schedule,
+                        text = "$endTimeOnly ${stringResource(Res.string.to_label)} $startTimeOnly",
+                        emphasized = true
+                    )
+                    MetaItem(
+                        icon = Icons.Rounded.CalendarToday,
+                        text = dateText
+                    )
+                    MetaItem(
+                        icon = Icons.Rounded.Timer,
+                        text = "$durationMinutes دقیقه"
+                    )
+                }
             }
 
             if (!appointment.description.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Rounded.Edit,
@@ -580,11 +587,39 @@ fun AppointmentCard(
                     Text(
                         text = appointment.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MetaItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    emphasized: Boolean = false
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = if (emphasized) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
+            color = if (emphasized) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
     }
 }
 
