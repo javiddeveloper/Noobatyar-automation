@@ -7,7 +7,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,11 +50,10 @@ import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionScreen
 import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
 import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
+import xyz.sattar.javid.proqueue.feature.createBusiness.AdvancedSettingsRoute
 
 @Composable
 fun MainNavHost(
-    onNavigateToCreateBusiness: () -> Unit = {},
-    onNavigateToCreateVisitor: () -> Unit = {},
     onChangeBusiness: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
@@ -224,7 +222,7 @@ fun MainNavHost(
                     },
                     onChangeBusiness = onChangeBusiness,
                     onNavigateToAdvancedSettings = { businessId ->
-                        navController.navigate(AppScreens.CreateBusiness(businessId = businessId))
+                        navController.navigate(AppScreens.AdvancedSettings(businessId = businessId))
                     },
                     onNavigateToNotifications = {
                         navController.navigate(AppScreens.Notifications)
@@ -246,6 +244,14 @@ fun MainNavHost(
                     onContinue = {
                         navController.popBackStack()
                     }
+                )
+            }
+
+            composable<AppScreens.AdvancedSettings> { backStackEntry ->
+                val args = backStackEntry.toRoute<AppScreens.AdvancedSettings>()
+                AdvancedSettingsRoute(
+                    businessId = args.businessId,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
