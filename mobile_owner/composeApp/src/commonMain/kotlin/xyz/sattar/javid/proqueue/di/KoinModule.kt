@@ -47,6 +47,9 @@ import xyz.sattar.javid.proqueue.domain.usecase.user.ResetPasswordUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.SendOTPUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.VerifyOTPUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetAddonsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.BuyAddonUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetCurrentUserUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
@@ -65,6 +68,7 @@ import xyz.sattar.javid.proqueue.feature.login.LoginViewModel
 import xyz.sattar.javid.proqueue.feature.messages.MessagesViewModel
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsViewModel
 import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
+import xyz.sattar.javid.proqueue.feature.addons.AddonsViewModel
 import xyz.sattar.javid.proqueue.feature.register.RegisterViewModel
 import xyz.sattar.javid.proqueue.feature.settings.SettingsViewModel
 import xyz.sattar.javid.proqueue.feature.version.VersionViewModel
@@ -109,6 +113,9 @@ val appModule: Module = module {
     factory { GetCurrentUserUseCase(get()) }
     factory { GetPlansUseCase(get()) }
     factory { CreatePaymentUseCase(get()) }
+    factory { GetMyEntitlementsUseCase(get()) }
+    factory { GetAddonsUseCase(get()) }
+    factory { BuyAddonUseCase(get()) }
 
     // --- Business UseCases ---
     factory { xyz.sattar.javid.proqueue.domain.usecase.ObserveBusinessesUseCase(get()) }
@@ -129,6 +136,7 @@ val appModule: Module = module {
     factory { UpdateAppointmentUseCase(get()) }
     factory { CheckAppointmentConflictUseCase(get()) }
     factory { xyz.sattar.javid.proqueue.domain.usecase.SyncAppointmentsUseCase(get()) }
+    factory { xyz.sattar.javid.proqueue.domain.usecase.GetDailyCountsUseCase(get()) }
 
     // --- Message UseCases ---
     factory { SendMessageUseCase(get()) }
@@ -145,11 +153,15 @@ val appModule: Module = module {
     factory { CreateVisitorState() }
 
     // --- ViewModels ---
-     viewModel { CreateBusinessViewModel(get(), get(), get()) }
+     viewModel { CreateBusinessViewModel(get(), get(), get(), get(), get(), get()) }
+     viewModel { AddonsViewModel(get(), get()) }
     viewModel { CreateVisitorViewModel(get(), get(), get()) }
     viewModel { CreateAppointmentViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel {
         HomeViewModel(
+            get(),
+            get(),
+            get(),
             get(),
             get(),
             get(),

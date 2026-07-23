@@ -14,14 +14,12 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Convert a Gregorian Date to Persian weekday/day label
-function toPersianDate(date: Date): { weekday: string; day: string } {
-  const weekdays = ['یک‌شنبه', 'دو‌شنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
-  return {
-    weekday: weekdays[date.getDay()],
-    day: toPersianNumerals(String(date.getDate())),
-  };
-}
+const CATEGORY_EMOJI: Record<string, string> = {
+  BEAUTY_SALON: '💅',
+  DOCTOR: '🏥',
+  CONSULTANT: '💼',
+  OTHER: '🏢',
+};
 
 function toPersianNumerals(n: string): string {
   const map: Record<string, string> = {
@@ -111,16 +109,14 @@ export default function BookingPage({ params }: Props) {
 
     setBooking(true);
     try {
-      const resp = await bookAppointment(
+      const { id: appointmentId } = await bookAppointment(
         business.id,
         selectedSlot.timestamp,
         business.default_service_duration,
         '',
         token
       );
-      
-      const appointmentId = (resp as any).id; // bookAppointment returns data.id directly? Let's assume api.ts extracts data
-      
+
       showToast('✅ نوبت با موفقیت قفل شد. در حال انتقال به درگاه پرداخت...');
       setTimeout(() => router.push(`/b/${slug}/checkout/${appointmentId}`), 1500);
     } catch (err: unknown) {
@@ -132,10 +128,31 @@ export default function BookingPage({ params }: Props) {
 
   if (loading) {
     return (
-      <div style={{ padding: '60px 24px' }}>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="skeleton" style={{ height: 60, marginBottom: 12, borderRadius: 12 }} />
-        ))}
+      <div className="page-content">
+        <div className="toolbar">
+          <div className="toolbar-placeholder" />
+          <h1 className="toolbar-title">انتخاب زمان نوبت</h1>
+          <button className="toolbar-back" onClick={() => router.back()}>›</button>
+        </div>
+        {/* business header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', borderBottom: '1px solid var(--color-border)' }}>
+          <div className="skeleton" style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0 }} />
+          <div className="skeleton" style={{ height: 16, width: 140, borderRadius: 8 }} />
+        </div>
+        {/* date pills */}
+        <div style={{ display: 'flex', gap: 8, padding: '16px 24px' }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ minWidth: 60, height: 68, borderRadius: 12, flexShrink: 0 }} />
+          ))}
+        </div>
+        {/* slots */}
+        <div className="section">
+          <div className="slots-grid">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="skeleton" style={{ height: 46, borderRadius: 10 }} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -143,7 +160,7 @@ export default function BookingPage({ params }: Props) {
   if (error || !business) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <p style={{ color: '#6b7280', fontSize: 14 }}>{error || 'خطا در بارگذاری'}</p>
+        <p style={{ color: 'var(--color-muted)', fontSize: 14 }}>{error || 'خطا در بارگذاری'}</p>
         <button className="btn-primary" style={{ marginTop: 20, width: 'auto', padding: '0 24px' }}
           onClick={() => router.back()}>
           بازگشت
@@ -157,7 +174,7 @@ export default function BookingPage({ params }: Props) {
 
   if (!bookingEnabled) {
     return (
-      <div className="page-content" style={{ background: '#f9fafb' }}>
+      <div className="page-content" style={{ background: 'var(--color-bg)' }}>
         <div className="toolbar">
           <div className="toolbar-placeholder" />
           <h1 className="toolbar-title">رزرو نوبت</h1>
@@ -165,7 +182,7 @@ export default function BookingPage({ params }: Props) {
         </div>
         <div style={{ padding: 40, textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 16 }}>🚫</div>
-          <h2 style={{ fontSize: 16, color: '#111827', fontWeight: 700, marginBottom: 8 }}>
+          <h2 style={{ fontSize: 16, color: 'var(--color-text)', fontWeight: 700, marginBottom: 8 }}>
             ثبت نوبت غیرفعال است
           </h2>
           {business.notice_message && (
@@ -184,6 +201,7 @@ export default function BookingPage({ params }: Props) {
 
 
   const selectedDayMonth = new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long' }).format(selectedDay);
+  const availableCount = slots.filter((s) => s.status === 'AVAILABLE').length;
 
   return (
     <div className="page-content">
@@ -194,23 +212,23 @@ export default function BookingPage({ params }: Props) {
         <button className="toolbar-back" onClick={() => router.back()}>›</button>
       </div>
 
-      <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f3f4f6' }}>
+      <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)' }}>
         <div style={{
-          width: 48, height: 48, borderRadius: '50%', background: '#f3f4f6',
+          width: 48, height: 48, borderRadius: '50%', background: 'var(--color-primary-tint)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0
         }}>
           {business.logo ? (
-            <img 
-              src={business.logo.startsWith('http') ? business.logo : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${business.logo}`} 
-              alt={business.title} 
-              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+            <img
+              src={business.logo.startsWith('http') ? business.logo : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${business.logo}`}
+              alt={business.title}
+              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
             />
-          ) : '🏢'}
+          ) : (CATEGORY_EMOJI[business.category] || '🏢')}
         </div>
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: '#111827' }}>{business.title}</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>{business.title}</h2>
           {business.notice_message && (
-            <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>{business.notice_message}</p>
+            <p style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 0 0' }}>{business.notice_message}</p>
           )}
         </div>
       </div>
@@ -218,8 +236,12 @@ export default function BookingPage({ params }: Props) {
       {/* ── Date Picker ── */}
       <div className="section" style={{ paddingBottom: 8 }}>
         <div className="date-row" style={{ padding: 0 }}>
-          {days.map((day) => {
-            const weekday = new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(day).replace('‌', ' ');
+          {days.map((day, idx) => {
+            const weekday = idx === 0
+              ? 'امروز'
+              : idx === 1
+                ? 'فردا'
+                : new Intl.DateTimeFormat('fa-IR', { weekday: 'long' }).format(day).replace('‌', ' ');
             const dayNum = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(day);
             const isSelected = toDateString(day) === toDateString(selectedDay);
             return (
@@ -227,7 +249,7 @@ export default function BookingPage({ params }: Props) {
                 key={day.toISOString()}
                 className={`day-pill ${isSelected ? 'selected' : ''}`}
                 onClick={() => setSelectedDay(day)}
-                style={{ border: isSelected ? 'none' : '1px solid #e5e7eb', fontFamily: 'inherit' }}
+                style={{ border: isSelected ? 'none' : '1px solid var(--color-border)', fontFamily: 'inherit' }}
               >
                 <span className="day-name">{weekday}</span>
                 <span className="day-num">{dayNum}</span>
@@ -239,8 +261,16 @@ export default function BookingPage({ params }: Props) {
 
       {/* ── Time Slots ── */}
       <div className="section">
-        <div className="section-title" style={{ textAlign: 'right', marginBottom: 16 }}>
-          ساعات خالی - {selectedDayMonth}
+        <div className="section-title" style={{ textAlign: 'right', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>ساعات خالی — {selectedDayMonth}</span>
+          {!slotsLoading && availableCount > 0 && (
+            <span style={{
+              background: 'var(--color-primary-tint)', color: 'var(--color-primary)',
+              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
+            }}>
+              {toPersianNumerals(String(availableCount))} نوبت آزاد
+            </span>
+          )}
         </div>
 
         {slotsLoading ? (
@@ -252,7 +282,7 @@ export default function BookingPage({ params }: Props) {
         ) : slots.length === 0 ? (
           <div style={{
             textAlign: 'center', padding: '40px 0',
-            color: '#6b7280', fontSize: 13,
+            color: 'var(--color-muted)', fontSize: 13,
           }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🗓</div>
             ساعت خالی در این روز وجود ندارد
@@ -267,7 +297,7 @@ export default function BookingPage({ params }: Props) {
                   key={slot.timestamp}
                   className={`time-slot ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
                   onClick={() => !isDisabled && setSelectedSlot(slot)}
-                  style={{ border: isSelected ? 'none' : '1px solid #e5e7eb', fontFamily: 'inherit' }}
+                  style={{ border: isSelected ? 'none' : '1px solid var(--color-border)', fontFamily: 'inherit' }}
                   disabled={isDisabled}
                 >
                   {toPersianNumerals(slot.time)}
@@ -279,12 +309,12 @@ export default function BookingPage({ params }: Props) {
 
         {/* ── Legend ── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-muted)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-border)' }} />
             رزرو شده
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d735a9' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-muted)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)' }} />
             انتخاب شما
           </div>
         </div>
@@ -297,9 +327,9 @@ export default function BookingPage({ params }: Props) {
           style={{
             width: '100%',
             height: 52,
-            background: 'white',
-            color: '#d735a9',
-            border: '1.5px solid #d735a9',
+            background: 'var(--color-surface)',
+            color: 'var(--color-primary)',
+            border: '1.5px solid var(--color-primary)',
             borderRadius: 14,
             fontSize: 16,
             fontWeight: 600,

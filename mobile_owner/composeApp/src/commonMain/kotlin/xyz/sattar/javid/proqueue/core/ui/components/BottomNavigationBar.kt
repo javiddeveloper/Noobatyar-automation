@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -23,48 +24,76 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import xyz.sattar.javid.proqueue.core.navigation.MainTab
+import xyz.sattar.javid.proqueue.core.ui.LocalHazeState
 import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.runtime.collectAsState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 
-class BottomBarShape(private val cutoutRadius: androidx.compose.ui.unit.Dp) : Shape {
+/**
+ * A rounded-rectangle (all four corners) with a cutout notch at the top center
+ * for the floating home button. All corners are rounded so the bar reads as a
+ * detached, floating island rather than a bar welded to the screen edge.
+ */
+class BottomBarShape(
+    private val cutoutRadius: androidx.compose.ui.unit.Dp,
+    private val cornerRadius: androidx.compose.ui.unit.Dp = 28.dp
+) : Shape {
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density
     ): Outline {
         val path = Path().apply {
-            moveTo(0f, 0f)
             val width = size.width
             val height = size.height
             val centerX = width / 2
-            
+
             val r = with(density) { cutoutRadius.toPx() }
+            val cr = with(density) { cornerRadius.toPx() }
             val curveWidth = r * 2.5f
 
-            lineTo(centerX - curveWidth, 0f)
+            // Start just after the top-left rounded corner.
+            moveTo(cr, 0f)
 
+            // Top edge up to the cutout.
+            lineTo(centerX - curveWidth, 0f)
             cubicTo(
                 centerX - r * 1.5f, 0f,
                 centerX - r * 1.2f, r,
                 centerX, r
             )
-            
             cubicTo(
                 centerX + r * 1.2f, r,
                 centerX + r * 1.5f, 0f,
                 centerX + curveWidth, 0f
             )
 
-            lineTo(width, 0f)
-            lineTo(width, height)
-            lineTo(0f, height)
+            // Top edge to the top-right corner, then round it.
+            lineTo(width - cr, 0f)
+            arcTo(Rect(width - 2 * cr, 0f, width, 2 * cr), -90f, 90f, false)
+
+            // Right edge → bottom-right corner.
+            lineTo(width, height - cr)
+            arcTo(Rect(width - 2 * cr, height - 2 * cr, width, height), 0f, 90f, false)
+
+            // Bottom edge → bottom-left corner.
+            lineTo(cr, height)
+            arcTo(Rect(0f, height - 2 * cr, 2 * cr, height), 90f, 90f, false)
+
+            // Left edge → top-left corner.
+            lineTo(0f, cr)
+            arcTo(Rect(0f, 0f, 2 * cr, 2 * cr), 180f, 90f, false)
+
             close()
         }
         return Outline.Generic(path)
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun BottomNavigationBar(
     tabs: List<MainTab>,
@@ -73,33 +102,40 @@ fun BottomNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val hazeState = LocalHazeState.current
 
+    // Floating island: lifted above the system nav bar with side + bottom
+    // margins so it visually detaches from the screen edges.
+    val barShape = BottomBarShape(cutoutRadius = 44.dp, cornerRadius = 28.dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(bottom = navigationBarsPadding)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .wrapContentHeight(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Main Navigation Bar Background
+        // Main Navigation Bar Background — frosted glass over the scrolling content.
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp + navigationBarsPadding),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = BottomBarShape(48.dp),
+                .height(72.dp)
+                .clip(barShape)
+                .hazeEffect(state = hazeState, style = HazeMaterials.thin(MaterialTheme.colorScheme.surfaceContainer)),
+            color = Color.Transparent,
+            shape = barShape,
             shadowElevation = 12.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = navigationBarsPadding)
                     .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 tabs.forEach { tab ->
                     val isSelected = selectedTab == tab
-                    
+
                     if (tab is MainTab.Home) {
                         Spacer(modifier = Modifier.width(90.dp))
                     } else {
@@ -119,7 +155,7 @@ fun BottomNavigationBar(
                 isSelected = selectedTab is MainTab.Home,
                 tab = homeTab,
                 modifier = Modifier
-                    .padding(bottom = 32.dp + navigationBarsPadding)
+                    .padding(bottom = 32.dp)
                     .size(64.dp),
                 onClick = { onTabSelected(homeTab) }
             )
@@ -134,7 +170,10 @@ private fun StandardNavigationItem(
     onClick: () -> Unit
 ) {
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        // Inactive tabs use a fairly strong on-surface tone so the icons stay
+        // legible over the frosted-glass bar (the old 0.6α was nearly invisible).
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
         animationSpec = tween(300)
     )
 
@@ -150,7 +189,7 @@ private fun StandardNavigationItem(
         if (tab is MainTab.Settings) {
             val userViewModel: UserViewModel = koinViewModel()
             val userState by userViewModel.uiState.collectAsState()
-            
+
             Box(
                 modifier = Modifier
                     .size(24.dp)
@@ -173,7 +212,7 @@ private fun StandardNavigationItem(
                 modifier = Modifier.size(24.dp)
             )
         }
-        
+
         AnimatedVisibility(
             visible = isSelected,
             enter = fadeIn() + expandVertically(),

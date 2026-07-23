@@ -18,3 +18,10 @@ data class NetworkResponse<T>(
     val message: String? = null,
     val data: T? = null
 )
+
+/**
+ * Thrown by repositories when the backend returns ApiResponse.Error, carrying
+ * the HTTP status code so callers can react to specific cases (e.g. 409 quota
+ * conflicts) instead of only showing a generic error message.
+ */
+class ApiException(message: String, val code: Int) : Exception(message)

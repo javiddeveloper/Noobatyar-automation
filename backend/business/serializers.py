@@ -27,11 +27,13 @@ class BusinessSerializer(serializers.ModelSerializer):
             'allow_anonymous_view', 'created_at', 'updated_at',
             # Booking control
             'notice_message', 'booking_enabled',
+            # Subscription lock (graceful downgrade) — read-only status flag
+            'is_locked',
             # Advanced Capacity & Deposit Settings
             'booking_enabled', 'accepted_payment_methods', 'payment_link',
             'card_number', 'card_owner_name', 'merchant_id', 'bio'
         ]
-        read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at', 'owner']
+        read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at', 'owner', 'is_locked']
 
     def validate_work_start_hour(self, value):
         if not 0 <= value <= 23:

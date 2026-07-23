@@ -139,6 +139,10 @@ class PaymentVerificationService:
                 self.transaction.user.role = 'BUSINESS_OWNER'
                 self.transaction.user.save(update_fields=['role'])
 
+            # Unlock businesses locked under a smaller/expired plan.
+            from business.services import sync_locks
+            sync_locks(self.transaction.user)
+
             return {
                 'subscription_id': subscription.id,
                 'plan_name': self.transaction.plan.name,

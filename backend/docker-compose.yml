@@ -11,9 +11,39 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     restart: always
 
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
+      - LISTEN_PORT=6432
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=25
+      - AUTH_TYPE=scram-sha-256
+    depends_on:
+      - db
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: always
+
   web:
     build: .
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      gunicorn core.asgi:application
+      -k uvicorn.workers.UvicornWorker
+      --workers ${GUNICORN_WORKERS:-4}
+      --bind 0.0.0.0:8000
+      --timeout 60
+      --graceful-timeout 30
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
@@ -21,21 +51,32 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
+      - POSTGRES_HOST=pgbouncer
+      - POSTGRES_PORT=6432
+      - DB_CONN_MAX_AGE=0
+      - REDIS_URL=redis://redis:6379/1
       - DEBUG=False
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - SECRET_KEY=${SECRET_KEY}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - ZIBAL_MERCHANT_ID=${ZIBAL_MERCHANT_ID}
+      - SITE_URL=${SITE_URL}
+      - MELIPAYAMAK_OTP_TOKEN=${MELIPAYAMAK_OTP_TOKEN}
+      - MELIPAYAMAK_FROM=${MELIPAYAMAK_FROM}
     depends_on:
       - db
+      - pgbouncer
+      - redis
     restart: always
 
   frontend:
     build:
       context: ../front_client
+      args:
+        - NEXT_PUBLIC_API_URL=http://93.127.223.93
     restart: always
     environment:
-      - NEXT_PUBLIC_API_URL=http://93.127.223.93/api
+      - NEXT_PUBLIC_API_URL=http://93.127.223.93
 
   nginx:
     image: nginx:1.25
@@ -52,5 +93,6 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   static_volume:
   media_volume:

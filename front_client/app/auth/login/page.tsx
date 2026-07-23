@@ -13,7 +13,7 @@ function LoginForm() {
 
   const [step, setStep] = useState<Step>('PHONE');
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState(['', '', '', '', '']);
+  const [code, setCode] = useState(['', '', '', '', '', '']);
   const [name, setName] = useState('');
   const [registerToken, setRegisterToken] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,8 +57,8 @@ function LoginForm() {
   /* ── Step 2: Verify OTP ── */
   const handleVerifyOtp = async () => {
     const fullCode = code.join('');
-    if (fullCode.length !== 5) {
-      setError('کد ۵ رقمی را کامل وارد کنید');
+    if (fullCode.length !== 6) {
+      setError('کد ۶ رقمی را کامل وارد کنید');
       return;
     }
     setError('');
@@ -108,11 +108,11 @@ function LoginForm() {
     const next = [...code];
     next[index] = latinDigit;
     setCode(next);
-    if (latinDigit && index < 4) {
+    if (latinDigit && index < 5) {
       codeRefs.current[index + 1]?.focus();
     }
-    if (next.every(Boolean) && next.join('').length === 5) {
-      // auto-submit when all 5 digits entered
+    if (next.every(Boolean) && next.join('').length === 6) {
+      // auto-submit when all 6 digits entered
       setTimeout(() => {
         const el = document.getElementById('otp-submit-btn');
         el?.click();
@@ -129,7 +129,7 @@ function LoginForm() {
   /* ── UI ── */
   return (
     <div style={{
-      background: '#f9fafb', minHeight: '100dvh',
+      background: 'var(--color-bg)', minHeight: '100dvh',
       display: 'flex', flexDirection: 'column',
     }}>
 
@@ -155,10 +155,10 @@ function LoginForm() {
           <>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{ fontSize: 56, marginBottom: 12 }}>📱</div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
                 شماره موبایل خود را وارد کنید
               </h2>
-              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7 }}>
+              <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
                 کد تأیید به این شماره پیامک می‌شود
               </p>
             </div>
@@ -174,13 +174,13 @@ function LoginForm() {
                 autoComplete="tel"
                 style={{
                   width: '100%', height: 56, borderRadius: 16,
-                  border: '2px solid #e5e7eb', textAlign: 'center',
+                  border: '2px solid var(--color-border)', textAlign: 'center',
                   fontSize: 18, fontFamily: 'inherit', outline: 'none',
-                  color: '#111827', letterSpacing: 2,
+                  color: 'var(--color-text)', letterSpacing: 2,
                   transition: 'border-color 0.2s',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#d735a9')}
-                onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
               />
             </div>
           </>
@@ -191,11 +191,11 @@ function LoginForm() {
           <>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{ fontSize: 56, marginBottom: 12 }}>🔐</div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
                 کد تأیید ارسال شد
               </h2>
-              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7 }}>
-                کد ۵ رقمی ارسال‌شده به {phone} را وارد کنید
+              <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
+                کد ۶ رقمی ارسال‌شده به {phone} را وارد کنید
               </p>
             </div>
 
@@ -215,13 +215,13 @@ function LoginForm() {
                   onKeyDown={(e) => handleCodeKeyDown(i, e)}
                   style={{
                     width: 52, height: 56, borderRadius: 12,
-                    border: `2px solid ${digit ? '#d735a9' : '#e5e7eb'}`,
+                    border: `2px solid ${digit ? 'var(--color-primary)' : 'var(--color-border)'}`,
                     textAlign: 'center', fontSize: 22, fontWeight: 700,
                     fontFamily: 'inherit', outline: 'none',
-                    background: digit ? '#fdf2fb' : 'white',
-                    color: '#111827', transition: 'all 0.15s',
+                    background: digit ? 'var(--color-primary-tint)' : 'var(--color-surface)',
+                    color: 'var(--color-text)', transition: 'all 0.15s',
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = '#d735a9')}
+                  onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
                 />
               ))}
             </div>
@@ -229,14 +229,14 @@ function LoginForm() {
             {/* Resend */}
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
               {countdown > 0 ? (
-                <span style={{ fontSize: 13, color: '#6b7280' }}>
+                <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
                   ارسال مجدد تا {countdown} ثانیه دیگر
                 </span>
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setCode(['','','','','']); handleSendOtp(); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d735a9', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}
+                  onClick={() => { setCode(['','','','','','']); handleSendOtp(); }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}
                 >
                   ارسال مجدد کد
                 </button>
@@ -250,10 +250,10 @@ function LoginForm() {
           <>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{ fontSize: 56, marginBottom: 12 }}>👤</div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
                 خوش آمدید!
               </h2>
-              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7 }}>
+              <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
                 برای تکمیل ثبت‌نام، نام خود را وارد کنید
               </p>
             </div>
@@ -267,13 +267,13 @@ function LoginForm() {
               autoFocus
               style={{
                 width: '100%', height: 56, borderRadius: 16,
-                border: '2px solid #e5e7eb', textAlign: 'right',
+                border: '2px solid var(--color-border)', textAlign: 'right',
                 fontSize: 15, fontFamily: 'inherit', outline: 'none',
-                color: '#111827', padding: '0 16px',
+                color: 'var(--color-text)', padding: '0 16px',
                 transition: 'border-color 0.2s',
               }}
-              onFocus={(e) => (e.target.style.borderColor = '#d735a9')}
-              onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
             />
           </>
         )}
@@ -281,15 +281,15 @@ function LoginForm() {
         {/* Error */}
         {error && (
           <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca',
+            background: 'var(--color-error-bg)', border: '1px solid var(--color-error)',
             borderRadius: 12, padding: '12px 16px',
-            color: '#dc2626', fontSize: 13, textAlign: 'right', marginTop: 12,
+            color: 'var(--color-error)', fontSize: 13, textAlign: 'right', marginTop: 12,
           }}>
             {error}
           </div>
         )}
 
-        <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 24, lineHeight: 1.8 }}>
+        <p style={{ fontSize: 11, color: 'var(--color-faint)', textAlign: 'center', marginTop: 24, lineHeight: 1.8 }}>
           با ادامه، قوانین و حریم خصوصی نوبت‌یار را می‌پذیرید.
         </p>
       </div>
@@ -297,19 +297,19 @@ function LoginForm() {
       {/* Fixed bottom button */}
       <div style={{
         position: 'fixed', bottom: 0, width: '100%', maxWidth: 390,
-        padding: '16px 24px', background: 'white',
-        borderTop: '1px solid #f3f4f6',
+        padding: '16px 24px', background: 'var(--color-surface)',
+        borderTop: '1px solid var(--color-surface-variant)',
       }}>
         <button
           id="otp-submit-btn"
           onClick={step === 'PHONE' ? handleSendOtp : step === 'OTP' ? handleVerifyOtp : handleRegister}
           disabled={loading}
           style={{
-            width: '100%', height: 52, background: loading ? '#9ca3af' : '#d735a9',
+            width: '100%', height: 52, background: loading ? 'var(--color-faint)' : 'var(--color-primary)',
             color: 'white', border: 'none', borderRadius: 14,
             fontSize: 16, fontWeight: 700, fontFamily: 'inherit',
             cursor: loading ? 'not-allowed' : 'pointer',
-            boxShadow: loading ? 'none' : '0 4px 14px rgba(215,53,169,0.35)',
+            boxShadow: loading ? 'none' : '0 4px 14px var(--color-primary-shadow)',
             transition: 'all 0.2s',
           }}
         >

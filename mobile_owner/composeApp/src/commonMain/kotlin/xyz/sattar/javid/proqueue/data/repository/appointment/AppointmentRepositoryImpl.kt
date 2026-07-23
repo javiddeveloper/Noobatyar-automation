@@ -26,6 +26,20 @@ class AppointmentRepositoryImpl(
     private val visitorDao: VisitorDao,
     private val appointmentApiService: AppointmentApiService
 ) : AppointmentRepository {
+    override suspend fun getDailyCounts(
+        businessId: Long,
+        days: Int
+    ): List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto> {
+        return try {
+            when (val response = appointmentApiService.getDailyCounts(businessId, days)) {
+                is ApiResponse.Success -> response.data
+                is ApiResponse.Error -> emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     override suspend fun createAppointment(appointment: Appointment): Long {
         return try {
             val request = xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.request.CreateAppointmentRequestDto(
@@ -52,7 +66,7 @@ class AppointmentRepositoryImpl(
                 appointmentDao.upsertAppointment(entity)
                 dto.id
             } else if (response is ApiResponse.Error) {
-                throw Exception(response.message)
+                throw xyz.sattar.javid.proqueue.core.network.ApiException(response.message, response.code)
             } else {
                 -1L
             }

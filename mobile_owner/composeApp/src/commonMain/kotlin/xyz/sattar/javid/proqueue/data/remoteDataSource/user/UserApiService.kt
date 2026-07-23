@@ -19,6 +19,9 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPRespo
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PaymentResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.AddOnPackDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.BuyAddonRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.PaymentRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.ResetPasswordRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.request.SendOTPRequestDto
@@ -71,6 +74,25 @@ class UserApiService(private val httpClient: HttpClient) {
     suspend fun getPlans(): ApiResponse<List<PlanDto>> {
         return httpClient.get("accounting/plans/") {
             contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
+    suspend fun getMyEntitlements(): ApiResponse<EntitlementsResponseDto> {
+        return httpClient.get("accounting/my-entitlements/") {
+            contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
+    suspend fun getAddons(): ApiResponse<List<AddOnPackDto>> {
+        return httpClient.get("accounting/addons/") {
+            contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
+    suspend fun buyAddon(packId: Int): ApiResponse<PaymentResponseDto> {
+        return httpClient.post("accounting/addons/buy/") {
+            contentType(ContentType.Application.Json)
+            setBody(BuyAddonRequestDto(packId))
         }.toApiResponse()
     }
 

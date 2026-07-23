@@ -420,7 +420,7 @@ fun TimeSlotRow(
                     // Adaptive Colors
                     val status = appointment.appointment.status
                     val (containerColor, contentColor) = when {
-                        status == "COMPLETED" -> {
+                        status == "CONFIRMED" -> {
                             val bg = if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9)
                             val fg = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32)
                             bg to fg

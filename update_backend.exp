@@ -1,0 +1,49 @@
+#!/usr/bin/expect -f
+#
+# update_backend.exp
+#
+# Updates ONLY the backend (Django/web) service on the production server:
+#   1. Pulls the latest code on branch feat/backend-scale-optimizations
+#      (if /root/app/backend is a git checkout; otherwise it prints a
+#      warning and skips straight to rebuilding whatever code is already
+#      there — sync the code some other way first in that case).
+#   2. Rebuilds and restarts only the `web` container (db/redis/pgbouncer/
+#      nginx/frontend are left untouched).
+#   3. Runs Django migrations.
+#   4. Runs `seed_plans` (fixes the empty Plan.features / appointment-quota
+#      bug and refreshes the plan descriptions).
+#   5. Prints recent web logs and a quick /api/accounting/plans/ check so
+#      you can confirm "features" is no longer an empty {}.
+#
+# Usage: ./update_backend.exp
+#
+# NOTE: the password below is already in this repo's git history (see the
+# other *.exp scripts at project root) — rotate it on the server when done.
+
+set timeout 600
+
+spawn ssh -o StrictHostKeyChecking=no root@93.127.223.93 "cd /root/app/backend && \
+(git rev-parse --is-inside-work-tree >/dev/null 2>&1 && \
+  echo '--- git pull ---' && \
+  git fetch origin && \
+  git checkout feat/backend-scale-optimizations && \
+  git pull origin feat/backend-scale-optimizations \
+  || echo '--- NOT a git checkout: skipping pull, rebuilding existing code as-is ---') && \
+echo '--- docker compose up -d --build web ---' && \
+docker compose up -d --build web && \
+echo '--- waiting for web to boot ---' && \
+sleep 8 && \
+echo '--- migrate ---' && \
+docker compose exec -T web python manage.py migrate --noinput && \
+echo '--- seed_plans ---' && \
+docker compose exec -T web python manage.py seed_plans && \
+echo '--- recent web logs ---' && \
+docker compose logs web --tail 50 && \
+echo '--- plans API check (features should NOT be empty {}) ---' && \
+curl -s http://localhost/api/accounting/plans/ | head -c 800 && \
+echo '' && \
+echo '--- DONE ---'"
+
+expect "password:"
+send "gbJPRmA6qRWrXOpdd5IB\r"
+expect eof

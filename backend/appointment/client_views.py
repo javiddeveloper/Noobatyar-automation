@@ -1,8 +1,12 @@
 from adrf.views import APIView
+from asgiref.sync import sync_to_async
 from rest_framework.permissions import IsAuthenticated
 from api.responses import APIResponse
 from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
+from .cache_utils import invalidate_slots_cache
+from api.pagination import StandardPagination
+from accounting import usage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,22 +15,32 @@ class ClientAppointmentListView(APIView):
     permission_classes = [IsAuthenticated]
 
     async def get(self, request):
-        # Clients only see their own appointments
-        appointments = [
-            a async for a in Appointment.objects.filter(
-                user=request.user
-            ).select_related('business', 'visitor').order_by('-appointment_date')
-        ]
+        # Paginate + serialize in one sync block: the serializer's
+        # queue_position/estimated_turn_time fields run ORM .count() queries, so
+        # this must not touch the async ORM. Pagination also bounds those
+        # per-row queries to one page instead of the user's entire history.
+        return await sync_to_async(self._list_paginated)(request)
 
-        serializer = ClientAppointmentSerializer(
-            appointments, 
-            many=True,
-            context={'request': request}
+    def _list_paginated(self, request):
+        queryset = (
+            Appointment.objects
+            .filter(user=request.user)
+            .select_related('business', 'visitor')
+            .order_by('-appointment_date')
         )
 
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = ClientAppointmentSerializer(
+            page,
+            many=True,
+            context={'request': request},
+        )
+        paginated = paginator.get_paginated_response(serializer.data)
+
         return APIResponse.success(
-            data=serializer.data,
-            message="لیست نوبت‌های شما با موفقیت دریافت شد"
+            data=paginated.data,
+            message="لیست نوبت‌های شما با موفقیت دریافت شد",
         )
 
     async def post(self, request):
@@ -44,6 +58,20 @@ class ClientAppointmentListView(APIView):
             business = await Business.objects.aget(id=business_id)
         except Business.DoesNotExist:
             return APIResponse.error(message="کسب و کار یافت نم‌شد", code=404)
+
+        # A locked business (subscription downgrade) does not accept new bookings.
+        if business.is_locked:
+            return APIResponse.error(
+                message="این کسب‌وکار در حال حاضر نوبت جدید نمی‌پذیرد",
+                code=403,
+            )
+
+        # Monthly appointment quota belongs to the business owner's plan.
+        if not await sync_to_async(usage.can_book_appointment)(business.user_id):
+            return APIResponse.error(
+                message="ظرفیت نوبت‌های این کسب‌وکار برای این ماه تکمیل شده است",
+                code=409,
+            )
 
         # Ensure visitor exists for this user
         # Visitor model fields: user, full_name, phone_number
@@ -66,6 +94,12 @@ class ClientAppointmentListView(APIView):
             description=serializer.validated_data.get('description', ''),
             status='LOCKED'
         )
+
+        # Count this booking against the owner's monthly appointment quota.
+        await sync_to_async(usage.record_appointment)(business.user_id)
+
+        # Slot occupancy changed → drop cached slot views for this business/date.
+        await sync_to_async(invalidate_slots_cache)(business_id, app_date)
 
         # ── SMS Notifications are deferred until payment is completed ──
 
@@ -100,6 +134,11 @@ class ClientAppointmentPaymentView(APIView):
             appointment.payment_receipt = payment_receipt
         await appointment.asave()
 
+        # Slot occupancy changed → drop cached slot views for this business/date.
+        await sync_to_async(invalidate_slots_cache)(
+            appointment.business_id, appointment.appointment_date
+        )
+
         # ── SMS Notifications via Melipayamak ─────────────────────────
         tehran_tz = ZoneInfo('Asia/Tehran')
         local_time = appointment.appointment_date.astimezone(tehran_tz)
@@ -120,15 +159,23 @@ class ClientAppointmentPaymentView(APIView):
             f"کد: {appointment.id}"
         )
 
-        import asyncio
-        asyncio.create_task(_send_booking_sms(
-            client_phone=request.user.phone,
-            owner_phone=appointment.business.phone,
-            client_msg=client_msg,
-            owner_msg=owner_msg,
-            business=appointment.business,
-            visitor=appointment.visitor,
-        ))
+        # Fire-and-forget on a daemon thread so it is independent of the request's
+        # event loop (an asyncio task tied to the request loop can be dropped once
+        # the response is returned). Pass only primitive ids/values into the thread.
+        import threading
+        threading.Thread(
+            target=_send_booking_sms,
+            kwargs=dict(
+                client_phone=request.user.phone,
+                owner_phone=appointment.business.phone,
+                client_msg=client_msg,
+                owner_msg=owner_msg,
+                business_id=appointment.business_id,
+                visitor_id=appointment.visitor_id,
+            ),
+            daemon=True,
+            name=f"booking-sms-{appointment.id}",
+        ).start()
         # ─────────────────────────────────────────────────────────────
 
         return APIResponse.success(
@@ -137,34 +184,46 @@ class ClientAppointmentPaymentView(APIView):
         )
 
 
-async def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business, visitor):
+def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business_id, visitor_id):
     """
-    Background task: sends SMS to client and business owner via Melipayamak.
-    Logs result in SmsLog table.
-    Uses run_in_executor to avoid blocking the async event loop.
+    Background daemon-thread target: sends SMS to client and business owner via
+    Melipayamak and logs the client SMS result in SmsLog.
+
+    Runs fully synchronously in its own thread (own DB connection), so it never
+    depends on the request's asyncio event loop still being alive.
     """
-    import asyncio
     from api.sms import send_sms
     from visitor.models import SmsLog
+    from business.models import Business
 
-    loop = asyncio.get_event_loop()
-
-    # Send to client
+    # Resolve the owner whose plan pays for these SMS.
     try:
-        client_ok = await loop.run_in_executor(None, send_sms, client_phone, client_msg)
-        await SmsLog.objects.acreate(
-            business=business,
-            visitor=visitor,
-            message_text=client_msg,
-            status='SENT' if client_ok else 'FAILED',
-        )
-        logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
+        owner_id = Business.objects.values_list('user_id', flat=True).get(id=business_id)
+    except Business.DoesNotExist:
+        owner_id = None
+
+    # Send to client (consumes one SMS credit from the owner's plan/wallet)
+    try:
+        if owner_id is not None and not usage.consume_sms(owner_id):
+            logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+        else:
+            client_ok = send_sms(client_phone, client_msg)
+            SmsLog.objects.create(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                message_text=client_msg,
+                status='SENT' if client_ok else 'FAILED',
+            )
+            logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
 
-    # Send to business owner
+    # Send to business owner (also consumes one credit)
     try:
-        owner_ok = await loop.run_in_executor(None, send_sms, owner_phone, owner_msg)
-        logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
+        if owner_id is not None and not usage.consume_sms(owner_id):
+            logger.warning(f"SMS→owner skipped for business {business_id}: SMS quota exhausted")
+        else:
+            owner_ok = send_sms(owner_phone, owner_msg)
+            logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→owner error: {e}")

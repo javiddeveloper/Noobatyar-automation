@@ -9,6 +9,8 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.VerifyOTPRespo
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PaymentResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.AddOnPackDto
 import xyz.sattar.javid.proqueue.domain.model.VersionInfo
 
 interface UserRepository {
@@ -20,6 +22,9 @@ interface UserRepository {
     suspend fun getMySubscription(): ApiResponse<SubscriptionDto>
     suspend fun getPlans(): ApiResponse<List<PlanDto>>
     suspend fun createPayment(planId: String): ApiResponse<PaymentResponseDto>
+    suspend fun getMyEntitlements(): ApiResponse<EntitlementsResponseDto>
+    suspend fun getAddons(): ApiResponse<List<AddOnPackDto>>
+    suspend fun buyAddon(packId: Int): ApiResponse<PaymentResponseDto>
 
     // Local Data
     fun getLocalUser(id: Int): Flow<UserDto?>

@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getMyAppointments, type Appointment } from '@/lib/api';
+import { getMyAppointments, categoryLabel, type Appointment } from '@/lib/api';
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  BEAUTY_SALON: '💅',
+  DOCTOR: '🏥',
+  CONSULTANT: '💼',
+  OTHER: '🏢',
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   LOCKED:               { label: 'در انتظار پرداخت', color: '#b45309', bg: '#fef3c7' },
@@ -53,7 +60,7 @@ export default function AppointmentsPage() {
   });
 
   return (
-    <div className="page-content" style={{ background: '#f9fafb', minHeight: '100dvh' }}>
+    <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
       
       <div className="toolbar">
         <div className="toolbar-placeholder" />
@@ -64,16 +71,16 @@ export default function AppointmentsPage() {
       <div style={{ padding: '24px 24px' }}>
         
         {/* ── Tabs ── */}
-        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 14, padding: 4, marginBottom: 24 }}>
+        <div style={{ display: 'flex', background: 'var(--color-surface-variant)', borderRadius: 14, padding: 4, marginBottom: 24 }}>
           {(['CANCELED', 'PAST', 'UPCOMING'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               style={{
                 flex: 1, padding: '10px 0', border: 'none',
-                background: activeTab === tab ? 'white' : 'none',
+                background: activeTab === tab ? 'var(--color-surface)' : 'none',
                 borderRadius: 10,
-                color: activeTab === tab ? '#111827' : '#6b7280',
+                color: activeTab === tab ? 'var(--color-text)' : 'var(--color-muted)',
                 fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
                 boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
                 cursor: 'pointer'
@@ -94,7 +101,7 @@ export default function AppointmentsPage() {
 
         {error && (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <p style={{ color: '#6b7280' }}>{error}</p>
+            <p style={{ color: 'var(--color-muted)' }}>{error}</p>
             <button className="btn-primary" style={{ marginTop: 16, width: 'auto', padding: '0 24px' }}
               onClick={() => location.reload()}>
               تلاش مجدد
@@ -105,48 +112,59 @@ export default function AppointmentsPage() {
         {!loading && !error && filteredAppointments.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <div style={{ fontSize: 52, marginBottom: 12 }}>🗓</div>
-            <h2 style={{ fontSize: 16, color: '#111827', fontWeight: 600 }}>نوبتی یافت نشد</h2>
-            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 6 }}>
+            <h2 style={{ fontSize: 16, color: 'var(--color-text)', fontWeight: 600 }}>نوبتی یافت نشد</h2>
+            <p style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 6 }}>
               شما در این بخش نوبتی ندارید
             </p>
           </div>
         )}
 
         {filteredAppointments.map((appt) => {
-          const st = STATUS_LABELS[appt.status] || { label: appt.status, color: '#6b7280', bg: '#f3f4f6' };
+          const st = STATUS_LABELS[appt.status] || { label: appt.status, color: 'var(--color-muted)', bg: '#f3f4f6' };
           return (
             <div
               key={appt.id}
               onClick={() => router.push(`/appointments/${appt.id}`)}
               style={{
-                background: 'white', borderRadius: 16, border: '1px solid #e5e7eb',
+                background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
                 padding: '20px 24px', marginBottom: 16, cursor: 'pointer',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                {/* Business identity — sits on the right (reading start) in RTL */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--color-primary-tint)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                  }}>
+                    {CATEGORY_EMOJI[appt.business.category] || '🏢'}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{appt.business.title}</h3>
+                    <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>{categoryLabel(appt.business.category)}</div>
+                  </div>
+                </div>
+                {/* Status badge — sits on the left in RTL */}
                 <span style={{
                   background: st.bg, color: st.color, padding: '4px 10px',
-                  borderRadius: 8, fontSize: 11, fontWeight: 700
+                  borderRadius: 8, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
                 }}>
                   {st.label}
                 </span>
-                <div style={{ textAlign: 'right' }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{appt.business.title}</h3>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{appt.business.category}</div>
-                </div>
               </div>
 
-              <div style={{ background: '#f9fafb', borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{formatDate(appt.appointment_date)}</div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>تاریخ نوبت</div>
+              <div style={{ background: 'var(--color-bg)', borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>تاریخ نوبت</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{formatDate(appt.appointment_date)}</div>
               </div>
 
               {appt.status === 'LOCKED' && (
                 <div style={{ marginTop: 12, textAlign: 'center' }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); router.push(`/b/${appt.business.unique_code}/checkout/${appt.id}`); }}
-                    style={{ background: '#d735a9', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
+                    onClick={(e) => { e.stopPropagation(); router.push(`/b/Noobatyar-${appt.business.unique_code}/checkout/${appt.id}`); }}
+                    style={{ background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
                   >
                     تکمیل پرداخت
                   </button>

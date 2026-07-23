@@ -21,8 +21,9 @@ class ClientBusinessListView(APIView):
         search_query = request.query_params.get('search', '').strip()
         category_query = request.query_params.get('category', '').strip()
 
-        # Build Q objects for filtering
-        filters = Q()
+        # Build Q objects for filtering. Locked businesses (subscription
+        # downgrade) are hidden from public browsing.
+        filters = Q(is_locked=False)
         if search_query:
             filters &= (Q(title__icontains=search_query) | Q(unique_code__iexact=search_query) | Q(address__icontains=search_query))
         if category_query:
@@ -59,7 +60,7 @@ class ClientBusinessDetailView(APIView):
 
     async def get(self, request, business_id):
         try:
-            business = await Business.objects.aget(id=business_id)
+            business = await Business.objects.aget(id=business_id, is_locked=False)
         except Business.DoesNotExist:
             return APIResponse.error(
                 message="کسب و کار مورد نظر یافت نشد",

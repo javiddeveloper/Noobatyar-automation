@@ -151,9 +151,12 @@ export async function bookAppointment(
 }
 
 export async function getMyAppointments(token: string): Promise<Appointment[]> {
-  return apiFetch<Appointment[]>('/api/client/appointments/', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  // The endpoint is paginated ({ results: [...] }); tolerate a bare array too.
+  const data = await apiFetch<Appointment[] | { results: Appointment[] }>(
+    '/api/client/appointments/',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return Array.isArray(data) ? data : data.results ?? [];
 }
 
 export async function getAppointment(id: number, token: string): Promise<Appointment> {

@@ -1,6 +1,7 @@
 package xyz.sattar.javid.proqueue.feature.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -18,17 +19,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
-import coil3.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.layout.fillMaxSize
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileAvatar(
     onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
     userViewModel: UserViewModel = koinViewModel()
 ) {
     val userState by userViewModel.uiState.collectAsState()
@@ -41,33 +43,36 @@ fun ProfileAvatar(
         }
     }
 
+    val ring = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.tertiary,
+            MaterialTheme.colorScheme.secondary
+        )
+    )
+
     Box(
         modifier = Modifier
             .padding(end = 8.dp)
-            .size(36.dp)
+            .size(40.dp)
+            .shadow(6.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+            .border(width = 1.5.dp, brush = ring, shape = CircleShape)
+            .padding(2.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable { showProfileSheet = true },
         contentAlignment = Alignment.Center
     ) {
-        if (businessState != null && !businessState!!.logoPath.isNullOrEmpty()) {
-            val url = if (businessState!!.logoPath.startsWith("http")) businessState!!.logoPath else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${businessState!!.logoPath}"
-            AsyncImage(
-                model = url,
-                contentDescription = "Business Logo",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            val displayChar = businessState?.title?.firstOrNull()?.uppercaseChar()?.toString()
-                ?: userState.userName?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                
-            Text(
-                text = displayChar,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+        val displayChar = userState.userName?.firstOrNull()?.uppercaseChar()?.toString()
+            ?: businessState?.title?.firstOrNull()?.uppercaseChar()?.toString()
+            ?: "?"
+
+        Text(
+            text = displayChar,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 
     if (showProfileSheet) {
@@ -75,7 +80,6 @@ fun ProfileAvatar(
             userName = userState.userName,
             userEmail = userState.userNumber,
             subscription = userState.subscription,
-            business = businessState,
             onDismiss = { showProfileSheet = false },
             onLogout = {
                 showProfileSheet = false

@@ -77,14 +77,20 @@ fun MessagesScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tokens Card
+            // Editor Card — variables + text field together, so it's clear the
+            // chips insert into the message being edited.
             SettingsCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = stringResource(Res.string.messages_tokens_label),
+                        text = stringResource(Res.string.message_text),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "با لمس هر متغیر، آن را به متن اضافه کنید؛ هنگام ارسال با اطلاعات واقعی مشتری جایگزین می‌شود.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -98,18 +104,6 @@ fun MessagesScreen(
                             }
                         }
                     }
-                }
-            }
-
-            // Template Card
-            SettingsCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(Res.string.message_text),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
                     OutlinedTextField(
                         value = uiState.template,
                         onValueChange = { viewModel.sendIntent(MessagesIntent.UpdateTemplate(it)) },
@@ -125,7 +119,7 @@ fun MessagesScreen(
                 }
             }
 
-            // Preview Card
+            // Preview Card — rendered as an incoming SMS bubble.
             SettingsCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
@@ -136,14 +130,20 @@ fun MessagesScreen(
                     )
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp)
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(
+                            topStart = 18.dp,
+                            topEnd = 4.dp,
+                            bottomStart = 18.dp,
+                            bottomEnd = 18.dp
+                        )
                     ) {
                         Text(
                             text = uiState.preview,
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(12.dp),
-                            color = MaterialTheme.colorScheme.onSurface
+                            modifier = Modifier.padding(14.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f
                         )
                     }
                 }

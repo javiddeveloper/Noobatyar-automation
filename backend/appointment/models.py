@@ -108,6 +108,9 @@ class Appointment(models.Model):
         indexes = [
             models.Index(fields=['business', 'appointment_date']),
             models.Index(fields=['visitor', 'appointment_date']),
+            # Serves the hot status-filtered range scans (capacity checks,
+            # slot occupancy queries, appointment listing by status).
+            models.Index(fields=['business', 'status', 'appointment_date']),
         ]
 
     # In appointment/models.py - Appointment.clean()
@@ -120,9 +123,11 @@ class Appointment(models.Model):
         # if self.service_duration and self.service_duration <= 0:
         #     raise ValidationError({'service_duration': 'مدت زمان سرویس باید مثبت باشد'})
 
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
+    # NOTE: save() intentionally does NOT call full_clean(). Model validation
+    # runs at the serializer/view layer (create & update paths call full_clean()
+    # explicitly where needed). Calling full_clean() on every save added a
+    # per-write uniqueness query for `tracking_code`, which hurts write
+    # throughput on the hot booking path.
 
     def __str__(self):
         return f"{self.visitor.full_name} - {self.business.title} ({self.appointment_date})"

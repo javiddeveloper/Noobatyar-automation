@@ -2,14 +2,21 @@ package xyz.sattar.javid.proqueue.feature.createBusiness
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.usecase.BusinessUpsertUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
 
 class CreateBusinessViewModel(
     initialState: CreateBusinessState,
     private val businessUpsertUseCase: BusinessUpsertUseCase,
-    private val businessRepository: xyz.sattar.javid.proqueue.domain.BusinessRepository
+    private val businessRepository: xyz.sattar.javid.proqueue.domain.BusinessRepository,
+    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase,
+    private val getPlansUseCase: GetPlansUseCase,
+    private val createPaymentUseCase: CreatePaymentUseCase
 ) : BaseViewModel<CreateBusinessState, CreateBusinessState.PartialState, CreateBusinessEvent, CreateBusinessIntent>(
     initialState
 ) {
@@ -41,6 +48,35 @@ class CreateBusinessViewModel(
             CreateBusinessIntent.BackPress -> sendEvent(CreateBusinessEvent.BackPressed)
             CreateBusinessIntent.BusinessCreated -> sendEvent(CreateBusinessEvent.NavigateToBusiness)
             is CreateBusinessIntent.LoadBusiness -> loadBusiness(intent.businessId)
+            CreateBusinessIntent.LoadEntitlements -> loadEntitlements()
+            is CreateBusinessIntent.UpgradePlan -> upgradePlan(intent.planId)
+        }
+    }
+
+    private fun loadEntitlements(): Flow<CreateBusinessState.PartialState> = flow {
+        try {
+            when (val response = getMyEntitlementsUseCase()) {
+                is ApiResponse.Success -> emit(CreateBusinessState.PartialState.LoadEntitlements(response.data))
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {}
+
+        try {
+            when (val response = getPlansUseCase()) {
+                is ApiResponse.Success -> emit(CreateBusinessState.PartialState.LoadPlans(response.data))
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {}
+    }
+
+    private fun upgradePlan(planId: Int): Flow<CreateBusinessState.PartialState> = flow {
+        try {
+            when (val response = createPaymentUseCase(planId)) {
+                is ApiResponse.Success -> sendEvent(CreateBusinessEvent.OpenUrl(response.data.paymentUrl))
+                is ApiResponse.Error -> emit(CreateBusinessState.PartialState.ShowMessage(response.message))
+            }
+        } catch (e: Exception) {
+            emit(CreateBusinessState.PartialState.ShowMessage(e.message ?: "خطا در برقراری ارتباط"))
         }
     }
 
@@ -71,6 +107,12 @@ class CreateBusinessViewModel(
                     business = partialState.business,
                     isLoading = false
                 )
+
+            is CreateBusinessState.PartialState.LoadEntitlements ->
+                currentState.copy(entitlements = partialState.entitlements)
+
+            is CreateBusinessState.PartialState.LoadPlans ->
+                currentState.copy(plans = partialState.plans)
         }
     }
 

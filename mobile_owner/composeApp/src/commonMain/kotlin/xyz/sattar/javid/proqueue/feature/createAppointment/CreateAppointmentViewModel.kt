@@ -75,6 +75,9 @@ class CreateAppointmentViewModel(
             CreateAppointmentIntent.DismissConflictDialog -> flow {
                 emit(DismissConflictDialog)
             }
+            CreateAppointmentIntent.DismissQuotaDialog -> flow {
+                emit(CreateAppointmentState.PartialState.DismissQuotaDialog)
+            }
             is CreateAppointmentIntent.DeleteAppointment -> deleteAppointment(intent.appointmentId)
         }
     }
@@ -126,6 +129,13 @@ class CreateAppointmentViewModel(
                     showConflictDialog = false,
                     conflictingVisitorName = null
                 )
+            is ShowQuotaDialog ->
+                currentState.copy(
+                    quotaDialogMessage = partialState.message,
+                    isLoading = false
+                )
+            DismissQuotaDialog ->
+                currentState.copy(quotaDialogMessage = null)
             is LoadDailyAppointments ->
                 currentState.copy(
                     dailyAppointments = partialState.appointments,
@@ -265,6 +275,15 @@ class CreateAppointmentViewModel(
                 sendEvent(CreateAppointmentEvent.AppointmentCreated)
             } else {
                 emit(CreateAppointmentState.PartialState.ShowMessage(getString(Res.string.error_saving_appointment)))
+            }
+        } catch (e: xyz.sattar.javid.proqueue.core.network.ApiException) {
+            if (e.code == 409) {
+                // Monthly appointment quota (or hourly capacity) reached — show a
+                // dedicated dialog explaining what happened, not just a snackbar
+                // that's easy to miss.
+                emit(CreateAppointmentState.PartialState.ShowQuotaDialog(e.message ?: getString(Res.string.operation_error)))
+            } else {
+                emit(CreateAppointmentState.PartialState.ShowMessage(e.message ?: getString(Res.string.operation_error)))
             }
         } catch (e: Exception) {
             emit(CreateAppointmentState.PartialState.ShowMessage(e.message ?: getString(Res.string.operation_error)))

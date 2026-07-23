@@ -15,7 +15,7 @@ function RegisterRedirect() {
   }
 
   return (
-    <div style={{ padding: 40, textAlign: 'center', color: '#6b7280', fontSize: 14 }}>
+    <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)', fontSize: 14 }}>
       در حال انتقال...
     </div>
   );

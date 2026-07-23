@@ -48,6 +48,8 @@ sealed class AppScreens {
     @Serializable
     data class CreateBusiness(val businessId: Long? = null) : AppScreens()
     @Serializable
+    data class AdvancedSettings(val businessId: Long) : AppScreens()
+    @Serializable
     object BusinessList : AppScreens()
     @Serializable
     data class VisitorSelection(val returnResult: Boolean = false) : AppScreens()
@@ -77,6 +79,8 @@ sealed class AppScreens {
     ) : AppScreens()
     @Serializable
     object AboutUs : AppScreens()
+    @Serializable
+    object AddOns : AppScreens()
 }
 
 

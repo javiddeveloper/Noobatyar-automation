@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.resources.stringResource
@@ -23,15 +24,18 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarDefaults
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
+import xyz.sattar.javid.proqueue.core.ui.components.LastVisitorsListShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.QueueItemCard
 import xyz.sattar.javid.proqueue.core.ui.components.SectionTabs
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 import xyz.sattar.javid.proqueue.feature.home.QueueItem
-import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.math.abs
 
@@ -42,12 +46,13 @@ fun LastVisitorsScreen(
     onNavigateToEditAppointment: (Long) -> Unit = {},
     onNavigateToVisitorDetails: (Long) -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
+    onChangeBusiness: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.sendIntent(LastVisitorsIntent.LoadAppointments)
-    }
+    // Initial load happens once in LastVisitorsViewModel.init (it observes the
+    // selected business). Not re-triggered here, so switching back to this tab
+    // does not re-request the server.
 
     HandleEvents(
         events = viewModel.events,
@@ -60,6 +65,7 @@ fun LastVisitorsScreen(
         uiState = uiState,
         onIntent = viewModel::sendIntent,
         onNavigateToLogin = onNavigateToLogin,
+        onChangeBusiness = onChangeBusiness,
         onGenerateMessage = viewModel::generateReminderMessage
     )
 }
@@ -71,22 +77,15 @@ fun LastVisitorsScreenContent(
     uiState: LastVisitorsState,
     onIntent: (LastVisitorsIntent) -> Unit,
     onNavigateToLogin: () -> Unit = {},
+    onChangeBusiness: () -> Unit = {},
     onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(Res.string.last_visitors_menu_item),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
+            MainTopAppBar(
+                onNavigateToLogin = onNavigateToLogin,
+                onChangeBusiness = onChangeBusiness,
                 actions = {
                     IconButton(onClick = { onIntent(LastVisitorsIntent.ShowFilterSheet(true)) }) {
                         Icon(
@@ -94,18 +93,15 @@ fun LastVisitorsScreenContent(
                             contentDescription = "Filter"
                         )
                     }
-                    ProfileAvatar(
-                        onNavigateToLogin = onNavigateToLogin
-                    )
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                modifier = Modifier.padding(bottom = 80.dp),
                 onClick = {
                     onIntent(LastVisitorsIntent.OnCreateAppointmentClick)
                 },
+                modifier = Modifier.padding(bottom = BottomBarDefaults.FabClearance),
                 containerColor = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -124,9 +120,14 @@ fun LastVisitorsScreenContent(
         ) {
             when {
                 uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        LastVisitorsListShimmer()
+                        BottomBarSpacer()
+                    }
                 }
 
                 uiState.appointments.isEmpty() -> {
@@ -244,7 +245,7 @@ fun LastVisitorsScreenContent(
                                             onGenerateMessage = onGenerateMessage
                                         )
                                     }
-                                    item { Spacer(modifier = Modifier.height(180.dp)) }
+                                    item { BottomBarSpacer() }
                                 }
                             }
                         } else {
@@ -336,7 +337,7 @@ fun FilterBottomSheet(
                         "PENDING_APPROVAL" to "در انتظار تایید",
                         "WAITING" to stringResource(Res.string.status_waiting),
                         "IN_PROGRESS" to "در حال سرویس",
-                        "COMPLETED" to stringResource(Res.string.status_completed),
+                        "CONFIRMED" to stringResource(Res.string.status_completed),
                         "NO_SHOW" to stringResource(Res.string.status_no_show),
                         "CANCELLED" to "لغو شده"
                     )
@@ -457,7 +458,7 @@ fun AppointmentsList(
                 onItemClick = { onItemClick(appointment.appointment.visitorId) }
             )
         }
-        item { Spacer(modifier = Modifier.height(180.dp)) }
+        item { BottomBarSpacer() }
     }
 }
 
@@ -485,23 +486,30 @@ fun AppointmentCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
-            val dateText = DateTimeUtils.formatDateTime(appointment.appointmentDate)
-            val endTimeMs = appointment.appointmentDate + (appointment.serviceDuration
-                ?: appointmentWithDetails.business.defaultServiceDuration) * 60 * 1000L
+            val durationMinutes = appointment.serviceDuration
+                ?: appointmentWithDetails.business.defaultServiceDuration
+            val endTimeMs = appointment.appointmentDate + durationMinutes * 60 * 1000L
+            val dateText = DateTimeUtils.formatDate(appointment.appointmentDate)
             val startTimeOnly = DateTimeUtils.formatTime(appointment.appointmentDate)
             val endTimeOnly = DateTimeUtils.formatTime(endTimeMs)
+            val overdue =
+                DateTimeUtils.systemCurrentMilliseconds() > endTimeMs && appointment.status == "WAITING"
 
+            // Header: identity + status, on a single line.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(42.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
@@ -514,12 +522,14 @@ fun AppointmentCard(
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = visitor.fullName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = visitor.phoneNumber ?: "--",
@@ -528,47 +538,44 @@ fun AppointmentCard(
                         )
                     }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = dateText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "$endTimeOnly ${stringResource(Res.string.to_label)} $startTimeOnly",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                StatusBadge(status = appointment.status, overdue = overdue)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val durationMinutes = appointment.serviceDuration
-                ?: appointmentWithDetails.business.defaultServiceDuration
-            val endTime = appointment.appointmentDate + durationMinutes * 60 * 1000L
-            val overdue =
-                DateTimeUtils.systemCurrentMilliseconds() > endTime && appointment.status == "WAITING"
-
-            Row(
+            // Compact info strip: time range · date · duration grouped in one bar,
+            // so the width is used instead of leaving a big empty gap.
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(14.dp)
             ) {
-                StatusBadge(status = appointment.status, overdue = overdue)
-                
-                Text(
-                    text = "${durationMinutes} دقیقه",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MetaItem(
+                        icon = Icons.Rounded.Schedule,
+                        text = "$endTimeOnly ${stringResource(Res.string.to_label)} $startTimeOnly",
+                        emphasized = true
+                    )
+                    MetaItem(
+                        icon = Icons.Rounded.CalendarToday,
+                        text = dateText
+                    )
+                    MetaItem(
+                        icon = Icons.Rounded.Timer,
+                        text = "$durationMinutes دقیقه"
+                    )
+                }
             }
 
             if (!appointment.description.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Rounded.Edit,
@@ -580,11 +587,39 @@ fun AppointmentCard(
                     Text(
                         text = appointment.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MetaItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    emphasized: Boolean = false
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = if (emphasized) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
+            color = if (emphasized) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
     }
 }
 
@@ -614,7 +649,7 @@ fun StatusBadge(status: String, overdue: Boolean) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
             MaterialTheme.colorScheme.onPrimaryContainer
         )
-        status == "COMPLETED" -> Triple(
+        status == "CONFIRMED" -> Triple(
             stringResource(Res.string.status_completed),
             if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9),
             if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32)

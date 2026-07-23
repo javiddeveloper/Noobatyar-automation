@@ -4,14 +4,22 @@ import xyz.sattar.javid.proqueue.feature.calendar.CalendarScreen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import xyz.sattar.javid.proqueue.core.ui.LocalHazeState
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -26,6 +34,8 @@ import xyz.sattar.javid.proqueue.core.navigation.AppScreens
 import xyz.sattar.javid.proqueue.core.navigation.MainTab
 import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
+import xyz.sattar.javid.proqueue.core.network.GlobalError
+import xyz.sattar.javid.proqueue.core.network.GlobalErrorManager
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentScreen
 import xyz.sattar.javid.proqueue.feature.createVisitor.CreateVisitorRoute
@@ -38,14 +48,12 @@ import xyz.sattar.javid.proqueue.feature.settings.SettingsScreen
 import xyz.sattar.javid.proqueue.feature.visitorDetails.VisitorDetailsScreen
 import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionScreen
 import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
+import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
-
-import androidx.compose.foundation.layout.navigationBarsPadding
+import xyz.sattar.javid.proqueue.feature.createBusiness.AdvancedSettingsRoute
 
 @Composable
 fun MainNavHost(
-    onNavigateToCreateBusiness: () -> Unit = {},
-    onNavigateToCreateVisitor: () -> Unit = {},
     onChangeBusiness: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
@@ -54,6 +62,19 @@ fun MainNavHost(
     val currentDestination = navBackStackEntry?.destination
 
     val notificationEvent by NotificationNavigationManager.navigationEvent.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Shared blur source/target state for the glass top & bottom bars.
+    val hazeState = remember { HazeState() }
+
+    LaunchedEffect(Unit) {
+        GlobalErrorManager.errorFlow.collect { error ->
+            if (error is GlobalError.RateLimit) {
+                snackbarHostState.showSnackbar(error.message)
+            }
+        }
+    }
 
     LaunchedEffect(notificationEvent) {
         notificationEvent?.let { event ->
@@ -83,7 +104,13 @@ fun MainNavHost(
         } == true
     } ?: MainTab.Home
 
+    CompositionLocalProvider(LocalHazeState provides hazeState) {
     Scaffold(
+        snackbarHost = {
+            Box(modifier = Modifier.navigationBarsPadding()) {
+                SnackbarHost(snackbarHostState) 
+            }
+        },
         bottomBar = {
             AnimatedVisibility(
                 visible = shouldShowBottomBar,
@@ -112,12 +139,16 @@ fun MainNavHost(
             }
         }
     ) { paddingValues ->
+        // Note: we intentionally do NOT pad the content by the bottom bar height.
+        // The bottom bar floats (with a gradient scrim), so screens scroll under
+        // it with no solid gap. Tab screens add BottomBarSpacer / FabClearance
+        // so the last items and FABs clear the bar.
         NavHost(
             navController = navController,
             startDestination = AppScreens.Home,
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
+                .hazeSource(hazeState)
         ) {
             composable<AppScreens.Home> {
                 HomeScreen(
@@ -125,6 +156,10 @@ fun MainNavHost(
                         navController.navigate(AppScreens.Calendar())
                     },
                     onNavigateToLogin = onNavigateToLogin,
+                    onChangeBusiness = onChangeBusiness,
+                    onNavigateToAddons = {
+                        navController.navigate(AppScreens.AddOns)
+                    },
                 )
             }
 
@@ -139,7 +174,8 @@ fun MainNavHost(
                     onNavigateToVisitorDetails = { visitorId ->
                         navController.navigate(AppScreens.VisitorDetails(visitorId))
                     },
-                    onNavigateToLogin = onNavigateToLogin
+                    onNavigateToLogin = onNavigateToLogin,
+                    onChangeBusiness = onChangeBusiness
                 )
             }
 
@@ -185,11 +221,8 @@ fun MainNavHost(
                         navController.navigate(AppScreens.AboutUs)
                     },
                     onChangeBusiness = onChangeBusiness,
-                    onNavigateToEditBusiness = { businessId ->
-                        navController.navigate(AppScreens.CreateBusiness(businessId = businessId))
-                    },
                     onNavigateToAdvancedSettings = { businessId ->
-                        navController.navigate(AppScreens.CreateBusiness(businessId = businessId))
+                        navController.navigate(AppScreens.AdvancedSettings(businessId = businessId))
                     },
                     onNavigateToNotifications = {
                         navController.navigate(AppScreens.Notifications)
@@ -211,6 +244,14 @@ fun MainNavHost(
                     onContinue = {
                         navController.popBackStack()
                     }
+                )
+            }
+
+            composable<AppScreens.AdvancedSettings> { backStackEntry ->
+                val args = backStackEntry.toRoute<AppScreens.AdvancedSettings>()
+                AdvancedSettingsRoute(
+                    businessId = args.businessId,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -322,6 +363,12 @@ fun MainNavHost(
                 )
             }
 
+            composable<AppScreens.AddOns> {
+                AddonsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
             dialog<AppScreens.PaymentResult>(
                 dialogProperties = DialogProperties(
                     dismissOnBackPress = false,
@@ -347,5 +394,6 @@ fun MainNavHost(
                 )
             }
         }
+    }
     }
 }

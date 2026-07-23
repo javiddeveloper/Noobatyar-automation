@@ -22,7 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.buildAnnotatedString
+import coil3.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,24 +42,35 @@ import proqueue.composeapp.generated.resources.home_menu_item
 import proqueue.composeapp.generated.resources.phone
 import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomePlanBannerShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeUsageShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
-import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
+import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel<HomeViewModel>(),
     onNavigateToCalendar: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
+    onNavigateToAddons: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val uriHandler = LocalUriHandler.current
 
-    LaunchedEffect(Unit) {
-        viewModel.sendIntent(HomeIntent.LoadData)
-    }
+    // Initial data load happens once in HomeViewModel.init (it observes the
+    // selected business). We deliberately don't re-trigger it here, so returning
+    // to this tab does not fire a new server request.
 
     HandleEvents(
         events = viewModel.events,
@@ -68,7 +83,9 @@ fun HomeScreen(
         snackbarHostState = snackbarHostState,
         onIntent = viewModel::sendIntent,
         onNavigateToCalendar = onNavigateToCalendar,
-        onNavigateToLogin = onNavigateToLogin
+        onNavigateToLogin = onNavigateToLogin,
+        onChangeBusiness = onChangeBusiness,
+        onNavigateToAddons = onNavigateToAddons
     )
 }
 
@@ -80,7 +97,9 @@ fun HomeScreenContent(
     snackbarHostState: SnackbarHostState,
     onIntent: (HomeIntent) -> Unit,
     onNavigateToCalendar: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
+    onNavigateToAddons: () -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -88,18 +107,19 @@ fun HomeScreenContent(
         visible = true
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(Res.string.home_menu_item),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                actions = {
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
+    Scaffold(
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            MainTopAppBar(
+                onNavigateToLogin = onNavigateToLogin,
+                onChangeBusiness = onChangeBusiness,
+                actions = {
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
@@ -108,9 +128,10 @@ fun HomeScreenContent(
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-
                         IconButton(
-                            modifier= Modifier.size(20.dp),onClick = onNavigateToCalendar) {
+                            modifier = Modifier.size(20.dp),
+                            onClick = onNavigateToCalendar
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Event,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -118,14 +139,7 @@ fun HomeScreenContent(
                             )
                         }
                     }
-
-                    ProfileAvatar(
-                        onNavigateToLogin = onNavigateToLogin
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -133,35 +147,25 @@ fun HomeScreenContent(
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp)
-                .padding(top = paddingValues.calculateTopPadding()),
+                .padding(horizontal = 16.dp),
+            // contentPadding (not a padding modifier) so items scroll *under* the
+            // glass top bar rather than starting below an opaque gap.
+            contentPadding = PaddingValues(top = paddingValues.calculateTopPadding()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ۱. بخش بنرهای پلن اشتراک (دقیقاً در ابتدای لیست)
-            if (uiState.plans.isNotEmpty()) {
-                item {
-                    PlanBannerSection(
-                        plans = uiState.plans,
-                        onPlanClick = { plan ->
-                            onIntent(HomeIntent.PurchasePlan(plan.id))
-                        }
-                    )
-                }
-            }
-
-            // ۲. اطلاعات کسب‌وکار
+            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز)
             item {
                 AnimatedVisibility(
                     visible = visible,
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 100)
+                        animationSpec = tween(500, delayMillis = 150)
                     )
                 ) {
-                    BusinessInfoHeader(uiState)
+                    DateHeader()
                 }
             }
 
-            // ۳. هدر تاریخ
+            // ۲. آمار داشبورد امروز
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -169,11 +173,30 @@ fun HomeScreenContent(
                         animationSpec = tween(500, delayMillis = 200)
                     )
                 ) {
-                    DateHeader()
+                    when {
+                        !uiState.statsLoaded -> HomeDashboardShimmer()
+                        else -> DashboardStatsSection(stats = uiState.stats)
+                    }
                 }
             }
 
-            // ۴. آمار داشبورد
+            // ۳. نمودار روند نوبت‌های ۷ روز اخیر
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 250)
+                    )
+                ) {
+                    if (!uiState.chartLoaded) {
+                        HomeChartShimmer()
+                    } else if (uiState.dailyCounts.isNotEmpty()) {
+                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
+                    }
+                }
+            }
+
+            // ۴. مصرف‌سنج ماهانه
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -181,19 +204,55 @@ fun HomeScreenContent(
                         animationSpec = tween(500, delayMillis = 300)
                     )
                 ) {
-                    DashboardStatsSection(stats = uiState.stats)
+                    if (!uiState.entitlementsLoaded) {
+                        HomeUsageShimmer()
+                    } else if (uiState.entitlements != null) {
+                        UsageMeterSection(
+                            entitlements = uiState.entitlements,
+                            onNavigateToAddons = onNavigateToAddons
+                        )
+                    }
                 }
             }
 
+            // ۵. لینک دریافت نوبت
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 350)
+                    )
+                ) {
+                    if (uiState.business == null && uiState.isLoading) {
+                        HomeButtonShimmer()
+                    } else if (uiState.business != null) {
+                        BookingLinkButton(uiState.business)
+                    }
+                }
             }
-        }
 
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            // ۶. بنرهای پلن اشتراک
+            item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 400)
+                    )
+                ) {
+                    if (!uiState.plansLoaded) {
+                        HomePlanBannerShimmer()
+                    } else if (uiState.plans.isNotEmpty()) {
+                        PlanBannerSection(
+                            plans = uiState.plans,
+                            onPlanClick = { plan ->
+                                onIntent(HomeIntent.PurchasePlan(plan.id))
+                            }
+                        )
+                    }
+                }
             }
+
+            item { BottomBarSpacer() }
         }
     }
 }
@@ -566,7 +625,31 @@ fun StatCard(
 }
 
 @Composable
-fun BusinessInfoHeader(uiState: HomeState) {
+fun BookingLinkButton(business: Business) {
+    val uniqueCode = business.uniqueCode ?: return
+    val clipboard = LocalClipboardManager.current
+    val link = "${xyz.sattar.javid.proqueue.BuildKonfig.BOOKING_BASE_URL}/b/$uniqueCode"
+    OutlinedButton(
+        onClick = { clipboard.setText(buildAnnotatedString { append(link) }) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("کپی لینک دریافت نوبت")
+    }
+}
+
+@Composable
+fun UsageMeterSection(
+    entitlements: EntitlementsResponseDto,
+    onNavigateToAddons: () -> Unit = {}
+) {
+    val appt = entitlements.usage.appointments
+    val sms = entitlements.usage.sms
+    // SMS "used this month" = quota - remaining (guard for unlimited).
+    val smsUsed = if (sms.quota == EntitlementKeys.UNLIMITED) 0 else (sms.quota - sms.monthlyRemaining).coerceAtLeast(0)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -577,75 +660,134 @@ fun BusinessInfoHeader(uiState: HomeState) {
             brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = uiState.business?.title?.ifEmpty { stringResource(Res.string.welcome_to_proqueue) }
-                        ?: stringResource(Res.string.welcome_to_proqueue),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                if (uiState.business != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Rounded.LocationOn, 
-                            null, 
-                            modifier = Modifier.size(14.dp), 
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = uiState.business.address,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Rounded.Phone, 
-                            null, 
-                            modifier = Modifier.size(14.dp), 
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = uiState.business.phone,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-            
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Rounded.Storefront,
+                    Icons.Rounded.DataUsage,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(18.dp)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "مصرف این ماه",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            UsageRow(
+                label = "نوبت‌ها",
+                icon = Icons.Rounded.Event,
+                used = appt.used,
+                quota = appt.quota,
+                trailingNote = if (appt.wallet > 0) "کیف‌پول: ${appt.wallet}" else null
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            UsageRow(
+                label = "پیامک",
+                icon = Icons.Rounded.Sms,
+                used = smsUsed,
+                quota = sms.quota,
+                trailingNote = if (sms.wallet > 0) "کیف‌پول: ${sms.wallet}" else null
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            TextButton(
+                onClick = onNavigateToAddons,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 6.dp)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("خرید بسته‌ی افزودنی", style = MaterialTheme.typography.labelMedium)
             }
         }
     }
 }
 
+@Composable
+fun UsageRow(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    used: Int,
+    quota: Int,
+    trailingNote: String? = null
+) {
+    val unlimited = quota == EntitlementKeys.UNLIMITED
+    val fraction = if (unlimited || quota <= 0) 0f else (used.toFloat() / quota.toFloat()).coerceIn(0f, 1f)
+    val nearLimit = !unlimited && fraction >= 0.85f
+    val barColor = if (nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = if (unlimited) "$used / ∞" else "$used / $quota",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        if (unlimited) {
+            // A subtle full track to convey "unlimited".
+            LinearProgressIndicator(
+                progress = { 1f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            )
+        } else {
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                color = barColor,
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+            )
+        }
+
+        if (trailingNote != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = trailingNote,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
 
 @Composable
 fun HandleEvents(

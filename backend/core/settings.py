@@ -6,9 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 import os
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+SECRET_KEY = os.getenv('SECRET_KEY', 'insecure-dev-key-change-in-production')
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,10.0.2.2,localhost').split(',')
+
+# Fail fast in production if the secret key was left at its insecure default.
+if not DEBUG and SECRET_KEY == 'insecure-dev-key-change-in-production':
+    raise RuntimeError('SECRET_KEY must be set via environment in production (DEBUG=False)')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -66,6 +70,11 @@ if os.getenv('POSTGRES_DB'):
             'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
             'HOST': os.getenv('POSTGRES_HOST', 'db'),
             'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            # Connection pooling is handled by PgBouncer (transaction mode), so we
+            # keep Django connections short-lived. Override via DB_CONN_MAX_AGE if
+            # you connect straight to Postgres without a pooler.
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '0')),
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 else:
@@ -75,6 +84,25 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+
+# ── Cache (Redis) ─────────────────────────────────────────────────────────────
+# Shared across all Gunicorn/Uvicorn workers. The OTP service (api/services/otp.py)
+# and DRF throttling both depend on this being a real shared cache — the previous
+# implicit LocMemCache default was per-process and silently broke OTP under
+# multi-worker deployments.
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,  # cache outage must not take down the API
+        },
+        'KEY_PREFIX': 'nobatyar',
+    }
+}
+DJANGO_REDIS_IGNORE_EXCEPTIONS = True
 
 # مدل کاربر سفارشی
 AUTH_USER_MODEL = 'api.User'
@@ -94,13 +122,23 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'EXCEPTION_HANDLER': 'api.exceptions.custom_exception_handler',
+    # Throttling is backed by the Redis cache above, so counters are shared
+    # across workers. Scoped rates (otp, public_slots) are enforced per-view.
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.getenv('THROTTLE_ANON', '60/min'),
+        'user': os.getenv('THROTTLE_USER', '300/min'),
+        'otp': os.getenv('THROTTLE_OTP', '5/min'),
+        'public_slots': os.getenv('THROTTLE_PUBLIC_SLOTS', '120/min'),
+    },
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
-    # 'ACCESS_TOKEN_LIFETIME': timedelta(seconds=10),
-    # 'REFRESH_TOKEN_LIFETIME': timedelta(seconds=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=int(os.getenv('JWT_ACCESS_HOURS', '24'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_DAYS', '14'))),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
@@ -113,11 +151,25 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'static'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS: allow all only in DEBUG; in production use an explicit allowlist from env.
+_cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '').strip()
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
+
+# ── Production security headers (only enforced when DEBUG is off) ──────────────
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
 
 # Zibal Payment Gateway
-ZIBAL_MERCHANT_ID = '6a0d8775dc2e6664d8adf3fd'  # Use 'zibal' for testing, replace with your actual merchant ID in production
-SITE_URL = 'http://localhost:8000'  # Your site's base URL
+ZIBAL_MERCHANT_ID = os.getenv('ZIBAL_MERCHANT_ID', 'zibal')  # 'zibal' is the sandbox merchant id
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')  # Your site's base URL
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
