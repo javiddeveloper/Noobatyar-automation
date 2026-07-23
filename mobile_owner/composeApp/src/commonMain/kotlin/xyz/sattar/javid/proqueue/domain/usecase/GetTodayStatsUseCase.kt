@@ -10,7 +10,7 @@ class GetTodayStatsUseCase(private val repository: AppointmentRepository) {
         val todayAppointments = repository.getTodayAppointments(businessId)
         
         val total = todayAppointments.size
-        val completed = todayAppointments.count { it.appointment.status == "COMPLETED" }
+        val completed = todayAppointments.count { it.appointment.status == "CONFIRMED" }
         val noShow = todayAppointments.count { it.appointment.status == "NO_SHOW" }
         // For total visitors, we can count unique visitor IDs in today's appointments or fetch from visitor repo.
         // Assuming we want unique visitors today:

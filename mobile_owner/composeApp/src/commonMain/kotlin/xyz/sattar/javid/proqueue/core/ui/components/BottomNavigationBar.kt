@@ -77,6 +77,15 @@ fun BottomNavigationBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.8f)
+                    )
+                )
+            )
+            .padding(bottom = navigationBarsPadding)
             .wrapContentHeight(),
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -84,7 +93,7 @@ fun BottomNavigationBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp + navigationBarsPadding),
+                .height(80.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
             shape = BottomBarShape(48.dp),
             shadowElevation = 12.dp
@@ -92,7 +101,6 @@ fun BottomNavigationBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = navigationBarsPadding)
                     .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
@@ -119,7 +127,7 @@ fun BottomNavigationBar(
                 isSelected = selectedTab is MainTab.Home,
                 tab = homeTab,
                 modifier = Modifier
-                    .padding(bottom = 32.dp + navigationBarsPadding)
+                    .padding(bottom = 32.dp)
                     .size(64.dp),
                 onClick = { onTabSelected(homeTab) }
             )

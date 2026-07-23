@@ -13,6 +13,7 @@ actual fun SystemAppearance(isDark: Boolean) {
         SideEffect {
             val window = (view.context as Activity).window
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isDark
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = isDark
         }
     }
 }

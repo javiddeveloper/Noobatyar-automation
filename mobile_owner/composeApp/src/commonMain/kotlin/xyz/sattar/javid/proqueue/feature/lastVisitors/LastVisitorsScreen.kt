@@ -23,6 +23,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
 import xyz.sattar.javid.proqueue.core.ui.components.QueueItemCard
@@ -31,7 +32,6 @@ import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 import xyz.sattar.javid.proqueue.feature.home.QueueItem
-import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.math.abs
 
@@ -42,6 +42,7 @@ fun LastVisitorsScreen(
     onNavigateToEditAppointment: (Long) -> Unit = {},
     onNavigateToVisitorDetails: (Long) -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
+    onChangeBusiness: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -60,6 +61,7 @@ fun LastVisitorsScreen(
         uiState = uiState,
         onIntent = viewModel::sendIntent,
         onNavigateToLogin = onNavigateToLogin,
+        onChangeBusiness = onChangeBusiness,
         onGenerateMessage = viewModel::generateReminderMessage
     )
 }
@@ -71,22 +73,15 @@ fun LastVisitorsScreenContent(
     uiState: LastVisitorsState,
     onIntent: (LastVisitorsIntent) -> Unit,
     onNavigateToLogin: () -> Unit = {},
+    onChangeBusiness: () -> Unit = {},
     onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(Res.string.last_visitors_menu_item),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
+            MainTopAppBar(
+                onNavigateToLogin = onNavigateToLogin,
+                onChangeBusiness = onChangeBusiness,
                 actions = {
                     IconButton(onClick = { onIntent(LastVisitorsIntent.ShowFilterSheet(true)) }) {
                         Icon(
@@ -94,15 +89,11 @@ fun LastVisitorsScreenContent(
                             contentDescription = "Filter"
                         )
                     }
-                    ProfileAvatar(
-                        onNavigateToLogin = onNavigateToLogin
-                    )
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                modifier = Modifier.padding(bottom = 80.dp),
                 onClick = {
                     onIntent(LastVisitorsIntent.OnCreateAppointmentClick)
                 },
@@ -336,7 +327,7 @@ fun FilterBottomSheet(
                         "PENDING_APPROVAL" to "در انتظار تایید",
                         "WAITING" to stringResource(Res.string.status_waiting),
                         "IN_PROGRESS" to "در حال سرویس",
-                        "COMPLETED" to stringResource(Res.string.status_completed),
+                        "CONFIRMED" to stringResource(Res.string.status_completed),
                         "NO_SHOW" to stringResource(Res.string.status_no_show),
                         "CANCELLED" to "لغو شده"
                     )
@@ -614,7 +605,7 @@ fun StatusBadge(status: String, overdue: Boolean) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
             MaterialTheme.colorScheme.onPrimaryContainer
         )
-        status == "COMPLETED" -> Triple(
+        status == "CONFIRMED" -> Triple(
             stringResource(Res.string.status_completed),
             if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9),
             if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32)

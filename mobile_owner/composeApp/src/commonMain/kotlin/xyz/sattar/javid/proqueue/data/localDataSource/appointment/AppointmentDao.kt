@@ -128,7 +128,7 @@ interface AppointmentDao {
     @Query("""
         SELECT DISTINCT businessId FROM Appointment 
         WHERE visitorId = :visitorId 
-        AND status IN ('COMPLETED', 'NO_SHOW')
+        AND status IN ('CONFIRMED', 'NO_SHOW')
     """)
     suspend fun getVisitorBusinessIds(visitorId: Long): List<Long>
 

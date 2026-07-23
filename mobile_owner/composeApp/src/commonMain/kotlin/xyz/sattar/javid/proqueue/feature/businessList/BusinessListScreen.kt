@@ -61,7 +61,6 @@ import proqueue.composeapp.generated.resources.delete_business_confirmation
 import proqueue.composeapp.generated.resources.no_business_found
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.domain.model.business.Business
-import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
 @Composable
@@ -143,11 +142,6 @@ fun BusinessListScreenContent(
                     Text(
                         stringResource(Res.string.business_list),
                         style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                actions = {
-                    ProfileAvatar(
-                        onNavigateToLogin = onNavigateToLogin
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

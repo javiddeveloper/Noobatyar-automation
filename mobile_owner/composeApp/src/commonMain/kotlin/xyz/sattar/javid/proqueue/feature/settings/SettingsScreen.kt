@@ -33,7 +33,7 @@ import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.AppThemeMode
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
-import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
+import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 
 @Composable
 fun SettingsScreen(
@@ -130,6 +130,7 @@ fun SettingsScreen(
         onShowThemeSheet = { showThemeSheet = true },
         onShowDeleteDialog = { showDeleteDialog = true },
         onNavigateToLogin = onNavigateToLogin,
+        onChangeBusiness = onChangeBusiness,
         onAdvancedSettings = {
             uiState.currentBusiness?.let {
                 onNavigateToAdvancedSettings(it.id)
@@ -146,26 +147,14 @@ fun SettingsContent(
     onShowThemeSheet: () -> Unit,
     onShowDeleteDialog: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
     onAdvancedSettings: () -> Unit
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(Res.string.settings_menu_item),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                actions = {
-                    ProfileAvatar(
-                        onNavigateToLogin = onNavigateToLogin
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+            MainTopAppBar(
+                onNavigateToLogin = onNavigateToLogin,
+                onChangeBusiness = onChangeBusiness
             )
         },
         containerColor = MaterialTheme.colorScheme.background

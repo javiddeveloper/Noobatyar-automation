@@ -4,10 +4,15 @@ import xyz.sattar.javid.proqueue.feature.calendar.CalendarScreen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -26,6 +31,8 @@ import xyz.sattar.javid.proqueue.core.navigation.AppScreens
 import xyz.sattar.javid.proqueue.core.navigation.MainTab
 import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
+import xyz.sattar.javid.proqueue.core.network.GlobalError
+import xyz.sattar.javid.proqueue.core.network.GlobalErrorManager
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentScreen
 import xyz.sattar.javid.proqueue.feature.createVisitor.CreateVisitorRoute
@@ -41,8 +48,6 @@ import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
 import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
 
-import androidx.compose.foundation.layout.navigationBarsPadding
-
 @Composable
 fun MainNavHost(
     onNavigateToCreateBusiness: () -> Unit = {},
@@ -55,6 +60,16 @@ fun MainNavHost(
     val currentDestination = navBackStackEntry?.destination
 
     val notificationEvent by NotificationNavigationManager.navigationEvent.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        GlobalErrorManager.errorFlow.collect { error ->
+            if (error is GlobalError.RateLimit) {
+                snackbarHostState.showSnackbar(error.message)
+            }
+        }
+    }
 
     LaunchedEffect(notificationEvent) {
         notificationEvent?.let { event ->
@@ -85,6 +100,11 @@ fun MainNavHost(
     } ?: MainTab.Home
 
     Scaffold(
+        snackbarHost = { 
+            Box(modifier = Modifier.navigationBarsPadding()) {
+                SnackbarHost(snackbarHostState) 
+            }
+        },
         bottomBar = {
             AnimatedVisibility(
                 visible = shouldShowBottomBar,
@@ -119,7 +139,6 @@ fun MainNavHost(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = paddingValues.calculateBottomPadding())
-                .navigationBarsPadding()
         ) {
             composable<AppScreens.Home> {
                 HomeScreen(
@@ -127,6 +146,7 @@ fun MainNavHost(
                         navController.navigate(AppScreens.Calendar())
                     },
                     onNavigateToLogin = onNavigateToLogin,
+                    onChangeBusiness = onChangeBusiness,
                     onNavigateToAddons = {
                         navController.navigate(AppScreens.AddOns)
                     },
@@ -144,7 +164,8 @@ fun MainNavHost(
                     onNavigateToVisitorDetails = { visitorId ->
                         navController.navigate(AppScreens.VisitorDetails(visitorId))
                     },
-                    onNavigateToLogin = onNavigateToLogin
+                    onNavigateToLogin = onNavigateToLogin,
+                    onChangeBusiness = onChangeBusiness
                 )
             }
 

@@ -42,12 +42,12 @@ import proqueue.composeapp.generated.resources.home_menu_item
 import proqueue.composeapp.generated.resources.phone
 import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
 import xyz.sattar.javid.proqueue.domain.model.business.Business
-import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
 @Composable
@@ -55,6 +55,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel<HomeViewModel>(),
     onNavigateToCalendar: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
     onNavigateToAddons: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -77,6 +78,7 @@ fun HomeScreen(
         onIntent = viewModel::sendIntent,
         onNavigateToCalendar = onNavigateToCalendar,
         onNavigateToLogin = onNavigateToLogin,
+        onChangeBusiness = onChangeBusiness,
         onNavigateToAddons = onNavigateToAddons
     )
 }
@@ -90,6 +92,7 @@ fun HomeScreenContent(
     onIntent: (HomeIntent) -> Unit,
     onNavigateToCalendar: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
     onNavigateToAddons: () -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
@@ -98,18 +101,18 @@ fun HomeScreenContent(
         visible = true
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(Res.string.home_menu_item),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                actions = {
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
+    Scaffold(
+        topBar = {
+            MainTopAppBar(
+                onNavigateToLogin = onNavigateToLogin,
+                onChangeBusiness = onChangeBusiness,
+                actions = {
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
@@ -118,9 +121,10 @@ fun HomeScreenContent(
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-
                         IconButton(
-                            modifier= Modifier.size(20.dp),onClick = onNavigateToCalendar) {
+                            modifier = Modifier.size(20.dp),
+                            onClick = onNavigateToCalendar
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Event,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -128,14 +132,7 @@ fun HomeScreenContent(
                             )
                         }
                     }
-
-                    ProfileAvatar(
-                        onNavigateToLogin = onNavigateToLogin
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -147,18 +144,6 @@ fun HomeScreenContent(
                 .padding(top = paddingValues.calculateTopPadding()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ۱. اطلاعات کسب‌وکار
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 100)
-                    )
-                ) {
-                    BusinessInfoHeader(uiState)
-                }
-            }
-
             // ۲. لینک دریافت نوبت
             item {
                 AnimatedVisibility(
@@ -624,100 +609,6 @@ fun StatCard(
         }
     }
 }
-
-@Composable
-fun BusinessInfoHeader(uiState: HomeState) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = uiState.business?.title?.ifEmpty { stringResource(Res.string.welcome_to_proqueue) }
-                        ?: stringResource(Res.string.welcome_to_proqueue),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                if (uiState.business != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Rounded.LocationOn, 
-                            null, 
-                            modifier = Modifier.size(14.dp), 
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = uiState.business.address,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Rounded.Phone, 
-                            null, 
-                            modifier = Modifier.size(14.dp), 
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = uiState.business.phone,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-            
-            val logoPath = uiState.business?.logoPath
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!logoPath.isNullOrEmpty()) {
-                    val url = if (logoPath.startsWith("http")) logoPath
-                        else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$logoPath"
-                    AsyncImage(
-                        model = url,
-                        contentDescription = "Business Logo",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Storefront,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
 
 @Composable
 fun BookingLinkButton(business: Business) {

@@ -21,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
-import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.fillMaxSize
 
@@ -29,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 @Composable
 fun ProfileAvatar(
     onNavigateToLogin: () -> Unit,
+    onChangeBusiness: () -> Unit = {},
     userViewModel: UserViewModel = koinViewModel()
 ) {
     val userState by userViewModel.uiState.collectAsState()
@@ -50,24 +50,14 @@ fun ProfileAvatar(
             .clickable { showProfileSheet = true },
         contentAlignment = Alignment.Center
     ) {
-        if (businessState != null && !businessState!!.logoPath.isNullOrEmpty()) {
-            val url = if (businessState!!.logoPath.startsWith("http")) businessState!!.logoPath else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${businessState!!.logoPath}"
-            AsyncImage(
-                model = url,
-                contentDescription = "Business Logo",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            val displayChar = businessState?.title?.firstOrNull()?.uppercaseChar()?.toString()
-                ?: userState.userName?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                
-            Text(
-                text = displayChar,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+        val displayChar = userState.userName?.firstOrNull()?.uppercaseChar()?.toString()
+            ?: businessState?.title?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+
+        Text(
+            text = displayChar,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 
     if (showProfileSheet) {
@@ -80,6 +70,10 @@ fun ProfileAvatar(
             onLogout = {
                 showProfileSheet = false
                 userViewModel.sendIntent(UserIntent.Logout)
+            },
+            onChangeBusiness = {
+                showProfileSheet = false
+                onChangeBusiness()
             }
         )
     }

@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.koinInject
+import xyz.sattar.javid.proqueue.core.network.GlobalError
+import xyz.sattar.javid.proqueue.core.network.GlobalErrorManager
 import xyz.sattar.javid.proqueue.core.navigation.navHost.AuthNavHost
 import xyz.sattar.javid.proqueue.core.navigation.navHost.BusinessNavHost
 import xyz.sattar.javid.proqueue.core.navigation.navHost.MainNavHost
@@ -33,6 +35,22 @@ fun App() {
     var onAuthComplete by remember { mutableStateOf(hasTokenUseCase()) }
     val scope = rememberCoroutineScope()
     val businessRepository: BusinessRepository = koinInject()
+
+    LaunchedEffect(Unit) {
+        GlobalErrorManager.errorFlow.collect { error ->
+            when (error) {
+                GlobalError.Unauthorized -> {
+                    onAuthComplete = false
+                    BusinessStateHolder.clearBusiness()
+                    PreferencesManager.setDefaultBusinessId(null)
+                }
+                is GlobalError.RateLimit -> {
+                    // This could be handled globally, maybe via a snackbar in MainNavHost
+                    // But for now, just logging or we could add a GlobalSnackbarManager
+                }
+            }
+        }
+    }
 
     AppTheme(themeMode = themeMode) {
         // Handle Version Update
