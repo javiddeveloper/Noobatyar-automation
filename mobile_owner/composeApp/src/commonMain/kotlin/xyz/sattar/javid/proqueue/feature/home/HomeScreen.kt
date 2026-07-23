@@ -683,7 +683,8 @@ fun UsageMeterSection(
                 label = "نوبت‌ها",
                 icon = Icons.Rounded.Event,
                 used = appt.used,
-                quota = appt.quota
+                quota = appt.quota,
+                trailingNote = if (appt.wallet > 0) "کیف‌پول: ${appt.wallet}" else null
             )
 
             Spacer(modifier = Modifier.height(14.dp))

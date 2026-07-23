@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -81,6 +82,10 @@ fun AddonsScreen(
                     )
                 }
             } else {
+                val smsPacks = uiState.packs.filter { it.kind == "sms_pack" }
+                val appointmentPacks = uiState.packs.filter { it.kind == "appointment_pack" }
+                val otherPacks = uiState.packs.filter { it.kind != "sms_pack" && it.kind != "appointment_pack" }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -88,13 +93,38 @@ fun AddonsScreen(
                 ) {
                     item {
                         Text(
-                            "بدون تغییر پلن، فقط همین یک مورد را اضافه کنید.",
+                            "بدون تغییر پلن، اعتبار پیامک یا نوبت اضافه کنید.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
                     }
-                    items(uiState.packs, key = { it.id }) { pack ->
+
+                    if (smsPacks.isNotEmpty()) {
+                        item { SectionHeader("بسته‌های پیامک") }
+                        items(smsPacks, key = { it.id }) { pack ->
+                            AddOnPackCard(
+                                pack = pack,
+                                isPurchasing = uiState.purchasingPackId == pack.id,
+                                enabled = uiState.purchasingPackId == null,
+                                onBuy = { viewModel.sendIntent(AddonsIntent.Buy(pack.id)) }
+                            )
+                        }
+                    }
+
+                    if (appointmentPacks.isNotEmpty()) {
+                        item { SectionHeader("بسته‌های نوبت") }
+                        items(appointmentPacks, key = { it.id }) { pack ->
+                            AddOnPackCard(
+                                pack = pack,
+                                isPurchasing = uiState.purchasingPackId == pack.id,
+                                enabled = uiState.purchasingPackId == null,
+                                onBuy = { viewModel.sendIntent(AddonsIntent.Buy(pack.id)) }
+                            )
+                        }
+                    }
+
+                    items(otherPacks, key = { it.id }) { pack ->
                         AddOnPackCard(
                             pack = pack,
                             isPurchasing = uiState.purchasingPackId == pack.id,
@@ -109,13 +139,33 @@ fun AddonsScreen(
 }
 
 @Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
 private fun AddOnPackCard(
     pack: AddOnPackDto,
     isPurchasing: Boolean,
     enabled: Boolean,
     onBuy: () -> Unit
 ) {
-    val isSms = pack.kind == "sms_pack"
+    val icon = when (pack.kind) {
+        "sms_pack" -> Icons.Rounded.Sms
+        "appointment_pack" -> Icons.Rounded.Event
+        else -> Icons.Rounded.Bolt
+    }
+    val subtitle = when (pack.kind) {
+        "sms_pack" -> "${pack.smsAmount} پیامک — بدون انقضا"
+        "appointment_pack" -> "${pack.appointmentAmount} نوبت — بدون انقضا"
+        else -> "فعال به مدت ${pack.durationDays} روز"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -139,7 +189,7 @@ private fun AddOnPackCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isSms) Icons.Rounded.Sms else Icons.Rounded.Bolt,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -157,8 +207,7 @@ private fun AddOnPackCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    if (isSms) "${pack.smsAmount} پیامک — بدون انقضا"
-                    else "فعال به مدت ${pack.durationDays} روز",
+                    subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

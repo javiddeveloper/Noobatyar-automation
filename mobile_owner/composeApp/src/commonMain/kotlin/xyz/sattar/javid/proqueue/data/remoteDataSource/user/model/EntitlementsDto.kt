@@ -35,7 +35,9 @@ data class UsageDto(
 @Serializable
 data class AppointmentUsageDto(
     val used: Int = 0,
-    val quota: Int = 0 // -1 = unlimited
+    val quota: Int = 0, // -1 = unlimited
+    @SerialName("monthly_remaining") val monthlyRemaining: Int = 0,
+    val wallet: Int = 0 // appointment credit bought via add-on packs
 )
 
 @Serializable
