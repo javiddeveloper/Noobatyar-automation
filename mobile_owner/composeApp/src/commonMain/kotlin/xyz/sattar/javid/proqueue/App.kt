@@ -89,12 +89,6 @@ fun App() {
             )
         } else {
             MainNavHost(
-                onNavigateToCreateBusiness = {
-                    BusinessStateHolder.clearBusiness()
-                    scope.launch { PreferencesManager.setDefaultBusinessId(null) }
-                },
-                onNavigateToCreateVisitor = {
-                },
                 onChangeBusiness = {
                     BusinessStateHolder.clearBusiness()
                     scope.launch { PreferencesManager.setDefaultBusinessId(null) }
