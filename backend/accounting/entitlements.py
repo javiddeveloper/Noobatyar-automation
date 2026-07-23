@@ -108,9 +108,9 @@ BUNDLE_1M = {
 
 # ۳ ماهه «حرفه‌ای»
 BUNDLE_3M = {
-    QUOTA_MAX_BUSINESSES:       3,
-    QUOTA_MONTHLY_APPOINTMENTS: UNLIMITED,
-    QUOTA_MONTHLY_SMS:          300,
+    QUOTA_MAX_BUSINESSES:       2,
+    QUOTA_MONTHLY_APPOINTMENTS: 300,
+    QUOTA_MONTHLY_SMS:          150,
     FEATURE_ONLINE_GATEWAY:     True,
     FEATURE_DEPOSIT:            True,
     FEATURE_PROMOTIONAL_SMS:    True,
@@ -123,9 +123,9 @@ BUNDLE_3M = {
 
 # ۶ ماهه «ویژه»
 BUNDLE_6M = {
-    QUOTA_MAX_BUSINESSES:       UNLIMITED,
-    QUOTA_MONTHLY_APPOINTMENTS: UNLIMITED,
-    QUOTA_MONTHLY_SMS:          1000,
+    QUOTA_MAX_BUSINESSES:       3,
+    QUOTA_MONTHLY_APPOINTMENTS: 600,
+    QUOTA_MONTHLY_SMS:          300,
     FEATURE_ONLINE_GATEWAY:     True,
     FEATURE_DEPOSIT:            True,
     FEATURE_PROMOTIONAL_SMS:    True,
@@ -136,10 +136,12 @@ BUNDLE_6M = {
     FEATURE_PRIORITY_SUPPORT:   True,
 }
 
-# ۱۲ ماهه — بالاترین سطح، مثل ۶ ماهه با سقف پیامک بیشتر
+# ۱۲ ماهه — بالاترین سطح، مثل ۶ ماهه با سقف نوبت و پیامک بیشتر
 BUNDLE_12M = {
     **BUNDLE_6M,
-    QUOTA_MONTHLY_SMS: 2500,
+    QUOTA_MAX_BUSINESSES:       5,
+    QUOTA_MONTHLY_APPOINTMENTS: 1000,
+    QUOTA_MONTHLY_SMS:          500,
 }
 
 

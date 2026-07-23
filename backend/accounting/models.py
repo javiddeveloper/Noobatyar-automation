@@ -109,13 +109,18 @@ class AddOnPack(models.Model):
     """
     بسته‌ی افزودنی — خرید تکی روی هر پلن، بدون ارتقای کل اشتراک.
     دو نوع دارد:
-      - sms_pack : اعتبار پیامک به کیف‌پول کاربر اضافه می‌کند (sms_amount)
-      - feature  : یک قابلیت را به‌صورت موقت فعال می‌کند (feature_key به مدت duration_days)
+      - sms_pack         : اعتبار پیامک به کیف‌پول کاربر اضافه می‌کند (sms_amount)
+      - appointment_pack : اعتبار نوبت به کیف‌پول کاربر اضافه می‌کند (appointment_amount)
+
+    نوع «feature» (قابلیت موقت) دیگر برای فروش ساخته نمی‌شود؛ فقط برای سازگاری با
+    خریدهای قدیمی باقی مانده است.
     """
     KIND_SMS = 'sms_pack'
+    KIND_APPOINTMENT = 'appointment_pack'
     KIND_FEATURE = 'feature'
     KIND_CHOICES = [
         (KIND_SMS, 'بسته پیامک'),
+        (KIND_APPOINTMENT, 'بسته نوبت'),
         (KIND_FEATURE, 'قابلیت موقت'),
     ]
 
@@ -123,6 +128,7 @@ class AddOnPack(models.Model):
     price = models.PositiveIntegerField(help_text="قیمت به تومان")
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
     sms_amount = models.PositiveIntegerField(default=0, help_text="تعداد پیامک برای بسته‌ی پیامکی")
+    appointment_amount = models.PositiveIntegerField(default=0, help_text="تعداد نوبت برای بسته‌ی نوبت")
     feature_key = models.CharField(max_length=50, blank=True, default='', help_text="کلید قابلیت برای بسته‌ی قابلیتی")
     duration_days = models.PositiveIntegerField(default=30, help_text="مدت اعتبار بسته‌ی قابلیتی (روز)")
     is_active = models.BooleanField(default=True)

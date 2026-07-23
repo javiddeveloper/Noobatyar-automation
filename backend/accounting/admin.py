@@ -71,7 +71,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(AddOnPack)
 class AddOnPackAdmin(admin.ModelAdmin):
-    list_display = ['name', 'price', 'kind', 'sms_amount', 'feature_key', 'duration_days', 'is_active']
+    list_display = ['name', 'price', 'kind', 'sms_amount', 'appointment_amount', 'feature_key', 'duration_days', 'is_active']
     list_editable = ['is_active']
     list_filter = ['kind', 'is_active']
     search_fields = ['name']

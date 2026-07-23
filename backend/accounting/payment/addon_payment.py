@@ -48,6 +48,8 @@ def grant_addon_benefit(purchase: AddOnPurchase, response_data: Optional[Dict] =
 
         if pack.kind == AddOnPack.KIND_SMS:
             usage.add_wallet(purchase.user_id, pack.sms_amount)
+        elif pack.kind == AddOnPack.KIND_APPOINTMENT:
+            usage.add_appt_wallet(purchase.user_id, pack.appointment_amount)
         elif pack.kind == AddOnPack.KIND_FEATURE:
             purchase.expires_at = timezone.now() + timedelta(days=pack.duration_days)
 
@@ -60,6 +62,7 @@ def grant_addon_benefit(purchase: AddOnPurchase, response_data: Optional[Dict] =
             "pack": pack.name,
             "kind": pack.kind,
             "sms_amount": pack.sms_amount,
+            "appointment_amount": pack.appointment_amount,
             "expires_at": purchase.expires_at.isoformat() if purchase.expires_at else None,
         },
     }

@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 'duration_value': 3,
                 'duration_unit': 'month',
                 'is_vip': True,
-                'description': ['تا ۳ کسب‌وکار', 'نوبت نامحدود', 'درگاه آنلاین + بیعانه', 'گزارش پیشرفته', '۳۰۰ پیامک'],
+                'description': ['تا ۲ کسب‌وکار', 'تا ۳۰۰ نوبت در ماه', 'درگاه آنلاین + بیعانه', 'گزارش پیشرفته', '۱۵۰ پیامک در ماه'],
                 'features': ent.BUNDLE_3M,
             },
             {
@@ -46,7 +46,7 @@ class Command(BaseCommand):
                 'duration_value': 6,
                 'duration_unit': 'month',
                 'is_vip': True,
-                'description': ['کسب‌وکار نامحدود', 'همه‌ی قابلیت‌ها', 'واتساپ/تلگرام', '۱۰۰۰ پیامک', 'پشتیبانی ویژه'],
+                'description': ['تا ۳ کسب‌وکار', 'تا ۶۰۰ نوبت در ماه', 'واتساپ/تلگرام', '۳۰۰ پیامک در ماه', 'پشتیبانی ویژه'],
                 'features': ent.BUNDLE_6M,
             },
             {
@@ -56,7 +56,7 @@ class Command(BaseCommand):
                 'duration_value': 12,
                 'duration_unit': 'month',
                 'is_vip': True,
-                'description': ['کسب‌وکار نامحدود', 'همه‌ی قابلیت‌ها', '۲۵۰۰ پیامک', 'پشتیبانی ویژه'],
+                'description': ['تا ۵ کسب‌وکار', 'تا ۱۰۰۰ نوبت در ماه', 'همه‌ی قابلیت‌ها', '۵۰۰ پیامک در ماه', 'پشتیبانی ویژه'],
                 'features': ent.BUNDLE_12M,
             },
         ]
@@ -75,27 +75,36 @@ class Command(BaseCommand):
             self.stdout.write(f"✓ پلن {p['name']}")
 
         # ── Add-on packs ──────────────────────────────────────────────
-        addons = [
-            {
-                'name': 'بسته ۲۰۰ پیامک',
-                'price': 60000,
+        # فقط دو نوع بسته وجود دارد: پیامک و نوبت.
+        #   • پیامک: هر عدد ۳۲۰ تومان (قیمت تمام‌شده ۱۶۰ × ۲)
+        #   • نوبت:  هر عدد ۵۰ تومان
+        SMS_UNIT_PRICE = 320
+        APPT_UNIT_PRICE = 50
+        _fa = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
+
+        addons = []
+        for count in (50, 100, 200, 300):
+            addons.append({
+                'name': f'بسته {str(count).translate(_fa)} پیامک',
+                'price': count * SMS_UNIT_PRICE,
                 'kind': AddOnPack.KIND_SMS,
-                'sms_amount': 200,
-            },
-            {
-                'name': 'بسته ۵۰۰ پیامک',
-                'price': 130000,
-                'kind': AddOnPack.KIND_SMS,
-                'sms_amount': 500,
-            },
-            {
-                'name': 'درگاه آنلاین (۱ ماه)',
-                'price': 90000,
-                'kind': AddOnPack.KIND_FEATURE,
-                'feature_key': ent.FEATURE_ONLINE_GATEWAY,
-                'duration_days': 30,
-            },
-        ]
+                'sms_amount': count,
+                'appointment_amount': 0,
+                'is_active': True,
+            })
+        for count in (50, 100, 150, 200, 300, 500):
+            addons.append({
+                'name': f'بسته {str(count).translate(_fa)} نوبت',
+                'price': count * APPT_UNIT_PRICE,
+                'kind': AddOnPack.KIND_APPOINTMENT,
+                'appointment_amount': count,
+                'sms_amount': 0,
+                'is_active': True,
+            })
+
+        # بسته‌های قدیمی (مثل درگاه آنلاین یا بسته‌های پیامکی قبلی) را غیرفعال کن تا
+        # فقط بسته‌های جدید در لیست نمایش داده شوند.
+        AddOnPack.objects.exclude(name__in=[a['name'] for a in addons]).update(is_active=False)
 
         for a in addons:
             pack, created = AddOnPack.objects.get_or_create(name=a['name'], defaults=a)

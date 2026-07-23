@@ -49,6 +49,10 @@ def _wallet_key(user_id):
     return f"sms_wallet:{user_id}"
 
 
+def _appt_wallet_key(user_id):
+    return f"appt_wallet:{user_id}"
+
+
 # ── Monthly counters ──────────────────────────────────────────────────────────
 
 def get_usage(user_or_id, metric):
@@ -101,16 +105,58 @@ def add_wallet(user_or_id, amount):
         return amount
 
 
-# ── Appointment quota ─────────────────────────────────────────────────────────
+# ── Appointment wallet (add-on credit) ────────────────────────────────────────
+
+def get_appt_wallet(user_or_id):
+    return int(cache.get(_appt_wallet_key(_uid(user_or_id))) or 0)
+
+
+def add_appt_wallet(user_or_id, amount):
+    """Add (or with a negative amount, spend) persistent appointment credit."""
+    key = _appt_wallet_key(_uid(user_or_id))
+    try:
+        if cache.add(key, amount, timeout=None):
+            return amount
+        return cache.incr(key, amount)
+    except ValueError:
+        cache.set(key, amount, timeout=None)
+        return amount
+
+
+# ── Appointment quota (monthly allowance first, then wallet) ──────────────────
 
 def can_book_appointment(owner_or_id):
-    """True if the owner's plan still allows another appointment this month."""
+    """
+    True if the owner can book another appointment: either the plan's monthly
+    allowance still has room, or the persistent appointment wallet has credit.
+    """
     quota = entitlements.get_quota(owner_or_id, entitlements.QUOTA_MONTHLY_APPOINTMENTS)
-    return within_quota(owner_or_id, METRIC_APPOINTMENTS, quota)
+    if within_quota(owner_or_id, METRIC_APPOINTMENTS, quota):
+        return True
+    return get_appt_wallet(owner_or_id) > 0
 
 
 def record_appointment(owner_or_id):
-    add_usage(owner_or_id, METRIC_APPOINTMENTS, 1)
+    """
+    Consume one appointment credit: from this month's plan allowance first, then
+    from the persistent wallet once the monthly allowance is exhausted.
+    """
+    quota = entitlements.get_quota(owner_or_id, entitlements.QUOTA_MONTHLY_APPOINTMENTS)
+    if within_quota(owner_or_id, METRIC_APPOINTMENTS, quota):
+        add_usage(owner_or_id, METRIC_APPOINTMENTS, 1)
+    elif get_appt_wallet(owner_or_id) > 0:
+        add_appt_wallet(owner_or_id, -1)
+
+
+def appointment_balance(owner_or_id):
+    """Convenience for dashboards: {'quota', 'monthly_remaining', 'wallet', 'used'}."""
+    quota = entitlements.get_quota(owner_or_id, entitlements.QUOTA_MONTHLY_APPOINTMENTS)
+    return {
+        "quota": quota,
+        "used": get_usage(owner_or_id, METRIC_APPOINTMENTS),
+        "monthly_remaining": remaining(owner_or_id, METRIC_APPOINTMENTS, quota),
+        "wallet": get_appt_wallet(owner_or_id),
+    }
 
 
 # ── SMS quota (monthly allowance first, then wallet) ──────────────────────────

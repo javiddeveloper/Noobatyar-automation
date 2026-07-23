@@ -129,10 +129,7 @@ def my_entitlements(request):
     return APIResponse.success(data={
         'entitlements': ent,
         'usage': {
-            'appointments': {
-                'used': usage.get_usage(user, usage.METRIC_APPOINTMENTS),
-                'quota': ent.get(entitlements.QUOTA_MONTHLY_APPOINTMENTS),
-            },
+            'appointments': usage.appointment_balance(user),
             'sms': usage.sms_balance(user),
         },
     })

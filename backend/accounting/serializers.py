@@ -46,7 +46,7 @@ class AddOnPackSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AddOnPack
-        fields = ['id', 'name', 'price', 'price_display', 'kind', 'sms_amount', 'feature_key', 'duration_days']
+        fields = ['id', 'name', 'price', 'price_display', 'kind', 'sms_amount', 'appointment_amount', 'feature_key', 'duration_days']
 
     def get_price_display(self, obj):
         return f"{obj.price:,} تومان"
