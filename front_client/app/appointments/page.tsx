@@ -132,17 +132,8 @@ export default function AppointmentsPage() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <span style={{
-                  background: st.bg, color: st.color, padding: '4px 10px',
-                  borderRadius: 8, fontSize: 11, fontWeight: 700
-                }}>
-                  {st.label}
-                </span>
+                {/* Business identity — sits on the right (reading start) in RTL */}
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{appt.business.title}</h3>
-                    <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>{categoryLabel(appt.business.category)}</div>
-                  </div>
                   <div style={{
                     width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
                     background: 'var(--color-primary-tint)', display: 'flex',
@@ -150,12 +141,23 @@ export default function AppointmentsPage() {
                   }}>
                     {CATEGORY_EMOJI[appt.business.category] || '🏢'}
                   </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{appt.business.title}</h3>
+                    <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>{categoryLabel(appt.business.category)}</div>
+                  </div>
                 </div>
+                {/* Status badge — sits on the left in RTL */}
+                <span style={{
+                  background: st.bg, color: st.color, padding: '4px 10px',
+                  borderRadius: 8, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                }}>
+                  {st.label}
+                </span>
               </div>
 
               <div style={{ background: 'var(--color-bg)', borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{formatDate(appt.appointment_date)}</div>
                 <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>تاریخ نوبت</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{formatDate(appt.appointment_date)}</div>
               </div>
 
               {appt.status === 'LOCKED' && (

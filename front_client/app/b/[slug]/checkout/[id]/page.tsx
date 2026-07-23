@@ -165,15 +165,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
               <h2 style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 20 }}>انتقال به شماره کارت زیر</h2>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: 2, direction: 'ltr' }}>
+                  {appointment?.business?.card_number || 'شماره کارت ثبت نشده'}
+                </div>
                 <button
                   onClick={copyCard}
                   disabled={!appointment?.business?.card_number}
                   style={{ color: copied ? 'var(--color-success-text)' : 'var(--color-primary)', background: 'none', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copied ? '✓ کپی شد' : 'کپی'}
                 </button>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: 2, direction: 'ltr' }}>
-                  {appointment?.business?.card_number || 'شماره کارت ثبت نشده'}
-                </div>
               </div>
               
               <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--color-muted)', marginBottom: 16 }}>
