@@ -85,6 +85,17 @@ class ClientAppointmentListView(APIView):
 
         app_date = datetime.fromtimestamp(serializer.validated_data['appointment_date'] / 1000.0, tz=timezone.utc)
 
+        # A payment step only applies when the business actually collects money
+        # at booking time — a deposit, or a card/online method (all premium
+        # features). On the basic plan (cash-only, no deposit) there is nothing
+        # to pay, so the appointment is booked directly for the owner to approve.
+        accepted = business.accepted_payment_methods or []
+        requires_payment = (
+            business.deposit_mode in ('MANDATORY', 'OPTIONAL')
+            or 'CARD' in accepted
+            or 'ONLINE' in accepted
+        )
+
         appointment = await Appointment.objects.acreate(
             user=request.user,
             business=business,
@@ -92,7 +103,7 @@ class ClientAppointmentListView(APIView):
             appointment_date=app_date,
             service_duration=serializer.validated_data.get('service_duration', business.default_service_duration),
             description=serializer.validated_data.get('description', ''),
-            status='LOCKED'
+            status='LOCKED' if requires_payment else 'PENDING_APPROVAL',
         )
 
         # Count this booking against the owner's monthly appointment quota.
@@ -101,20 +112,26 @@ class ClientAppointmentListView(APIView):
         # Slot occupancy changed → drop cached slot views for this business/date.
         await sync_to_async(invalidate_slots_cache)(business_id, app_date)
 
-        # ── SMS Notifications are deferred until payment is completed ──
+        if requires_payment:
+            # SMS is deferred until payment is completed (ClientAppointmentPaymentView).
+            return APIResponse.success(
+                data={'id': appointment.id, 'requires_payment': True},
+                message="نوبت با موفقیت قفل شد. لطفا پرداخت را انجام دهید."
+            )
 
-
+        # No payment needed → confirm the booking and notify client + owner now.
+        appointment.business = business
+        appointment.visitor = visitor
+        _fire_booking_sms(appointment, request.user.phone, business.phone)
         return APIResponse.success(
-            data={'id': appointment.id},
-            message="نوبت با موفقیت قفل شد. لطفا پرداخت را انجام دهید."
+            data={'id': appointment.id, 'requires_payment': False},
+            message="نوبت شما با موفقیت ثبت شد و در انتظار تایید کسب‌وکار است."
         )
 
 class ClientAppointmentPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     async def post(self, request, pk):
-        from zoneinfo import ZoneInfo
-        
         try:
             appointment = await Appointment.objects.select_related('business', 'visitor').aget(
                 id=pk, user=request.user
@@ -140,48 +157,57 @@ class ClientAppointmentPaymentView(APIView):
         )
 
         # ── SMS Notifications via Melipayamak ─────────────────────────
-        tehran_tz = ZoneInfo('Asia/Tehran')
-        local_time = appointment.appointment_date.astimezone(tehran_tz)
-        time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
-
-        client_msg = (
-            f"نوبت‌یار ✅\n"
-            f"نوبت شما در {appointment.business.title}\n"
-            f"تاریخ: {time_str}\n"
-            f"در انتظار تایید کسب‌وکار\n"
-            f"کد نوبت: {appointment.id}"
-        )
-        owner_msg = (
-            f"نوبت‌یار 📋\n"
-            f"درخواست نوبت جدید\n"
-            f"مشتری: {appointment.visitor.full_name}\n"
-            f"تاریخ: {time_str}\n"
-            f"کد: {appointment.id}"
-        )
-
-        # Fire-and-forget on a daemon thread so it is independent of the request's
-        # event loop (an asyncio task tied to the request loop can be dropped once
-        # the response is returned). Pass only primitive ids/values into the thread.
-        import threading
-        threading.Thread(
-            target=_send_booking_sms,
-            kwargs=dict(
-                client_phone=request.user.phone,
-                owner_phone=appointment.business.phone,
-                client_msg=client_msg,
-                owner_msg=owner_msg,
-                business_id=appointment.business_id,
-                visitor_id=appointment.visitor_id,
-            ),
-            daemon=True,
-            name=f"booking-sms-{appointment.id}",
-        ).start()
+        _fire_booking_sms(appointment, request.user.phone, appointment.business.phone)
         # ─────────────────────────────────────────────────────────────
 
         return APIResponse.success(
             data={'id': appointment.id},
             message="پرداخت با موفقیت ثبت شد و نوبت در انتظار تایید است"
         )
+
+
+def _fire_booking_sms(appointment, client_phone, owner_phone):
+    """Build the client/owner confirmation messages for a booked appointment and
+    dispatch the fire-and-forget SMS thread. ``appointment.business`` and
+    ``appointment.visitor`` must already be loaded (no DB access here)."""
+    from zoneinfo import ZoneInfo
+    import threading
+
+    tehran_tz = ZoneInfo('Asia/Tehran')
+    local_time = appointment.appointment_date.astimezone(tehran_tz)
+    time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+
+    client_msg = (
+        f"نوبت‌یار ✅\n"
+        f"نوبت شما در {appointment.business.title}\n"
+        f"تاریخ: {time_str}\n"
+        f"در انتظار تایید کسب‌وکار\n"
+        f"کد نوبت: {appointment.id}"
+    )
+    owner_msg = (
+        f"نوبت‌یار 📋\n"
+        f"درخواست نوبت جدید\n"
+        f"مشتری: {appointment.visitor.full_name}\n"
+        f"تاریخ: {time_str}\n"
+        f"کد: {appointment.id}"
+    )
+
+    # Fire-and-forget on a daemon thread so it is independent of the request's
+    # event loop (an asyncio task tied to the request loop can be dropped once
+    # the response is returned). Pass only primitive ids/values into the thread.
+    threading.Thread(
+        target=_send_booking_sms,
+        kwargs=dict(
+            client_phone=client_phone,
+            owner_phone=owner_phone,
+            client_msg=client_msg,
+            owner_msg=owner_msg,
+            business_id=appointment.business_id,
+            visitor_id=appointment.visitor_id,
+        ),
+        daemon=True,
+        name=f"booking-sms-{appointment.id}",
+    ).start()
 
 
 def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business_id, visitor_id):

@@ -145,7 +145,7 @@ export async function bookAppointment(
   description?: string,
   token?: string
 ) {
-  return apiFetch<{ id: number }>('/api/client/appointments/', {
+  return apiFetch<{ id: number; requires_payment?: boolean }>('/api/client/appointments/', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify({

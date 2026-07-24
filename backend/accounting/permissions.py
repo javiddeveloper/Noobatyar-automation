@@ -85,6 +85,13 @@ def validate_business_settings(user, data):
     if wants_gateway and not entitlements.has_feature(user, entitlements.FEATURE_ONLINE_GATEWAY):
         return need(entitlements.FEATURE_ONLINE_GATEWAY)
 
+    # Card-to-card belongs to the paid (deposit/commitment) tier — basic plans
+    # are cash-only. A CARD method or a card number both imply it.
+    card_number = (data.get("card_number") or "").strip() if "card_number" in data else ""
+    wants_card = (payment_method == "CARD") or ("CARD" in accepted) or bool(card_number)
+    if wants_card and not entitlements.has_feature(user, entitlements.FEATURE_DEPOSIT):
+        return need(entitlements.FEATURE_DEPOSIT)
+
     # Deposit
     if "deposit_mode" in data:
         deposit_mode = data.get("deposit_mode")

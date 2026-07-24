@@ -113,8 +113,9 @@ fun AdvancedSettingsTabs(
 }
 
 /**
- * All the ways of receiving money in one place. Cash and card-to-card are free
- * on every plan; the online bank gateway is gated inline for premium plans.
+ * All the ways of receiving money in one place. Only cash (pay in person) is
+ * free on every plan; card-to-card and the online bank gateway are premium
+ * capabilities and are gated inline (card-to-card lives in the deposit tier).
  */
 @Composable
 private fun PaymentTab(
@@ -140,38 +141,60 @@ private fun PaymentTab(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // پرداخت در محل و کارت به کارت — رایگان در همه‌ی پلن‌ها
-        listOf("CASH" to "پرداخت در محل", "CARD" to "کارت به کارت").forEach { (method, label) ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = acceptedPaymentMethods.contains(method),
-                    onCheckedChange = { checked ->
-                        val newSet = acceptedPaymentMethods.toMutableSet()
-                        if (checked) newSet.add(method) else newSet.remove(method)
-                        onAcceptedPaymentMethods(newSet)
-                    }
-                )
-                Text(label, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (acceptedPaymentMethods.contains(method) && method == "CARD") {
-                AppTextField(
-                    enabled = !isLoading,
-                    value = cardNumber,
-                    onValueChange = onCardNumber,
-                    label = "شماره کارت (۱۶ رقم)",
-                    modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                    keyboardType = KeyboardType.Number,
-                    maxLength = 16,
-                    visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CardNumberVisualTransformation()
-                )
-                AppTextField(
-                    enabled = !isLoading,
-                    value = cardOwnerName,
-                    onValueChange = onCardOwnerName,
-                    label = "نام صاحب کارت",
-                    modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
-                    keyboardType = KeyboardType.Text
-                )
+        // پرداخت در محل — رایگان در همه‌ی پلن‌ها
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = acceptedPaymentMethods.contains("CASH"),
+                onCheckedChange = { checked ->
+                    val newSet = acceptedPaymentMethods.toMutableSet()
+                    if (checked) newSet.add("CASH") else newSet.remove("CASH")
+                    onAcceptedPaymentMethods(newSet)
+                }
+            )
+            Text("پرداخت در محل", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        // کارت به کارت — قابلیت پلن تعهد/بیعانه (به‌صورت درجا قفل می‌شود)
+        FeatureGate(
+            entitlements = entitlements,
+            plans = plans,
+            featureKey = EntitlementKeys.DEPOSIT,
+            title = "کارت به کارت",
+            description = "دریافت مبلغ نوبت با انتقال کارت‌به‌کارت.",
+            onUpgrade = onUpgrade
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = acceptedPaymentMethods.contains("CARD"),
+                        onCheckedChange = { checked ->
+                            val newSet = acceptedPaymentMethods.toMutableSet()
+                            if (checked) newSet.add("CARD") else newSet.remove("CARD")
+                            onAcceptedPaymentMethods(newSet)
+                        }
+                    )
+                    Text("کارت به کارت", style = MaterialTheme.typography.bodyMedium)
+                }
+                if (acceptedPaymentMethods.contains("CARD")) {
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = cardNumber,
+                        onValueChange = onCardNumber,
+                        label = "شماره کارت (۱۶ رقم)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        keyboardType = KeyboardType.Number,
+                        maxLength = 16,
+                        visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CardNumberVisualTransformation()
+                    )
+                    AppTextField(
+                        enabled = !isLoading,
+                        value = cardOwnerName,
+                        onValueChange = onCardOwnerName,
+                        label = "نام صاحب کارت",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        keyboardType = KeyboardType.Text
+                    )
+                }
             }
         }
 

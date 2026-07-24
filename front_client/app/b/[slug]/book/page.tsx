@@ -164,7 +164,7 @@ export default function BookingPage({ params }: Props) {
 
     setBooking(true);
     try {
-      const { id: appointmentId } = await bookAppointment(
+      const { id: appointmentId, requires_payment } = await bookAppointment(
         business.id,
         selectedSlot.timestamp,
         business.default_service_duration,
@@ -172,8 +172,14 @@ export default function BookingPage({ params }: Props) {
         token
       );
 
-      showToast('✅ نوبت با موفقیت قفل شد. در حال انتقال به درگاه پرداخت...');
-      setTimeout(() => router.push(`/b/${slug}/checkout/${appointmentId}`), 1500);
+      if (requires_payment) {
+        showToast('✅ نوبت با موفقیت قفل شد. در حال انتقال به درگاه پرداخت...');
+        setTimeout(() => router.push(`/b/${slug}/checkout/${appointmentId}`), 1500);
+      } else {
+        // Basic plan / no deposit — the booking is complete, no payment step.
+        showToast('✅ نوبت شما ثبت شد و در انتظار تایید کسب‌وکار است.');
+        setTimeout(() => router.push('/appointments'), 1500);
+      }
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'خطا در ثبت نوبت');
     } finally {
