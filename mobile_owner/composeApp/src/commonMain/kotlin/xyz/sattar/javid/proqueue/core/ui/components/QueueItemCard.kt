@@ -20,7 +20,6 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -39,10 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import proqueue.composeapp.generated.resources.Res
@@ -176,6 +178,36 @@ fun QueueItemCard(
                     )
                 }
             }
+            // Payment receipt preview — shown inline so the owner can review the
+            // uploaded slip and approve the appointment directly from the card.
+            item.appointment.paymentReceipt?.let { receipt ->
+                val receiptUrl = if (receipt.startsWith("http")) receipt
+                else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$receipt"
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "فیش پرداخت",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                AsyncImage(
+                    model = receiptUrl,
+                    contentDescription = "فیش پرداخت",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { uriHandler.openUri(receiptUrl) },
+                    contentScale = ContentScale.Crop
+                )
+                Text(
+                    text = "برای مشاهده کامل، روی تصویر بزنید",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(8.dp))
@@ -230,21 +262,8 @@ fun QueueItemCard(
                             }
                         )
 
-                        // --- Payment receipt (if any) ---
-                        if (item.appointment.paymentReceipt != null) {
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text("مشاهده فیش پرداخت") },
-                                leadingIcon = { Icon(Icons.Rounded.Receipt, contentDescription = null) },
-                                onClick = {
-                                    showMenu = false
-                                    val receipt = item.appointment.paymentReceipt
-                                    val url = if (receipt.startsWith("http")) receipt
-                                    else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$receipt"
-                                    uriHandler.openUri(url)
-                                }
-                            )
-                        }
+                        // Payment receipt is now shown inline on the card (above),
+                        // so it no longer needs a menu entry here.
 
                         // --- Destructive / secondary status actions ---
                         HorizontalDivider()
