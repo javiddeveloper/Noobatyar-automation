@@ -28,6 +28,11 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import proqueue.composeapp.generated.resources.*
+import xyz.sattar.javid.proqueue.core.utils.AppInfo
+
+/** Converts ASCII digits to Persian digits for display. */
+private fun String.toPersianDigits(): String =
+    map { c -> if (c in '0'..'9') "۰۱۲۳۴۵۶۷۸۹"[c - '0'] else c }.joinToString("")
 
 @Composable
 fun AboutUsScreen(
@@ -134,7 +139,7 @@ fun AboutUsContent(
                             shape = RoundedCornerShape(50)
                         ) {
                             Text(
-                                text = "${stringResource(Res.string.app_version)} ۱.۰.۰",
+                                text = "${stringResource(Res.string.app_version)} ${AppInfo.versionName.toPersianDigits()}",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White,

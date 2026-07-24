@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { getMyAppointments, categoryLabel, type Appointment } from '@/lib/api';
+import { getMyAppointments, categoryLabel, mediaUrl, type Appointment } from '@/lib/api';
 
 const CATEGORY_EMOJI: Record<string, string> = {
   BEAUTY_SALON: '💅',
@@ -31,6 +31,84 @@ function formatDate(ts: number): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function toPersianNumerals(n: number): string {
+  const map = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return String(n).replace(/[0-9]/g, (d) => map[Number(d)]);
+}
+
+// Business logo with graceful fallback to the category emoji when the image
+// is missing or fails to load.
+function BusinessAvatar({ logo, category }: { logo: string | null; category: string }) {
+  const [failed, setFailed] = useState(false);
+  const src = mediaUrl(logo);
+
+  const circle: CSSProperties = {
+    width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+    background: 'var(--color-primary-tint)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', fontSize: 22, overflow: 'hidden',
+  };
+
+  if (src && !failed) {
+    return (
+      <div style={circle}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
+    );
+  }
+
+  return <div style={circle}>{CATEGORY_EMOJI[category] || '🏢'}</div>;
+}
+
+// Live "time remaining until the appointment" label. Updates once a minute.
+function Countdown({ target }: { target: number }) {
+  const compute = () => {
+    const diffMs = target - Date.now();
+    if (diffMs <= 0) return { hours: 0, minutes: 0, isPast: true };
+    return {
+      hours: Math.floor(diffMs / 3_600_000),
+      minutes: Math.floor((diffMs % 3_600_000) / 60_000),
+      isPast: false,
+    };
+  };
+
+  const [left, setLeft] = useState(compute);
+
+  useEffect(() => {
+    const tick = () => setLeft(compute());
+    tick();
+    const interval = setInterval(tick, 60_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  if (left.isPast) {
+    return (
+      <span style={{ fontSize: 12, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+        ⏰ زمان نوبت فرا رسیده است
+      </span>
+    );
+  }
+
+  const color = left.hours < 1 ? '#b91c1c' : left.hours <= 3 ? '#d97706' : '#047857';
+  const days = Math.floor(left.hours / 24);
+  const label =
+    days >= 1
+      ? `${toPersianNumerals(days)} روز و ${toPersianNumerals(left.hours % 24)} ساعت`
+      : `${toPersianNumerals(left.hours)} ساعت و ${toPersianNumerals(left.minutes)} دقیقه`;
+
+  return (
+    <span style={{ fontSize: 12, fontWeight: 700, color }}>
+      ⏳ {label} مانده
+    </span>
+  );
 }
 
 export default function AppointmentsPage() {
@@ -134,13 +212,7 @@ export default function AppointmentsPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 {/* Business identity — sits on the right (reading start) in RTL */}
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-                    background: 'var(--color-primary-tint)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: 22,
-                  }}>
-                    {CATEGORY_EMOJI[appt.business.category] || '🏢'}
-                  </div>
+                  <BusinessAvatar logo={appt.business.logo} category={appt.business.category} />
                   <div style={{ textAlign: 'right' }}>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{appt.business.title}</h3>
                     <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>{categoryLabel(appt.business.category)}</div>
@@ -159,6 +231,12 @@ export default function AppointmentsPage() {
                 <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>تاریخ نوبت</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{formatDate(appt.appointment_date)}</div>
               </div>
+
+              {appt.status === 'WAITING' && (
+                <div style={{ marginTop: 12, textAlign: 'center' }}>
+                  <Countdown target={appt.appointment_date} />
+                </div>
+              )}
 
               {appt.status === 'LOCKED' && (
                 <div style={{ marginTop: 12, textAlign: 'center' }}>

@@ -165,7 +165,21 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    # Django 4+ enforces Origin checking for unsafe methods (including the admin
+    # login POST). A 403 "CSRF verification failed" on /admin/ almost always
+    # means the request's origin was not trusted. Start from the CORS origins,
+    # then auto-add scheme-qualified origins for every ALLOWED_HOST so the admin
+    # host is always trusted without a separate env var to keep in sync.
     CSRF_TRUSTED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
+    for _host in ALLOWED_HOSTS:
+        _host = _host.strip()
+        if not _host or _host == '*':
+            continue
+        for _scheme in ('https', 'http'):
+            _origin = f'{_scheme}://{_host}'
+            if _origin not in CSRF_TRUSTED_ORIGINS:
+                CSRF_TRUSTED_ORIGINS.append(_origin)
 
 # Zibal Payment Gateway
 ZIBAL_MERCHANT_ID = os.getenv('ZIBAL_MERCHANT_ID', 'zibal')  # 'zibal' is the sandbox merchant id

@@ -24,7 +24,10 @@ actual object HttpClientFactory {
         install(AuthInterceptor)
         install(Logging) {
             logger = Logger.SIMPLE
-            level = LogLevel.ALL
+            // HEADERS (not ALL): LogLevel.ALL reads the request body to log it,
+            // which consumes the one-shot MultiPartFormDataContent channel and
+            // makes the business PUT arrive at the server with an empty body.
+            level = LogLevel.HEADERS
         }
         install(DefaultRequest) {
             url("${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}/api/")

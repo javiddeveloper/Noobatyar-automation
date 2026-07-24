@@ -591,8 +591,13 @@ class AppointmentView(APIView):
         old_date = appointment.appointment_date
 
         # Apply updates
-        appointment.status = new_status
-        updated_fields = ['updated_at', "status"]
+        # Only overwrite status when the client actually sends it. Otherwise
+        # a details-only PATCH (date/duration/description) would set status to
+        # None and fail full_clean() with "این فیلد نمی‌تواند پوچ باشد".
+        updated_fields = ['updated_at']
+        if new_status is not None:
+            appointment.status = new_status
+            updated_fields.append('status')
         if new_date:
             appointment.appointment_date = new_date
             updated_fields.append('appointment_date')

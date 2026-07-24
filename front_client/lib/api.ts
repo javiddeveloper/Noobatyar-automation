@@ -1,6 +1,13 @@
 // API client for Noobatyar backend
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
+// Resolves a (usually relative) media path like "/media/business_logos/x.jpg"
+// into an absolute URL against the API host. Returns null when there is no path.
+export function mediaUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+}
+
 export interface Business {
   id: number;
   title: string;

@@ -104,7 +104,10 @@ def appointment_list(request):
     # Filter by status
     status_param = request.query_params.get('status')
     if status_param:
-        valid_statuses = ['PENDING_APPROVAL', 'WAITING', 'COMPLETED', 'CANCELLED', 'NO_SHOW']
+        # Derive from the model so the filter never drifts out of sync with the
+        # real status set (previously missing LOCKED and PENDING_VERIFICATION,
+        # which made valid filters return 400).
+        valid_statuses = [choice[0] for choice in Appointment.STATUS_CHOICES]
         if status_param.upper() not in valid_statuses:
             return APIResponse.error(f'وضعیت باید یکی از این مقادیر باشد: {", ".join(valid_statuses)}', code=status.HTTP_400_BAD_REQUEST)
         queryset = queryset.filter(status=status_param.upper())

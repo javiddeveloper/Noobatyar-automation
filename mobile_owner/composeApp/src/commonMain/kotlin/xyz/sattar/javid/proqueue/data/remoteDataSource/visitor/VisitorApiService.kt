@@ -22,7 +22,7 @@ class VisitorApiService(private val httpClient: HttpClient) {
         pageSize: Int, 
         query: String? = null
     ): ApiResponse<PaginatedResponseDto<VisitorDto>> {
-        return httpClient.get("visitor") {
+        return httpClient.get("visitor/") {
             contentType(ContentType.Application.Json)
             parameter("page", page)
             parameter("page_size", pageSize)
@@ -33,7 +33,7 @@ class VisitorApiService(private val httpClient: HttpClient) {
     }
 
     suspend fun getVisitorById(id: Long): ApiResponse<VisitorDto> {
-        return httpClient.get("visitor/$id") {
+        return httpClient.get("visitor/$id/") {
             contentType(ContentType.Application.Json)
         }.toApiResponse()
     }
@@ -53,7 +53,7 @@ class VisitorApiService(private val httpClient: HttpClient) {
     }
 
     suspend fun deleteVisitor(id: Long): ApiResponse<Unit> {
-        return httpClient.delete("visitor/$id") {
+        return httpClient.delete("visitor/$id/") {
 //            contentType(ContentType.Application.Json)
         }.toApiResponse()
     }

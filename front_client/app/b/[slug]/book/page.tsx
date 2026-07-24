@@ -51,6 +51,10 @@ export default function BookingPage({ params }: Props) {
   const [selectedDay, setSelectedDay] = useState<Date>(days[0]);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  // Optional free-text note describing the requested service.
+  const [description, setDescription] = useState('');
+  // A slot the user picked before logging in, to be re-selected on return.
+  const [pendingSlot, setPendingSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [booking, setBooking] = useState(false);
@@ -91,6 +95,56 @@ export default function BookingPage({ params }: Props) {
     if (business) loadSlots(selectedDay);
   }, [business, selectedDay, loadSlots]);
 
+  // After returning from login, restore the slot the user had picked so their
+  // selection is not lost. We switch to the slot's day (if needed); the actual
+  // re-selection happens once that day's slots have loaded (effect below).
+  useEffect(() => {
+    if (!business || !slug) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) return;
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('booking_intent') : null;
+    if (!raw) return;
+
+    try {
+      const intent = JSON.parse(raw) as {
+        slug: string; slot: TimeSlot; businessId: number; description?: string;
+      };
+      if (intent.slug !== slug || intent.businessId !== business.id || !intent.slot) {
+        return;
+      }
+      if (intent.description) setDescription(intent.description);
+      const slotDay = days.find(
+        (d) => toDateString(d) === toDateString(new Date(intent.slot.timestamp))
+      );
+      if (slotDay && toDateString(slotDay) !== toDateString(selectedDay)) {
+        setSelectedDay(slotDay);
+      }
+      setPendingSlot(intent.slot);
+    } catch {
+      localStorage.removeItem('booking_intent');
+    }
+    // Only re-run when the business/slug becomes available, not on every day change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business, slug]);
+
+  // Apply the pending slot once the correct day's slots have finished loading.
+  useEffect(() => {
+    if (!pendingSlot || slotsLoading) return;
+    if (toDateString(new Date(pendingSlot.timestamp)) !== toDateString(selectedDay)) return;
+
+    const match = slots.find(
+      (s) => s.timestamp === pendingSlot.timestamp && s.status === 'AVAILABLE'
+    );
+    if (match) {
+      setSelectedSlot(match);
+      showToast('✅ زمان انتخابی شما بازیابی شد');
+    } else {
+      showToast('زمان انتخابی شما دیگر در دسترس نیست، لطفاً زمان دیگری انتخاب کنید');
+    }
+    setPendingSlot(null);
+    localStorage.removeItem('booking_intent');
+  }, [pendingSlot, slotsLoading, slots, selectedDay]);
+
   const handleBook = async () => {
     if (!selectedSlot || !business) return;
 
@@ -102,6 +156,7 @@ export default function BookingPage({ params }: Props) {
         slug,
         slot: selectedSlot,
         businessId: business.id,
+        description: description.trim(),
       }));
       router.push(`/auth/login?redirect=/b/${slug}/book`);
       return;
@@ -113,7 +168,7 @@ export default function BookingPage({ params }: Props) {
         business.id,
         selectedSlot.timestamp,
         business.default_service_duration,
-        '',
+        description.trim(),
         token
       );
 
@@ -319,6 +374,32 @@ export default function BookingPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Service Description (optional) ── */}
+      {selectedSlot && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <label
+            htmlFor="service-description"
+            style={{ display: 'block', textAlign: 'right', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 8 }}
+          >
+            توضیحات سرویس (اختیاری)
+          </label>
+          <textarea
+            id="service-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            maxLength={500}
+            placeholder="نوع خدمت مورد نظر خود را توضیح دهید"
+            style={{
+              width: '100%', boxSizing: 'border-box', resize: 'vertical',
+              padding: '12px 14px', borderRadius: 12, border: '1px solid var(--color-border)',
+              background: 'var(--color-surface)', color: 'var(--color-text)',
+              fontSize: 14, fontFamily: 'inherit', textAlign: 'right',
+            }}
+          />
+        </div>
+      )}
 
       {/* ── My Appointments Button ── */}
       <div className="section" style={{ paddingBottom: 0 }}>
