@@ -7,6 +7,7 @@ from rest_framework import status
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db.models import Q
 import logging
 
 from .models import Visitor, SmsLog
@@ -14,6 +15,24 @@ from .serializers import VisitorSerializer, SmsLogSerializer
 from api.responses import APIResponse  # اضافه کردن import
 
 logger = logging.getLogger(__name__)
+
+
+async def get_readable_visitor(visitor_id, user):
+    """Return a visitor the given user is allowed to READ.
+
+    An owner can read a visitor they created directly, or a visitor who booked
+    online (and is therefore linked to their own user account, not the owner's)
+    but has at least one appointment at a business the owner owns. Read-only:
+    editing/deleting still requires direct ownership.
+    """
+    try:
+        return await sync_to_async(
+            Visitor.objects.filter(
+                Q(user=user) | Q(appointments__business__user=user)
+            ).distinct().get
+        )(id=visitor_id)
+    except Visitor.DoesNotExist:
+        return None
 
 
 class VisitorView(APIView):
@@ -34,8 +53,9 @@ class VisitorView(APIView):
         """List all visitors or retrieve single visitor"""
         try:
             if visitor_id:
-                # Retrieve single visitor
-                visitor = await self._get_visitor_or_404(visitor_id, request.user)
+                # Retrieve single visitor (readable if owned OR linked to one of
+                # the owner's businesses through an appointment).
+                visitor = await get_readable_visitor(visitor_id, request.user)
                 if not visitor:
                     return APIResponse.error(
                         message="مشتری یافت نشد",
@@ -187,12 +207,8 @@ class VisitorMessageHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     async def get(self, request, visitor_id):
-        try:
-            visitor = await sync_to_async(Visitor.objects.get)(
-                id=visitor_id,
-                user=request.user
-            )
-        except Visitor.DoesNotExist:
+        visitor = await get_readable_visitor(visitor_id, request.user)
+        if not visitor:
             return APIResponse.error("مشتری یافت نشد", code=404)
 
         # Pagination params
