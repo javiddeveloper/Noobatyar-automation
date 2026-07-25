@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from appointment.models import Appointment, Business, Visitor
 from appointment.serializers import AppointmentSerializer, AppointmentQuerySerializer
 from appointment.cache_utils import invalidate_slots_cache
+from appointment.occupancy import refund_quota
 from accounting import usage
 from api.responses import APIResponse
 from api.views import _extract_error
@@ -182,8 +183,12 @@ class AppointmentView(APIView):
                 user = user
             )
 
-            # Count against the owner's monthly appointment quota.
-            await sync_to_async(usage.record_appointment)(business.user_id)
+            # Count against the owner's monthly appointment quota, remembering
+            # which bucket paid so a cancellation can refund that same one.
+            quota_source = await sync_to_async(usage.record_appointment)(business.user_id)
+            if quota_source:
+                appointment.quota_source = quota_source
+                await sync_to_async(appointment.save)(update_fields=['quota_source'])
 
             # Serialize response
             serializer = await sync_to_async(AppointmentQuerySerializer)(appointment)
@@ -519,7 +524,13 @@ class AppointmentView(APIView):
         # Update status
         old_status = appointment.status
         appointment.status = new_status
-        appointment.save(update_fields=['status', 'updated_at'])
+        updated = ['status', 'updated_at']
+        # Cancelling frees the slot, so the credit goes back to the owner.
+        # NO_SHOW does not: the slot was held and wasted, which is what the
+        # quota is meant to price.
+        if new_status == 'CANCELLED' and refund_quota(appointment, appointment.business.user_id):
+            updated.append('quota_source')
+        appointment.save(update_fields=updated)
         invalidate_slots_cache(appointment.business_id, appointment.appointment_date)
 
         # Tell the client the verdict — until now they were only told their
@@ -689,6 +700,8 @@ class AppointmentView(APIView):
         appointment_id = appointment.id
         business_id = appointment.business_id
         appointment_date = appointment.appointment_date
+        # Refund before the row goes away, while quota_source is still readable.
+        refund_quota(appointment, appointment.business.user_id)
         appointment.delete()
         invalidate_slots_cache(business_id, appointment_date)
         logger.debug(

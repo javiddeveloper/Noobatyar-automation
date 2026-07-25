@@ -84,6 +84,28 @@ def overlapping_appointments(business_id, start, duration_minutes, now=None):
     return candidates
 
 
+def refund_quota(appointment, owner_id):
+    """
+    Return the appointment credit a cancelled booking consumed.
+
+    Clears ``quota_source`` on the way out so the same booking can never be
+    refunded twice (the status guards around cancellation already prevent it,
+    but a stray double-call must not mint credit). The caller persists the
+    cleared field, or drops the row entirely.
+
+    Runs cache operations, so call it from sync context.
+    """
+    from accounting import usage
+
+    source = appointment.quota_source
+    if not source or owner_id is None:
+        return False
+
+    usage.release_appointment(owner_id, source, appointment.created_at)
+    appointment.quota_source = ''
+    return True
+
+
 def find_conflict(business_id, start, duration_minutes, exclude_id=None, now=None):
     """
     Return the first appointment overlapping the requested window, or None.

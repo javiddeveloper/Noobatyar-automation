@@ -99,6 +99,14 @@ class Appointment(models.Model):
         help_text="Uploaded receipt image for card-to-card payment"
     )
 
+    quota_source = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        help_text="Which credit paid for this booking ('monthly'/'wallet'), so a "
+                  "cancellation refunds the right one. Empty = nothing was charged."
+    )
+
     reminder_sent_at = models.DateTimeField(
         null=True,
         blank=True,

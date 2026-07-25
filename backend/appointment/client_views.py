@@ -5,7 +5,7 @@ from api.responses import APIResponse
 from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
 from .cache_utils import invalidate_slots_cache
-from .occupancy import find_conflict, lock_expiry
+from .occupancy import find_conflict, lock_expiry, refund_quota
 from api.pagination import StandardPagination
 from accounting import usage
 from django.utils import timezone
@@ -107,8 +107,12 @@ class ClientAppointmentListView(APIView):
                 code=409,
             )
 
-        # Count this booking against the owner's monthly appointment quota.
-        await sync_to_async(usage.record_appointment)(business.user_id)
+        # Count this booking against the owner's monthly appointment quota, and
+        # remember which bucket paid so a cancellation can refund that one.
+        quota_source = await sync_to_async(usage.record_appointment)(business.user_id)
+        if quota_source:
+            appointment.quota_source = quota_source
+            await appointment.asave(update_fields=['quota_source'])
 
         # Slot occupancy changed → drop cached slot views for this business/date.
         await sync_to_async(invalidate_slots_cache)(business_id, app_date)
@@ -211,7 +215,9 @@ class ClientAppointmentPaymentView(APIView):
         # occupancy.blocking_q) and the row is closed out as cancelled.
         if appointment.expires_at and appointment.expires_at <= timezone.now():
             appointment.status = 'CANCELLED'
-            await appointment.asave(update_fields=['status', 'updated_at'])
+            # The client never paid, so the owner keeps the credit.
+            await sync_to_async(refund_quota)(appointment, appointment.business.user_id)
+            await appointment.asave(update_fields=['status', 'quota_source', 'updated_at'])
             await sync_to_async(invalidate_slots_cache)(
                 appointment.business_id, appointment.appointment_date
             )
@@ -310,8 +316,10 @@ class ClientAppointmentCancelView(APIView):
         appointment.status = 'CANCELLED'
         appointment.locked_at = None
         appointment.expires_at = None
+        # A slot the owner never served should not keep costing them a credit.
+        await sync_to_async(refund_quota)(appointment, appointment.business.user_id)
         await appointment.asave(
-            update_fields=['status', 'locked_at', 'expires_at', 'updated_at']
+            update_fields=['status', 'locked_at', 'expires_at', 'quota_source', 'updated_at']
         )
 
         # Freeing the slot changes availability for everyone.
