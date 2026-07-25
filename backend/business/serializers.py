@@ -19,19 +19,23 @@ class BusinessSerializer(serializers.ModelSerializer):
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             # Notifications (legacy)
             'notification_enabled', 'notification_types', 'notification_minutes_before',
-            # Payment config  ← new
-            'payment_method', 'merchant_id', 'payment_link', 'card_number', 'card_owner_name',
-            # SMS preferences ← new
+            # Payment config
+            'payment_method', 'accepted_payment_methods', 'merchant_id',
+            'payment_link', 'card_number', 'card_owner_name',
+            # SMS preferences
             'enable_reminder_sms', 'enable_promotional_sms',
             # Misc
-            'allow_anonymous_view', 'created_at', 'updated_at',
+            'allow_anonymous_view', 'bio', 'created_at', 'updated_at',
             # Booking control
             'notice_message', 'booking_enabled',
             # Subscription lock (graceful downgrade) — read-only status flag
             'is_locked',
-            # Advanced Capacity & Deposit Settings
-            'booking_enabled', 'accepted_payment_methods', 'payment_link',
-            'card_number', 'card_owner_name', 'merchant_id', 'bio'
+            # Advanced capacity & deposit settings. These were validated by
+            # validate_business_settings() and gated behind plan entitlements, but
+            # were missing here — so the owner app's advanced settings passed
+            # validation, returned 200, and were then silently dropped by the
+            # serializer instead of being saved.
+            'max_appointments_per_hour', 'deposit_mode', 'deposit_amount',
         ]
         read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at', 'owner', 'is_locked']
 
