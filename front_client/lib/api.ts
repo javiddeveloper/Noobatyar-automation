@@ -62,10 +62,27 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   });
   const json = await res.json();
   if (!res.ok || json.status === 'error') {
+    if (res.status === 401) {
+      // The stored token is no longer good. Drop it so the app stops
+      // pretending to be signed in, and surface a typed error that callers
+      // can react to (e.g. save the booking intent before redirecting).
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token');
+      }
+      throw new UnauthorizedError(json.message || 'نشست شما منقضی شده است');
+    }
     throw new Error(json.message || 'خطا در ارتباط با سرور');
   }
   return json.data as T;
 
+}
+
+/** Thrown when the API rejects the stored token (HTTP 401). */
+export class UnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
 }
 
 // ── Auth: OTP Flow ──────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import {
   getBusinessByCode,
   getAvailableSlots,
   bookAppointment,
+  UnauthorizedError,
   type Business,
   type TimeSlot,
 } from '@/lib/api';
@@ -145,20 +146,25 @@ export default function BookingPage({ params }: Props) {
     localStorage.removeItem('booking_intent');
   }, [pendingSlot, slotsLoading, slots, selectedDay]);
 
+  // Park the current selection so it can be restored after signing in.
+  const saveIntentAndLogin = () => {
+    if (!selectedSlot || !business) return;
+    localStorage.setItem('booking_intent', JSON.stringify({
+      slug,
+      slot: selectedSlot,
+      businessId: business.id,
+      description: description.trim(),
+    }));
+    router.push(`/auth/login?redirect=/b/${slug}/book`);
+  };
+
   const handleBook = async () => {
     if (!selectedSlot || !business) return;
 
     // Check auth token
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
     if (!token) {
-      // Save intent and redirect to login
-      localStorage.setItem('booking_intent', JSON.stringify({
-        slug,
-        slot: selectedSlot,
-        businessId: business.id,
-        description: description.trim(),
-      }));
-      router.push(`/auth/login?redirect=/b/${slug}/book`);
+      saveIntentAndLogin();
       return;
     }
 
@@ -181,6 +187,13 @@ export default function BookingPage({ params }: Props) {
         setTimeout(() => router.push('/appointments'), 1500);
       }
     } catch (err: unknown) {
+      if (err instanceof UnauthorizedError) {
+        // Token expired between page load and booking — keep the selection
+        // rather than dropping the user on the login page empty-handed.
+        showToast('نشست شما منقضی شده است. لطفاً دوباره وارد شوید');
+        setTimeout(saveIntentAndLogin, 1200);
+        return;
+      }
       showToast(err instanceof Error ? err.message : 'خطا در ثبت نوبت');
     } finally {
       setBooking(false);

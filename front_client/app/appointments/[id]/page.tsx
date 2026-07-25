@@ -19,6 +19,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   PENDING_VERIFICATION: { label: 'در انتظار تایید پرداخت', color: '#d97706', bg: '#fef3c7' },
   PENDING_APPROVAL:     { label: 'در انتظار تایید', color: '#d97706', bg: '#fef3c7' },
   WAITING:              { label: 'در صف',          color: '#047857', bg: '#d1fae5' },
+  CONFIRMED:            { label: 'تایید شده',      color: '#047857', bg: '#d1fae5' },
   IN_PROGRESS:          { label: 'در حال سرویس',   color: '#1d4ed8', bg: '#dbeafe' },
   COMPLETED:            { label: 'انجام شد',       color: '#374151', bg: '#f3f4f6' },
   CANCELLED:            { label: 'لغو شد',         color: '#b91c1c', bg: '#fee2e2' },
