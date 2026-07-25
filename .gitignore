@@ -7,3 +7,16 @@ mobile_owner/.gradle/buildOutputCleanup/cache.properties
 mobile_owner/.gradle/vcs-1/gc.properties
 mobile_owner/build/reports/problems/problems-report.html
 deploy_bundle.zip
+
+# Secrets. This repo already leaked a server password through committed
+# helper scripts — env files carry the payment merchant id and SMS tokens,
+# so keep them out of history entirely.
+.env
+.env.*
+!.env.example
+
+# Deploy artefacts built from the working tree.
+backend_update.zip
+step*.exp
+upload_update.exp
+deploy_update.exp
