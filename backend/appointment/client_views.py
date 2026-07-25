@@ -5,8 +5,10 @@ from api.responses import APIResponse
 from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
 from .cache_utils import invalidate_slots_cache
+from .occupancy import find_conflict, lock_expiry
 from api.pagination import StandardPagination
 from accounting import usage
+from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -84,27 +86,26 @@ class ClientAppointmentListView(APIView):
         )
 
         app_date = datetime.fromtimestamp(serializer.validated_data['appointment_date'] / 1000.0, tz=timezone.utc)
+        duration = serializer.validated_data.get('service_duration') or business.default_service_duration
 
         # A payment step only applies when the business actually collects money
-        # at booking time — a deposit, or a card/online method (all premium
-        # features). On the basic plan (cash-only, no deposit) there is nothing
-        # to pay, so the appointment is booked directly for the owner to approve.
-        accepted = business.accepted_payment_methods or []
-        requires_payment = (
-            business.deposit_mode in ('MANDATORY', 'OPTIONAL')
-            or 'CARD' in accepted
-            or 'ONLINE' in accepted
-        )
+        # at booking time — a deposit, or a card/online method. Those are all
+        # premium capabilities, so they are re-checked against the owner's
+        # *current* plan: a downgraded owner whose business row still carries a
+        # stale CARD/deposit config must not push clients into a payment step.
+        requires_payment = await sync_to_async(_requires_payment)(business)
 
-        appointment = await Appointment.objects.acreate(
-            user=request.user,
-            business=business,
-            visitor=visitor,
-            appointment_date=app_date,
-            service_duration=serializer.validated_data.get('service_duration', business.default_service_duration),
-            description=serializer.validated_data.get('description', ''),
-            status='LOCKED' if requires_payment else 'PENDING_APPROVAL',
+        # Create the row inside a transaction that first re-checks the slot, so
+        # two clients racing for the same time cannot both win.
+        appointment, conflict = await sync_to_async(self._create_if_free)(
+            request.user, business, visitor, app_date, duration,
+            serializer.validated_data.get('description', ''), requires_payment,
         )
+        if conflict:
+            return APIResponse.error(
+                message="این زمان به‌تازگی رزرو شد. لطفاً زمان دیگری انتخاب کنید",
+                code=409,
+            )
 
         # Count this booking against the owner's monthly appointment quota.
         await sync_to_async(usage.record_appointment)(business.user_id)
@@ -128,6 +129,69 @@ class ClientAppointmentListView(APIView):
             message="نوبت شما با موفقیت ثبت شد و در انتظار تایید کسب‌وکار است."
         )
 
+    @staticmethod
+    def _create_if_free(user, business, visitor, app_date, duration, description, requires_payment):
+        """
+        Re-check the slot and create the appointment atomically.
+
+        Returns ``(appointment, conflict)``. The row-level lock on the business
+        serialises concurrent bookings for the same business, so the conflict
+        check cannot be overtaken between the SELECT and the INSERT.
+        """
+        from django.db import transaction
+        from business.models import Business as _Business
+
+        with transaction.atomic():
+            # Serialise bookings per business.
+            _Business.objects.select_for_update().only('id').get(id=business.id)
+
+            conflict = find_conflict(business.id, app_date, duration)
+            if conflict is not None:
+                return None, conflict
+
+            now = timezone.now()
+            appointment = Appointment.objects.create(
+                user=user,
+                business=business,
+                visitor=visitor,
+                appointment_date=app_date,
+                service_duration=duration,
+                description=description,
+                status='LOCKED' if requires_payment else 'PENDING_APPROVAL',
+                # Hold the slot only while the client is paying; an abandoned
+                # lock expires on its own and frees the slot (see occupancy.py).
+                locked_at=now if requires_payment else None,
+                expires_at=lock_expiry(now) if requires_payment else None,
+            )
+            return appointment, None
+
+
+def _requires_payment(business):
+    """
+    Whether booking this business must go through the payment step.
+
+    Deposit and card/online collection are plan-gated capabilities, so the
+    owner's live entitlements decide — not just the stored business config,
+    which can be left over from a plan the owner no longer has.
+    """
+    from accounting import entitlements
+
+    owner_id = business.user_id
+    accepted = business.accepted_payment_methods or []
+
+    wants_deposit = business.deposit_mode in ('MANDATORY', 'OPTIONAL')
+    if wants_deposit and entitlements.has_feature(owner_id, entitlements.FEATURE_DEPOSIT):
+        return True
+
+    if 'CARD' in accepted and entitlements.has_feature(owner_id, entitlements.FEATURE_DEPOSIT):
+        return True
+
+    if 'ONLINE' in accepted and entitlements.has_feature(owner_id, entitlements.FEATURE_ONLINE_GATEWAY):
+        return True
+
+    return False
+
+
 class ClientAppointmentPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -142,6 +206,20 @@ class ClientAppointmentPaymentView(APIView):
         if appointment.status != 'LOCKED':
             return APIResponse.error(message="این نوبت قابل پرداخت نیست", code=400)
 
+        # Lazy lock expiry — no cleanup job needed. Once the payment window has
+        # passed the hold is released (the slot already reads as free via
+        # occupancy.blocking_q) and the row is closed out as cancelled.
+        if appointment.expires_at and appointment.expires_at <= timezone.now():
+            appointment.status = 'CANCELLED'
+            await appointment.asave(update_fields=['status', 'updated_at'])
+            await sync_to_async(invalidate_slots_cache)(
+                appointment.business_id, appointment.appointment_date
+            )
+            return APIResponse.error(
+                message="مهلت پرداخت این نوبت به پایان رسیده است. لطفاً دوباره نوبت بگیرید",
+                code=400,
+            )
+
         payment_reference = request.data.get('payment_reference', '')
         payment_receipt = request.FILES.get('payment_receipt', None)
         
@@ -149,6 +227,10 @@ class ClientAppointmentPaymentView(APIView):
         appointment.payment_reference = payment_reference
         if payment_receipt:
             appointment.payment_receipt = payment_receipt
+        # The payment window is over once payment is submitted: the slot is now
+        # held by the status itself, so the lock timestamps are cleared.
+        appointment.locked_at = None
+        appointment.expires_at = None
         await appointment.asave()
 
         # Slot occupancy changed → drop cached slot views for this business/date.

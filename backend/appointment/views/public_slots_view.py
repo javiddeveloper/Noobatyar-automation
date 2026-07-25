@@ -30,6 +30,7 @@ from rest_framework import status
 from business.models import Business
 from ..models import Appointment
 from ..cache_utils import public_slots_key, SLOT_CACHE_TTL
+from ..occupancy import blocking_q
 
 
 class PublicAvailableSlotsView(APIView):
@@ -101,24 +102,16 @@ class PublicAvailableSlotsView(APIView):
         # We deliberately do NOT call select_related('visitor') so that
         # visitor data never enters memory.
         #
-        # The queryset returns only CONFIRMED slots, plus LOCKED slots whose
-        # lock has NOT yet expired.
+        # Occupancy comes from appointment.occupancy.blocking_q() so this
+        # endpoint, the available-slots endpoint and the booking-time conflict
+        # check all agree on what "taken" means: every live status, plus LOCKED
+        # rows whose payment window has not expired.
         appointments = (
             Appointment.objects
             .filter(
+                blocking_q(now),
                 business_id=business_id,
                 appointment_date__range=(day_start, day_end),
-            )
-            .filter(
-                # CONFIRMED — always occupied
-                status="CONFIRMED",
-            )
-            | Appointment.objects
-            .filter(
-                business_id=business_id,
-                appointment_date__range=(day_start, day_end),
-                status="LOCKED",
-                expires_at__gt=now,   # only active locks
             )
         ).only(                        # ← pull minimum columns from DB
             "appointment_date",

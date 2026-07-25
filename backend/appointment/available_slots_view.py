@@ -7,6 +7,7 @@ from api.responses import APIResponse
 from business.models import Business
 from .models import Appointment
 from .cache_utils import available_slots_key, SLOT_CACHE_TTL
+from .occupancy import blocking_q
 from datetime import datetime, timedelta, timezone
 import logging
 
@@ -69,10 +70,10 @@ class AvailableSlotsView(APIView):
 
         booked_slots = set()
         async for appt in Appointment.objects.filter(
+            blocking_q(),
             business=business,
             appointment_date__gte=day_start_utc,
             appointment_date__lte=day_end_utc,
-            status__in=['WAITING', 'IN_PROGRESS', 'PENDING_APPROVAL']
         ):
             booked_slots.add(appt.appointment_date.replace(second=0, microsecond=0, tzinfo=timezone.utc))
 
