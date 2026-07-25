@@ -50,8 +50,8 @@ fun AdvancedSettingsTabs(
     onCardOwnerName: (String) -> Unit,
     maxAppointmentsPerHour: String,
     onMaxAppointmentsPerHour: (String) -> Unit,
-    depositEnabled: Boolean,
-    onDepositEnabled: (Boolean) -> Unit,
+    depositMode: String,
+    onDepositMode: (String) -> Unit,
     depositAmount: String,
     onDepositAmount: (String) -> Unit,
     merchantId: String,
@@ -102,8 +102,8 @@ fun AdvancedSettingsTabs(
                 isLoading = isLoading,
                 maxAppointmentsPerHour = maxAppointmentsPerHour,
                 onMaxAppointmentsPerHour = onMaxAppointmentsPerHour,
-                depositEnabled = depositEnabled,
-                onDepositEnabled = onDepositEnabled,
+                depositMode = depositMode,
+                onDepositMode = onDepositMode,
                 depositAmount = depositAmount,
                 onDepositAmount = onDepositAmount
             )
@@ -242,6 +242,25 @@ private fun PaymentTab(
     }
 }
 
+/**
+ * Deposit modes as the backend defines them (Business.DEPOSIT_MODE_CHOICES).
+ * OPTIONAL is a real third state: the client may pay the deposit or choose to
+ * settle in person, so it must not collapse into a boolean.
+ */
+enum class DepositMode(val value: String, val label: String) {
+    NONE("NONE", "بدون بیعانه"),
+    OPTIONAL("OPTIONAL", "اختیاری"),
+    MANDATORY("MANDATORY", "اجباری");
+
+    companion object {
+        fun describe(value: String): String = when (value) {
+            OPTIONAL.value -> "مشتری می‌تواند بیعانه را پرداخت کند یا «پرداخت در محل» را انتخاب کند."
+            MANDATORY.value -> "مشتری برای نهایی شدن نوبت باید بیعانه را پرداخت کند."
+            else -> "نوبت بدون دریافت بیعانه ثبت می‌شود."
+        }
+    }
+}
+
 /** Capacity control and deposit — both gated capabilities, grouped together. */
 @Composable
 private fun CapacityTab(
@@ -251,8 +270,8 @@ private fun CapacityTab(
     isLoading: Boolean,
     maxAppointmentsPerHour: String,
     onMaxAppointmentsPerHour: (String) -> Unit,
-    depositEnabled: Boolean,
-    onDepositEnabled: (Boolean) -> Unit,
+    depositMode: String,
+    onDepositMode: (String) -> Unit,
     depositAmount: String,
     onDepositAmount: (String) -> Unit,
 ) {
@@ -284,15 +303,33 @@ private fun CapacityTab(
             onUpgrade = onUpgrade
         ) {
             Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("دریافت بیعانه", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = depositEnabled, onCheckedChange = onDepositEnabled)
+                Text("دریافت بیعانه", style = MaterialTheme.typography.bodyLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+                // Three real modes, not a switch: OPTIONAL is a distinct
+                // behaviour (client may pay the deposit or choose to pay in
+                // person), and a boolean silently rewrote it to MANDATORY.
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    DepositMode.entries.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = depositMode == mode.value,
+                            onClick = { onDepositMode(mode.value) },
+                            enabled = !isLoading,
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = DepositMode.entries.size
+                            )
+                        ) {
+                            Text(mode.label, style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                 }
-                if (depositEnabled) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = DepositMode.describe(depositMode),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (depositMode != DepositMode.NONE.value) {
                     Spacer(modifier = Modifier.height(8.dp))
                     AppTextField(
                         enabled = !isLoading,

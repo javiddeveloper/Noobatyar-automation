@@ -41,7 +41,7 @@ fun AdvancedSettingsRoute(
 
     // Advanced fields (mirrors the ones hoisted in CreateBusinessRoute).
     var maxAppointmentsPerHour by remember { mutableStateOf("") }
-    var depositEnabled by remember { mutableStateOf(false) }
+    var depositMode by remember { mutableStateOf(DepositMode.NONE.value) }
     var depositAmount by remember { mutableStateOf("") }
     var acceptedPaymentMethods by remember { mutableStateOf(setOf<String>()) }
     var cardNumber by remember { mutableStateOf("") }
@@ -58,7 +58,7 @@ fun AdvancedSettingsRoute(
     LaunchedEffect(uiState.business) {
         uiState.business?.let {
             maxAppointmentsPerHour = it.maxAppointmentsPerHour?.toString() ?: ""
-            depositEnabled = (it.depositMode == "MANDATORY" || it.depositMode == "OPTIONAL")
+            depositMode = it.depositMode ?: DepositMode.NONE.value
             depositAmount = it.depositAmount?.toString() ?: ""
             acceptedPaymentMethods = it.acceptedPaymentMethods?.toSet() ?: setOf()
             cardNumber = it.cardNumber
@@ -134,8 +134,8 @@ fun AdvancedSettingsRoute(
                     onCardOwnerName = { cardOwnerName = it },
                     maxAppointmentsPerHour = maxAppointmentsPerHour,
                     onMaxAppointmentsPerHour = { maxAppointmentsPerHour = it },
-                    depositEnabled = depositEnabled,
-                    onDepositEnabled = { depositEnabled = it },
+                    depositMode = depositMode,
+                    onDepositMode = { depositMode = it },
                     depositAmount = depositAmount,
                     onDepositAmount = { depositAmount = it },
                     merchantId = merchantId,
@@ -162,8 +162,10 @@ fun AdvancedSettingsRoute(
                                 bio = business.bio,
                                 logoBytes = business.logoBytes,
                                 maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
-                                depositMode = if (depositEnabled) "MANDATORY" else "NONE",
-                                depositAmount = depositAmount.toIntOrNull(),
+                                depositMode = depositMode,
+                                // Always send an amount alongside a deposit mode
+                                // so the server can reject "deposit on, amount 0".
+                                depositAmount = depositAmount.toIntOrNull() ?: 0,
                                 acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
                                 cardNumber = cardNumber,
                                 cardOwnerName = cardOwnerName,

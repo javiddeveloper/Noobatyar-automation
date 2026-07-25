@@ -109,7 +109,7 @@ fun CreateBusinessRoute(
     var bio by remember { mutableStateOf("") }
     var logoBytes by remember { mutableStateOf<ByteArray?>(null) }
     var maxAppointmentsPerHour by remember { mutableStateOf("") }
-    var depositEnabled by remember { mutableStateOf(false) }
+    var depositMode by remember { mutableStateOf(DepositMode.NONE.value) }
     var depositAmount by remember { mutableStateOf("") }
     var acceptedPaymentMethods by remember { mutableStateOf(setOf<String>()) }
     var cardNumber by remember { mutableStateOf("") }
@@ -144,7 +144,7 @@ fun CreateBusinessRoute(
             workEndHour = it.workEndHour.toString()
             allowAnonymousView = it.allowAnonymousView
             maxAppointmentsPerHour = it.maxAppointmentsPerHour?.toString() ?: ""
-            depositEnabled = (it.depositMode == "MANDATORY" || it.depositMode == "OPTIONAL")
+            depositMode = it.depositMode ?: DepositMode.NONE.value
             depositAmount = it.depositAmount?.toString() ?: ""
             acceptedPaymentMethods = it.acceptedPaymentMethods?.toSet() ?: setOf()
             cardNumber = it.cardNumber
@@ -176,7 +176,7 @@ fun CreateBusinessRoute(
         bio = bio,
         logoBytes = logoBytes,
         maxAppointmentsPerHour = maxAppointmentsPerHour,
-        depositEnabled = depositEnabled,
+        depositMode = depositMode,
         depositAmount = depositAmount,
         acceptedPaymentMethods = acceptedPaymentMethods,
         cardNumber = cardNumber,
@@ -184,7 +184,7 @@ fun CreateBusinessRoute(
         merchantId = merchantId,
         paymentLink = paymentLink,
         onMaxAppointmentsPerHour = { maxAppointmentsPerHour = it },
-        onDepositEnabled = { depositEnabled = it },
+        onDepositMode = { depositMode = it },
         onDepositAmount = { depositAmount = it },
         onAcceptedPaymentMethods = { acceptedPaymentMethods = it },
         onCardNumber = { cardNumber = it },
@@ -262,7 +262,7 @@ fun CreateBusinessScreen(
     onBio: (String) -> Unit,
     onLogoBytes: (ByteArray?) -> Unit,
     maxAppointmentsPerHour: String,
-    depositEnabled: Boolean,
+    depositMode: String,
     depositAmount: String,
     acceptedPaymentMethods: Set<String>,
     cardNumber: String,
@@ -270,7 +270,7 @@ fun CreateBusinessScreen(
     merchantId: String,
     paymentLink: String,
     onMaxAppointmentsPerHour: (String) -> Unit,
-    onDepositEnabled: (Boolean) -> Unit,
+    onDepositMode: (String) -> Unit,
     onDepositAmount: (String) -> Unit,
     onAcceptedPaymentMethods: (Set<String>) -> Unit,
     onCardNumber: (String) -> Unit,
@@ -677,8 +677,10 @@ fun CreateBusinessScreen(
                                     bio = bio.trim(),
                                     logoBytes = logoBytes,
                                     maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
-                                    depositMode = if (depositEnabled) "MANDATORY" else "NONE",
-                                    depositAmount = depositAmount.toIntOrNull(),
+                                    depositMode = depositMode,
+                                    // Always send an amount alongside a deposit mode
+                                    // so the server can reject "deposit on, amount 0".
+                                    depositAmount = depositAmount.toIntOrNull() ?: 0,
                                     acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
                                     cardNumber = cardNumber,
                                     cardOwnerName = cardOwnerName,
@@ -829,7 +831,7 @@ fun PreviewDashboardScreen() {
             onDefaultProgressErrorUpdate = {},
             onWorkHoursErrorUpdate = {},
             maxAppointmentsPerHour = "String",
-            depositEnabled = false,
+            depositMode = DepositMode.NONE.value,
             depositAmount = "String",
             acceptedPaymentMethods = setOf(),
             cardNumber = "",
@@ -837,7 +839,7 @@ fun PreviewDashboardScreen() {
             merchantId = "",
             paymentLink = "",
             onMaxAppointmentsPerHour = {},
-            onDepositEnabled = {},
+            onDepositMode = {},
             onDepositAmount = {},
             onAcceptedPaymentMethods = {},
             onCardNumber = {},

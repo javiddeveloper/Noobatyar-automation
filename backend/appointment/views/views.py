@@ -36,8 +36,10 @@ class AppointmentView(APIView):
         'PENDING_VERIFICATION': ['WAITING', 'CANCELLED'],
         # Slot locked (client in checkout) — owner can force-cancel stale locks
         'LOCKED':               ['CANCELLED'],
-        # Normal queue flow
-        'WAITING':    ['IN_PROGRESS', 'CONFIRMED', 'CANCELLED', 'NO_SHOW'],
+        # Normal queue flow. WAITING → COMPLETED is allowed because the owner
+        # marks a walk-in served straight from the queue, without stepping
+        # through CONFIRMED/IN_PROGRESS first.
+        'WAITING':    ['IN_PROGRESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'],
         'CONFIRMED':  ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'],
         'IN_PROGRESS':['COMPLETED', 'CANCELLED', 'NO_SHOW'],
         'COMPLETED':  [],
