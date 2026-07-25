@@ -95,8 +95,20 @@ def validate_business_settings(user, data):
     # Deposit
     if "deposit_mode" in data:
         deposit_mode = data.get("deposit_mode")
-        if deposit_mode in ("MANDATORY", "OPTIONAL") and not entitlements.has_feature(user, entitlements.FEATURE_DEPOSIT):
-            return need(entitlements.FEATURE_DEPOSIT)
+        if deposit_mode in ("MANDATORY", "OPTIONAL"):
+            if not entitlements.has_feature(user, entitlements.FEATURE_DEPOSIT):
+                return need(entitlements.FEATURE_DEPOSIT)
+            # A deposit with no amount leaves the client staring at
+            # "مبلغ بیعانه: نامشخص" with nothing meaningful to pay. Only checked
+            # when the amount is part of this payload, so partial updates that
+            # do not touch it keep working (see the docstring contract).
+            if "deposit_amount" in data:
+                try:
+                    amount = int(data.get("deposit_amount") or 0)
+                except (TypeError, ValueError):
+                    amount = 0
+                if amount <= 0:
+                    return "برای فعال کردن بیعانه، مبلغ بیعانه را وارد کنید."
 
     # Promotional SMS
     if "enable_promotional_sms" in data and _as_bool(data.get("enable_promotional_sms")):

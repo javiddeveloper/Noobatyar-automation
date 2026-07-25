@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAppointment, categoryLabel, type Appointment } from '@/lib/api';
+import { getAppointment, cancelAppointment, categoryLabel, type Appointment } from '@/lib/api';
+
+// Anything still ahead of the appointment time can be cancelled by the client.
+const CANCELLABLE = ['LOCKED', 'PENDING_APPROVAL', 'PENDING_VERIFICATION', 'WAITING', 'CONFIRMED'];
 
 const CATEGORY_EMOJI: Record<string, string> = {
   BEAUTY_SALON: '💅',
@@ -38,6 +41,29 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const handleCancel = async () => {
+    if (!appointment) return;
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setCancelling(true);
+    try {
+      await cancelAppointment(appointment.id, token);
+      setAppointment({ ...appointment, status: 'CANCELLED' });
+      setConfirmCancel(false);
+      setToast('نوبت شما لغو شد');
+      setTimeout(() => setToast(''), 3000);
+    } catch (err: unknown) {
+      setToast(err instanceof Error ? err.message : 'خطا در لغو نوبت');
+      setTimeout(() => setToast(''), 3000);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   useEffect(() => {
     params.then((p) => {
@@ -192,7 +218,47 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
           مشاهده پروفایل کسب‌وکار
         </button>
 
+        {/* ── Cancel (only while the appointment is still ahead of us) ── */}
+        {CANCELLABLE.includes(appointment.status) && appointment.appointment_date > Date.now() && (
+          confirmCancel ? (
+            <div style={{ marginTop: 12, padding: 16, borderRadius: 14, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+              <div style={{ fontSize: 14, color: 'var(--color-text)', textAlign: 'center', marginBottom: 14, lineHeight: 1.8 }}>
+                از لغو این نوبت مطمئن هستید؟
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#b91c1c', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  {cancelling ? 'در حال لغو...' : 'بله، لغو کن'}
+                </button>
+                <button
+                  onClick={() => setConfirmCancel(false)}
+                  disabled={cancelling}
+                  style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-muted)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  انصراف
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmCancel(true)}
+              style={{
+                width: '100%', height: 52, marginTop: 12, borderRadius: 14,
+                border: '1px solid #fecaca', background: 'var(--color-surface)', color: '#b91c1c',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              لغو نوبت
+            </button>
+          )
+        )}
+
       </div>
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }

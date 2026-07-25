@@ -173,11 +173,25 @@ export async function getAppointment(id: number, token: string): Promise<Appoint
   return apt;
 }
 
-export async function payAppointment(id: number, paymentReference: string, token: string) {
+export type PaymentMethod = 'CARD' | 'ONLINE' | 'CASH';
+
+export async function payAppointment(
+  id: number,
+  paymentReference: string,
+  token: string,
+  paymentMethod: PaymentMethod = 'CARD',
+) {
   return apiFetch<{ id: number }>(`/api/client/appointments/${id}/pay/`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ payment_reference: paymentReference }),
+    body: JSON.stringify({ payment_reference: paymentReference, method: paymentMethod }),
+  });
+}
+
+export async function cancelAppointment(id: number, token: string) {
+  return apiFetch<{ id: number }>(`/api/client/appointments/${id}/cancel/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 

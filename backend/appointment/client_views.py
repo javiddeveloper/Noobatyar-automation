@@ -220,13 +220,41 @@ class ClientAppointmentPaymentView(APIView):
                 code=400,
             )
 
-        payment_reference = request.data.get('payment_reference', '')
+        payment_reference = (request.data.get('payment_reference') or '').strip()
         payment_receipt = request.FILES.get('payment_receipt', None)
-        
-        appointment.status = 'PENDING_VERIFICATION'
-        appointment.payment_reference = payment_reference
-        if payment_receipt:
-            appointment.payment_receipt = payment_receipt
+        # The client states how they are paying. Older clients that predate this
+        # field submitted a receipt/reference, so default to CARD for them.
+        method = (request.data.get('method') or 'CARD').upper()
+
+        if method not in ('CARD', 'ONLINE', 'CASH'):
+            return APIResponse.error(message="روش پرداخت نامعتبر است", code=400)
+
+        business = appointment.business
+
+        if method == 'CASH':
+            # Paying in person: nothing to verify, so the booking goes straight
+            # to the owner's approval queue instead of the receipt queue.
+            if business.deposit_mode == 'MANDATORY':
+                return APIResponse.error(
+                    message="پرداخت بیعانه برای این کسب‌وکار الزامی است",
+                    code=400,
+                )
+            appointment.status = 'PENDING_APPROVAL'
+            success_message = "نوبت شما ثبت شد و در انتظار تایید کسب‌وکار است"
+        else:
+            # Card / online transfers must come with proof, otherwise the owner
+            # sees a "verify the receipt" item with no receipt to verify.
+            if not payment_receipt and not payment_reference:
+                return APIResponse.error(
+                    message="لطفاً شماره پیگیری را وارد کنید یا تصویر فیش را آپلود نمایید",
+                    code=400,
+                )
+            appointment.status = 'PENDING_VERIFICATION'
+            appointment.payment_reference = payment_reference
+            if payment_receipt:
+                appointment.payment_receipt = payment_receipt
+            success_message = "پرداخت با موفقیت ثبت شد و نوبت در انتظار تایید است"
+
         # The payment window is over once payment is submitted: the slot is now
         # held by the status itself, so the lock timestamps are cleared.
         appointment.locked_at = None
@@ -244,8 +272,91 @@ class ClientAppointmentPaymentView(APIView):
 
         return APIResponse.success(
             data={'id': appointment.id},
-            message="پرداخت با موفقیت ثبت شد و نوبت در انتظار تایید است"
+            message=success_message
         )
+
+
+class ClientAppointmentCancelView(APIView):
+    """Lets a client cancel their own appointment before it starts."""
+
+    permission_classes = [IsAuthenticated]
+
+    # Anything still ahead of the appointment time can be dropped by the client.
+    CANCELLABLE_STATUSES = (
+        'LOCKED',
+        'PENDING_APPROVAL',
+        'PENDING_VERIFICATION',
+        'WAITING',
+        'CONFIRMED',
+    )
+
+    async def post(self, request, pk):
+        try:
+            appointment = await Appointment.objects.select_related('business', 'visitor').aget(
+                id=pk, user=request.user
+            )
+        except Appointment.DoesNotExist:
+            return APIResponse.error(message="نوبت یافت نشد", code=404)
+
+        if appointment.status not in self.CANCELLABLE_STATUSES:
+            return APIResponse.error(message="این نوبت قابل لغو نیست", code=400)
+
+        if appointment.appointment_date <= timezone.now():
+            return APIResponse.error(
+                message="زمان این نوبت گذشته است و قابل لغو نیست",
+                code=400,
+            )
+
+        appointment.status = 'CANCELLED'
+        appointment.locked_at = None
+        appointment.expires_at = None
+        await appointment.asave(
+            update_fields=['status', 'locked_at', 'expires_at', 'updated_at']
+        )
+
+        # Freeing the slot changes availability for everyone.
+        await sync_to_async(invalidate_slots_cache)(
+            appointment.business_id, appointment.appointment_date
+        )
+
+        _fire_cancellation_sms(appointment, appointment.business.phone)
+
+        return APIResponse.success(
+            data={'id': appointment.id},
+            message="نوبت شما لغو شد",
+        )
+
+
+def _fire_cancellation_sms(appointment, owner_phone):
+    """Tell the owner their client cancelled, so the freed slot is not a surprise."""
+    from zoneinfo import ZoneInfo
+    import threading
+
+    tehran_tz = ZoneInfo('Asia/Tehran')
+    local_time = appointment.appointment_date.astimezone(tehran_tz)
+    time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+
+    owner_msg = (
+        f"نوبت‌یار ❌\n"
+        f"لغو نوبت توسط مشتری\n"
+        f"مشتری: {appointment.visitor.full_name}\n"
+        f"تاریخ: {time_str}\n"
+        f"کد: {appointment.id}"
+    )
+
+    threading.Thread(
+        target=_send_booking_sms,
+        kwargs=dict(
+            client_phone=None,     # the client initiated this; no confirmation SMS
+            owner_phone=owner_phone,
+            client_msg=None,
+            owner_msg=owner_msg,
+            business_id=appointment.business_id,
+            visitor_id=appointment.visitor_id,
+        ),
+        daemon=True,
+        name=f"cancel-sms-{appointment.id}",
+    ).start()
 
 
 def _fire_booking_sms(appointment, client_phone, owner_phone):
@@ -310,9 +421,13 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
     except Business.DoesNotExist:
         owner_id = None
 
-    # Send to client (consumes one SMS credit from the owner's plan/wallet)
+    # Send to client (consumes one SMS credit from the owner's plan/wallet).
+    # Callers pass client_msg=None when the client triggered the action
+    # themselves and does not need to be told about it (e.g. self-cancellation).
     try:
-        if owner_id is not None and not usage.consume_sms(owner_id):
+        if not client_phone or not client_msg:
+            pass
+        elif owner_id is not None and not usage.consume_sms(owner_id):
             logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
         else:
             client_ok = send_sms(client_phone, client_msg)
@@ -328,7 +443,9 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
 
     # Send to business owner (also consumes one credit)
     try:
-        if owner_id is not None and not usage.consume_sms(owner_id):
+        if not owner_phone or not owner_msg:
+            pass
+        elif owner_id is not None and not usage.consume_sms(owner_id):
             logger.warning(f"SMS→owner skipped for business {business_id}: SMS quota exhausted")
         else:
             owner_ok = send_sms(owner_phone, owner_msg)

@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAppointment, payAppointment, payAppointmentWithReceipt, type Appointment } from '@/lib/api';
+import {
+  getAppointment,
+  payAppointment,
+  payAppointmentWithReceipt,
+  type Appointment,
+  type PaymentMethod,
+} from '@/lib/api';
 
 export default function CheckoutPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const router = useRouter();
@@ -14,9 +20,31 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [paymentRef, setPaymentRef] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<string>('CARD');
+  // Null until the user picks one: the effective method falls back to the first
+  // method this business actually offers, rather than assuming CARD.
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
+
+  const biz = appointment?.business;
+  const accepted = biz?.accepted_payment_methods;
+  const depositMode = biz?.deposit_mode;
+  // A mandatory deposit cannot be settled in person, so cash is not offered.
+  // An optional deposit always allows paying at the venue instead.
+  const canPayOnline = !!accepted?.includes('ONLINE') && !!biz?.payment_link;
+  const canPayCard = !accepted || accepted.includes('CARD');
+  const canPayCash =
+    depositMode !== 'MANDATORY' && (!!accepted?.includes('CASH') || depositMode === 'OPTIONAL');
+
+  const availableMethods: PaymentMethod[] = [
+    ...(canPayOnline ? (['ONLINE'] as const) : []),
+    ...(canPayCard ? (['CARD'] as const) : []),
+    ...(canPayCash ? (['CASH'] as const) : []),
+  ];
+  const method: PaymentMethod =
+    selectedMethod && availableMethods.includes(selectedMethod)
+      ? selectedMethod
+      : availableMethods[0] ?? 'CARD';
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -64,7 +92,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   }, [id, slug, router]);
 
   const handleSubmit = async () => {
-    if (selectedMethod === 'CARD' && !file && !paymentRef.trim()) {
+    // Card and online transfers must carry proof; paying in person carries none.
+    if (method !== 'CASH' && !file && !paymentRef.trim()) {
       showToast('لطفا شماره پیگیری را وارد کنید یا تصویر فیش را آپلود نمایید');
       return;
     }
@@ -74,17 +103,22 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
     setSubmitting(true);
     try {
-      if (file) {
+      if (method !== 'CASH' && file) {
         const formData = new FormData();
+        formData.append('method', method);
         formData.append('payment_receipt', file);
         if (paymentRef.trim()) {
           formData.append('payment_reference', paymentRef);
         }
         await payAppointmentWithReceipt(id, formData, token);
       } else {
-        await payAppointment(id, paymentRef, token);
+        await payAppointment(id, method === 'CASH' ? '' : paymentRef, token, method);
       }
-      showToast('✅ پرداخت شما ثبت شد و در انتظار تایید است.');
+      showToast(
+        method === 'CASH'
+          ? '✅ نوبت شما ثبت شد و در انتظار تایید است.'
+          : '✅ پرداخت شما ثبت شد و در انتظار تایید است.',
+      );
       setTimeout(() => router.push('/appointments'), 1500);
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'خطا در ثبت پرداخت');
@@ -130,33 +164,32 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
       <div style={{ padding: '24px 24px' }}>
         
-        {/* ── Tabs ── */}
-        <div style={{ display: 'flex', background: 'var(--color-surface-variant)', borderRadius: 14, padding: 4, marginBottom: 16 }}>
-          {appointment?.business?.accepted_payment_methods?.includes('ONLINE') && (
-            <button 
-              onClick={() => setSelectedMethod('ONLINE')}
-              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'ONLINE' ? 'var(--color-surface)' : 'none', borderRadius: selectedMethod === 'ONLINE' ? 10 : 0, color: selectedMethod === 'ONLINE' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'ONLINE' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
-              درگاه آنلاین
-            </button>
-          )}
-          {(!appointment?.business?.accepted_payment_methods || appointment?.business?.accepted_payment_methods?.includes('CARD')) && (
-            <button 
-              onClick={() => setSelectedMethod('CARD')}
-              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'CARD' ? 'var(--color-surface)' : 'none', borderRadius: selectedMethod === 'CARD' ? 10 : 0, color: selectedMethod === 'CARD' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'CARD' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
-              کارت به کارت
-            </button>
-          )}
-          {appointment?.business?.accepted_payment_methods?.includes('CASH') && (
-            <button 
-              onClick={() => setSelectedMethod('CASH')}
-              style={{ flex: 1, padding: '12px 0', border: 'none', background: selectedMethod === 'CASH' ? 'var(--color-surface)' : 'none', borderRadius: selectedMethod === 'CASH' ? 10 : 0, color: selectedMethod === 'CASH' ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedMethod === 'CASH' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
-              پرداخت نقدی/محل
-            </button>
-          )}
-        </div>
+        {/* ── Tabs ── (only the methods this business actually offers) */}
+        {availableMethods.length > 1 && (
+          <div style={{ display: 'flex', background: 'var(--color-surface-variant)', borderRadius: 14, padding: 4, marginBottom: 16 }}>
+            {availableMethods.map((m) => {
+              const isActive = method === m;
+              const label = m === 'ONLINE' ? 'درگاه آنلاین' : m === 'CARD' ? 'کارت به کارت' : 'پرداخت در محل';
+              return (
+                <button
+                  key={m}
+                  onClick={() => setSelectedMethod(m)}
+                  style={{ flex: 1, padding: '12px 0', border: 'none', background: isActive ? 'var(--color-surface)' : 'none', borderRadius: isActive ? 10 : 0, color: isActive ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {depositMode === 'OPTIONAL' && (
+          <div style={{ background: 'var(--color-primary-tint)', color: 'var(--color-text)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13, textAlign: 'right', lineHeight: 1.7 }}>
+            پرداخت بیعانه برای این کسب‌وکار <b>اختیاری</b> است. می‌توانید بیعانه را پرداخت کنید یا گزینهٔ «پرداخت در محل» را انتخاب نمایید.
+          </div>
+        )}
 
         {/* ── Transfer Card ── */}
-        {selectedMethod === 'CARD' && (
+        {method === 'CARD' && (
           <>
             <div style={{
               background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
@@ -180,9 +213,18 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                 به نام: {appointment?.business?.card_owner_name || 'صاحب کسب‌وکار'}
               </div>
               
-              <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
-                مبلغ بیعانه: {appointment?.business?.deposit_mode === 'NONE' ? 'رایگان' : (appointment?.business?.deposit_amount ? appointment.business.deposit_amount.toLocaleString() + ' تومان' : 'نامشخص')}
-              </div>
+              {biz?.deposit_amount ? (
+                <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
+                  مبلغ بیعانه: {biz.deposit_amount.toLocaleString('fa-IR')} تومان
+                  {depositMode === 'OPTIONAL' && (
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-muted)' }}> (اختیاری)</span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--color-muted)' }}>
+                  مبلغ را با کسب‌وکار هماهنگ کنید.
+                </div>
+              )}
             </div>
 
             {/* ── Receipt Input ── */}
@@ -224,15 +266,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           </>
         )}
         
-        {selectedMethod === 'ONLINE' && (
+        {method === 'ONLINE' && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-muted)', fontSize: 14 }}>
-            {appointment?.business?.payment_link ? (
+            {biz?.payment_link ? (
               <>
                 <p style={{ marginBottom: 16 }}>
                   برای پرداخت آنلاین مبلغ بیعانه، لطفا از طریق لینک زیر اقدام کنید:
                 </p>
                 <a 
-                  href={appointment.business.payment_link.startsWith('http') ? appointment.business.payment_link : `https://${appointment.business.payment_link}`} 
+                  href={biz.payment_link.startsWith('http') ? biz.payment_link : `https://${biz.payment_link}`} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none', fontSize: 16 }}
@@ -261,9 +303,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           </div>
         )}
 
-        {selectedMethod === 'CASH' && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-muted)', fontSize: 14 }}>
-            شما پرداخت در محل را انتخاب کرده‌اید. در صورت تایید نوبت شما ثبت خواهد شد.
+        {method === 'CASH' && (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-muted)', fontSize: 14, lineHeight: 1.9 }}>
+            شما پرداخت در محل را انتخاب کرده‌اید.
+            <br />
+            نوبت شما برای تایید به کسب‌وکار ارسال می‌شود.
           </div>
         )}
 
@@ -279,7 +323,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           onClick={handleSubmit}
           disabled={submitting}
         >
-          {submitting ? 'در حال ثبت...' : 'ثبت نهایی نوبت'}
+          {submitting ? 'در حال ثبت...' : method === 'CASH' ? 'ثبت نوبت (پرداخت در محل)' : 'ثبت نهایی نوبت'}
         </button>
       </div>
 
