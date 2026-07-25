@@ -420,9 +420,16 @@ fun TimeSlotRow(
                     // Adaptive Colors
                     val status = appointment.appointment.status
                     val (containerColor, contentColor) = when {
-                        status == "CONFIRMED" -> {
+                        // Green = service finished. CONFIRMED only means the owner
+                        // approved the booking, so it gets its own blue.
+                        status == "COMPLETED" -> {
                             val bg = if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9)
                             val fg = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32)
+                            bg to fg
+                        }
+                        status == "CONFIRMED" -> {
+                            val bg = if (isDark) Color(0xFF0D47A1).copy(alpha = 0.4f) else Color(0xFFE3F2FD)
+                            val fg = if (isDark) Color(0xFF90CAF9) else Color(0xFF1565C0)
                             bg to fg
                         }
                         status == "NO_SHOW" || status == "CANCELLED" || isOverdue -> {

@@ -331,13 +331,16 @@ fun FilterBottomSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Same set as Appointment.STATUS_CHOICES on the backend.
                     val statuses = listOf(
                         null to "همه",
+                        "LOCKED" to "در حال پرداخت",
                         "PENDING_VERIFICATION" to "💳 در انتظار تأیید فیش",
                         "PENDING_APPROVAL" to "در انتظار تایید",
+                        "CONFIRMED" to "تأیید شده",
                         "WAITING" to stringResource(Res.string.status_waiting),
                         "IN_PROGRESS" to "در حال سرویس",
-                        "CONFIRMED" to stringResource(Res.string.status_completed),
+                        "COMPLETED" to stringResource(Res.string.status_completed),
                         "NO_SHOW" to stringResource(Res.string.status_no_show),
                         "CANCELLED" to "لغو شده"
                     )
@@ -628,11 +631,20 @@ fun StatusBadge(status: String, overdue: Boolean) {
     val isDark = !MaterialTheme.colorScheme.surface.let { color ->
         (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
     }
+    // Mirrors Appointment.STATUS_CHOICES in backend/appointment/models.py. Note
+    // CONFIRMED (owner approved the booking) and COMPLETED (service finished)
+    // are distinct: CONFIRMED used to be mislabelled "تکمیل شده", and COMPLETED,
+    // LOCKED and IN_PROGRESS fell through to the raw English status text.
     val (text, bgColor, contentColor) = when {
         status == "WAITING" && overdue -> Triple(
             stringResource(Res.string.overdue_time),
             if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
             if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828)
+        )
+        status == "LOCKED" -> Triple(
+            "در حال پرداخت",
+            if (isDark) Color(0xFF37474F).copy(alpha = 0.5f) else Color(0xFFECEFF1),
+            if (isDark) Color(0xFFB0BEC5) else Color(0xFF455A64)
         )
         status == "PENDING_VERIFICATION" -> Triple(
             "💳 در انتظار تأیید فیش",
@@ -644,12 +656,22 @@ fun StatusBadge(status: String, overdue: Boolean) {
             if (isDark) Color(0xFFE65100).copy(alpha = 0.4f) else Color(0xFFFFF3E0),
             if (isDark) Color(0xFFFFCC80) else Color(0xFFE65100)
         )
+        status == "CONFIRMED" -> Triple(
+            "تأیید شده",
+            if (isDark) Color(0xFF0D47A1).copy(alpha = 0.4f) else Color(0xFFE3F2FD),
+            if (isDark) Color(0xFF90CAF9) else Color(0xFF1565C0)
+        )
         status == "WAITING" -> Triple(
             stringResource(Res.string.status_waiting),
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
             MaterialTheme.colorScheme.onPrimaryContainer
         )
-        status == "CONFIRMED" -> Triple(
+        status == "IN_PROGRESS" -> Triple(
+            "در حال سرویس",
+            if (isDark) Color(0xFF006064).copy(alpha = 0.45f) else Color(0xFFE0F7FA),
+            if (isDark) Color(0xFF80DEEA) else Color(0xFF00838F)
+        )
+        status == "COMPLETED" -> Triple(
             stringResource(Res.string.status_completed),
             if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9),
             if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32)
@@ -658,6 +680,11 @@ fun StatusBadge(status: String, overdue: Boolean) {
             stringResource(Res.string.status_no_show),
             if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
             if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828)
+        )
+        status == "CANCELLED" -> Triple(
+            "لغو شده",
+            if (isDark) Color(0xFF424242).copy(alpha = 0.5f) else Color(0xFFF5F5F5),
+            if (isDark) Color(0xFFBDBDBD) else Color(0xFF616161)
         )
         else -> Triple(
             status,
