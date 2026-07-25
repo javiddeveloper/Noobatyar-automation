@@ -99,6 +99,13 @@ class Appointment(models.Model):
         help_text="Uploaded receipt image for card-to-card payment"
     )
 
+    reminder_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="When the pre-appointment reminder SMS was sent (null = not yet)"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

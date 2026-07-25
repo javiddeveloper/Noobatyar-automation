@@ -520,6 +520,10 @@ class AppointmentView(APIView):
         appointment.save(update_fields=['status', 'updated_at'])
         invalidate_slots_cache(appointment.business_id, appointment.appointment_date)
 
+        # Tell the client the verdict — until now they were only told their
+        # booking was received, never whether it was accepted or rejected.
+        _notify_client_of_decision(appointment, old_status, new_status)
+
         serializer = AppointmentQuerySerializer(appointment)
         elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -689,3 +693,87 @@ class AppointmentView(APIView):
             f"[{request_id}] Appointment deleted permanently",
             extra={'appointment_id': appointment_id}
         )
+
+
+def _notify_client_of_decision(appointment, old_status, new_status):
+    """
+    SMS the client when the owner accepts or rejects a pending booking.
+
+    Only fires on the pending → decided transitions; ordinary queue movement
+    (WAITING → IN_PROGRESS → COMPLETED) is not worth an SMS credit. Runs on a
+    daemon thread with its own DB connection, like the booking SMS.
+    """
+    from zoneinfo import ZoneInfo
+    import threading
+
+    if old_status not in ('PENDING_APPROVAL', 'PENDING_VERIFICATION'):
+        return
+    if new_status not in ('WAITING', 'CONFIRMED', 'CANCELLED'):
+        return
+
+    try:
+        business_title = appointment.business.title
+        client_phone = appointment.visitor.phone_number
+    except Exception:  # related row missing — nothing we can notify
+        return
+
+    if not client_phone:
+        return
+
+    local_time = appointment.appointment_date.astimezone(ZoneInfo('Asia/Tehran'))
+    time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+
+    if new_status == 'CANCELLED':
+        message = (
+            f"نوبت‌یار ❌\n"
+            f"متأسفانه نوبت شما در {business_title} تایید نشد.\n"
+            f"تاریخ: {time_str}\n"
+            f"کد نوبت: {appointment.id}"
+        )
+    else:
+        message = (
+            f"نوبت‌یار ✅\n"
+            f"نوبت شما در {business_title} تایید شد.\n"
+            f"تاریخ: {time_str}\n"
+            f"کد نوبت: {appointment.id}"
+        )
+
+    threading.Thread(
+        target=_send_client_sms,
+        kwargs=dict(
+            phone=client_phone,
+            message=message,
+            business_id=appointment.business_id,
+            visitor_id=appointment.visitor_id,
+        ),
+        daemon=True,
+        name=f"decision-sms-{appointment.id}",
+    ).start()
+
+
+def _send_client_sms(phone, message, business_id, visitor_id):
+    """Background target: send one SMS to a client and log it against the business."""
+    from api.sms import send_sms
+    from visitor.models import SmsLog
+    from business.models import Business
+    from accounting import usage
+
+    try:
+        owner_id = Business.objects.values_list('user_id', flat=True).get(id=business_id)
+    except Business.DoesNotExist:
+        owner_id = None
+
+    try:
+        if owner_id is not None and not usage.consume_sms(owner_id):
+            logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+            return
+        ok = send_sms(phone, message)
+        SmsLog.objects.create(
+            business_id=business_id,
+            visitor_id=visitor_id,
+            message_text=message,
+            status='SENT' if ok else 'FAILED',
+        )
+        logger.info(f"SMS→client {phone}: {'✓' if ok else '✗'}")
+    except Exception as e:
+        logger.error(f"SMS→client error: {e}")
