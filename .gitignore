@@ -20,3 +20,13 @@ backend_update.zip
 step*.exp
 upload_update.exp
 deploy_update.exp
+
+# Python local dev
+.venv/
+__pycache__/
+*.pyc
+
+# Local dev database. Was tracked, so every local test run (a booking, a new
+# user) showed up as a binary diff. Production uses Postgres via POSTGRES_DB.
+backend/db.sqlite3
+backend/db.sqlite3.bak-*
