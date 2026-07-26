@@ -135,7 +135,14 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
     """
     Kept for backward compatibility with appointment/client_serializers.py.
     Used to display business info inside a client's own appointment record.
-    Does NOT include sensitive financial or config fields.
+
+    Includes the payment fields the checkout screen needs (card number, owner
+    name, deposit, accepted methods). Without them the client was shown
+    «شماره کارت ثبت نشده» and «مبلغ را با کسب‌وکار هماهنگ کنید» and had no way to
+    pay at all. These are the same fields PublicBusinessSerializer already
+    returns on the public booking page, so nothing new is exposed here.
+
+    Still excluded: merchant_id, notification_*, enable_*_sms, created_at/updated_at.
     """
     class Meta:
         model = Business
@@ -144,6 +151,9 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             'allow_anonymous_view',
             'notice_message', 'booking_enabled',
+            'payment_method', 'accepted_payment_methods',
+            'deposit_mode', 'deposit_amount',
+            'card_number', 'card_owner_name', 'payment_link',
         ]
 
     def to_representation(self, instance):
