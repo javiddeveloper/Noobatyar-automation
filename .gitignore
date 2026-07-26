@@ -17,6 +17,7 @@ deploy_bundle.zip
 
 # Deploy artefacts built from the working tree.
 backend_update.zip
+frontend_update.zip
 step*.exp
 upload_update.exp
 deploy_update.exp
