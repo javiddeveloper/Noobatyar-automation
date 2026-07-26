@@ -17,6 +17,15 @@ from api.responses import APIResponse  # اضافه کردن import
 logger = logging.getLogger(__name__)
 
 
+def _positive_int(raw, default):
+    """Parse a pagination param, falling back on anything that isn't a positive int."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
 async def get_readable_visitor(visitor_id, user):
     """Return a visitor the given user is allowed to READ.
 
@@ -211,14 +220,24 @@ class VisitorMessageHistoryView(APIView):
         if not visitor:
             return APIResponse.error("مشتری یافت نشد", code=404)
 
-        # Pagination params
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 10))
-        page_size = min(page_size, 100)
+        # Paginate and serialize in one sync block. SmsLogSerializer exposes
+        # visitor_name/visitor_phone, so building `.data` walks the visitor
+        # relation — a DB hit that raises SynchronousOnlyOperation if it happens
+        # on the async side. Same pattern as ClientAppointmentListView.
+        return await sync_to_async(self._list_messages)(request, visitor)
 
-        logs = [
-            b async for b in SmsLog.objects.filter(visitor=visitor).select_related('business').order_by('-sent_at')
-        ]
+    def _list_messages(self, request, visitor):
+        page = _positive_int(request.query_params.get('page'), default=1)
+        page_size = min(_positive_int(request.query_params.get('page_size'), default=10), 100)
+
+        # Kept as a queryset (not a list) so Paginator slices at the DB instead
+        # of pulling the visitor's entire SMS history into memory.
+        logs = (
+            SmsLog.objects
+            .filter(visitor=visitor)
+            .select_related('business', 'visitor')
+            .order_by('-sent_at')
+        )
 
         paginator = Paginator(logs, page_size)
         page_obj = paginator.get_page(page)
