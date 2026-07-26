@@ -30,3 +30,9 @@ __pycache__/
 # user) showed up as a binary diff. Production uses Postgres via POSTGRES_DB.
 backend/db.sqlite3
 backend/db.sqlite3.bak-*
+
+# User uploads (logos, payment receipts). These are runtime data that belongs on
+# the server, not in history — a client's payment slip especially. The two files
+# already committed stay tracked on purpose; a deploy from the repo still needs
+# the business logo.
+backend/media/
