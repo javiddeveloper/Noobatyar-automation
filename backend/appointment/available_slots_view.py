@@ -9,9 +9,14 @@ from .models import Appointment
 from .cache_utils import available_slots_key, SLOT_CACHE_TTL
 from .occupancy import blocking_q
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Business working hours are wall-clock times in the project's timezone.
+LOCAL_TZ = ZoneInfo(settings.TIME_ZONE)
 
 
 class AvailableSlotsView(APIView):
@@ -49,33 +54,40 @@ class AvailableSlotsView(APIView):
         start_hour = business.work_start_hour
         end_hour = business.work_end_hour
 
-        # Generate all possible slots
+        # Generate all possible slots.
+        # work_start_hour/work_end_hour are wall-clock hours in the business's own
+        # timezone, so they must be anchored to LOCAL_TZ. Building them as UTC
+        # shifted every slot by the UTC offset (+03:30 for Tehran): the label said
+        # "20:30" while the instant was 00:00 the next day, so slots outside working
+        # hours were offered and `is_past` was judged against the wrong wall clock.
         all_slots = []
         current = datetime(
             target_date.year, target_date.month, target_date.day,
-            start_hour, 0, tzinfo=timezone.utc
+            start_hour, 0, tzinfo=LOCAL_TZ
         )
         day_end = datetime(
             target_date.year, target_date.month, target_date.day,
-            end_hour, 0, tzinfo=timezone.utc
+            end_hour, 0, tzinfo=LOCAL_TZ
         )
 
         while current + timedelta(minutes=duration) <= day_end:
             all_slots.append(current)
             current += timedelta(minutes=duration)
 
-        # Get booked slots for this business on this date
-        day_start_utc = datetime(target_date.year, target_date.month, target_date.day, 0, 0, tzinfo=timezone.utc)
-        day_end_utc = datetime(target_date.year, target_date.month, target_date.day, 23, 59, tzinfo=timezone.utc)
+        # Get booked slots for this business on this local calendar day
+        day_start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, tzinfo=LOCAL_TZ)
+        day_end_of_day = day_start + timedelta(days=1)
 
         booked_slots = set()
         async for appt in Appointment.objects.filter(
             blocking_q(),
             business=business,
-            appointment_date__gte=day_start_utc,
-            appointment_date__lte=day_end_utc,
+            appointment_date__gte=day_start,
+            appointment_date__lt=day_end_of_day,
         ):
-            booked_slots.add(appt.appointment_date.replace(second=0, microsecond=0, tzinfo=timezone.utc))
+            # Keep the stored instant as-is; aware datetimes hash/compare by their
+            # UTC value, so a Tehran-anchored slot still matches a UTC-stored one.
+            booked_slots.add(appt.appointment_date.replace(second=0, microsecond=0))
 
         # Build response
         now = datetime.now(tz=timezone.utc)
