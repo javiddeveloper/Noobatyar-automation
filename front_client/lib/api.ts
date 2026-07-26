@@ -49,6 +49,36 @@ export interface Appointment {
   estimated_turn_time: number | null;
 }
 
+/** Thrown when the API rejects the stored token (HTTP 401). */
+export class UnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+/** True when the outgoing request carried an Authorization header. */
+function hasAuthHeader(headers: HeadersInit | undefined): boolean {
+  if (!headers) return false;
+  if (headers instanceof Headers) return headers.has('Authorization');
+  if (Array.isArray(headers)) return headers.some(([k]) => k.toLowerCase() === 'authorization');
+  return Object.keys(headers).some((k) => k.toLowerCase() === 'authorization');
+}
+
+/**
+ * The stored token is gone or rejected. Clear it and bounce the user to the
+ * login screen, preserving where they were so they land back after signing in.
+ */
+export function forceReLogin(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  // Avoid a redirect loop if we're already on the login screen.
+  if (window.location.pathname.startsWith('/auth/login')) return;
+  const target = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.href = `/auth/login?redirect=${target}`;
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   // Destructure headers separately so we can merge them with Content-Type
   // without `...options` overwriting the headers key entirely.
@@ -60,29 +90,24 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     },
     ...restOptions,
   });
+
+  // A 401 on an authenticated request means the token expired or was revoked:
+  // drop it and send the user back to login. (Public endpoints — e.g. the OTP
+  // flow — never carry an Authorization header, so they won't trigger this.)
+  if (res.status === 401) {
+    if (hasAuthHeader(extraHeaders)) {
+      forceReLogin();
+    } else if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+    }
+    throw new UnauthorizedError('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+  }
+
   const json = await res.json();
   if (!res.ok || json.status === 'error') {
-    if (res.status === 401) {
-      // The stored token is no longer good. Drop it so the app stops
-      // pretending to be signed in, and surface a typed error that callers
-      // can react to (e.g. save the booking intent before redirecting).
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-      }
-      throw new UnauthorizedError(json.message || 'نشست شما منقضی شده است');
-    }
     throw new Error(json.message || 'خطا در ارتباط با سرور');
   }
   return json.data as T;
-
-}
-
-/** Thrown when the API rejects the stored token (HTTP 401). */
-export class UnauthorizedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UnauthorizedError';
-  }
 }
 
 // ── Auth: OTP Flow ──────────────────────────────────────────────────────────
@@ -220,6 +245,10 @@ export async function payAppointmentWithReceipt(id: number, formData: FormData, 
     },
     body: formData,
   });
+  if (res.status === 401) {
+    forceReLogin();
+    throw new UnauthorizedError('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+  }
   const json = await res.json();
   if (!res.ok || json.status === 'error') {
     throw new Error(json.message || 'خطا در آپلود فیش');
