@@ -43,12 +43,28 @@ export default function BusinessProfileClient({ business, slug }: Props) {
           ? 'اجباری'
           : 'اختیاری';
 
-  const hasPayment = business.payment_method && business.payment_method !== 'NONE';
-  const paymentText = !hasPayment
-    ? 'ندارد'
-    : business.payment_method === 'CARD'
-      ? 'کارت'
-      : 'آنلاین';
+  // Payment comes from accepted_payment_methods. The older single-value
+  // payment_method is only a fallback: the owner app never sends it, so it is
+  // permanently "NONE" and reading it made every business look cash-free.
+  const methods = business.accepted_payment_methods?.length
+    ? business.accepted_payment_methods
+    : business.payment_method && business.payment_method !== 'NONE'
+      ? [business.payment_method]
+      : [];
+
+  const acceptsOnline = methods.includes('ONLINE') || methods.includes('GATEWAY');
+  const acceptsCard = methods.includes('CARD');
+  const acceptsCash = methods.includes('CASH');
+
+  const paymentText =
+    acceptsOnline && acceptsCard ? 'آنلاین / کارت'
+      : acceptsOnline ? 'آنلاین'
+        : acceptsCard && acceptsCash ? 'کارت / محل'
+          : acceptsCard ? 'کارت به کارت'
+            : acceptsCash ? 'در محل'
+              : 'ندارد';
+
+  const paymentIcon = acceptsOnline ? '🌐' : acceptsCard ? '🏦' : acceptsCash ? '💵' : '🏦';
 
   return (
     <div className="page-content">
@@ -96,7 +112,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
             <div className="v">{depositText}</div>
           </div>
           <div className="stat-card">
-            <div className="ico">{business.payment_method === 'ONLINE' ? '🌐' : '🏦'}</div>
+            <div className="ico">{paymentIcon}</div>
             <div className="k">روش پرداخت</div>
             <div className="v">{paymentText}</div>
           </div>
