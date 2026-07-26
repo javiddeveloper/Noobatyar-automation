@@ -117,12 +117,21 @@ def register_view(request):
         )
 
     phone = serializer.validated_data['phone']
-    password = serializer.validated_data['password']
+    password = serializer.validated_data.get('password') or ''
+    register_token = serializer.validated_data.get('register_token') or ''
     name = serializer.validated_data['name']
+
+    # مسیر وب: ثبت‌نام فقط با توکنی که پس از تأیید OTP صادر شده. بدون این بررسی
+    # هر کسی می‌توانست بدون تأیید شماره، برای شماره دلخواه حساب بسازد.
+    if register_token:
+        expected = cache.get(f'register_token:{phone}')
+        if not expected or not secrets.compare_digest(str(expected), register_token):
+            return APIResponse.error('توکن تأیید شماره نامعتبر یا منقضی شده است')
+        cache.delete(f'register_token:{phone}')
 
     user = User.objects.create_user(
         phone=phone,
-        password=password,
+        password=password or None,  # None → رمز غیرقابل استفاده (ورود فقط با OTP)
         name=name
     )
 
