@@ -125,7 +125,10 @@ class Appointment(models.Model):
             models.Index(fields=['visitor', 'appointment_date']),
             # Serves the hot status-filtered range scans (capacity checks,
             # slot occupancy queries, appointment listing by status).
-            models.Index(fields=['business', 'status', 'appointment_date']),
+            # Explicit name must match migration 0005 exactly — Django can't
+            # infer a name for an existing index, so an implicit name here
+            # constantly looks like a pending rename to makemigrations.
+            models.Index(fields=['business', 'status', 'appointment_date'], name='appt_biz_status_date_idx'),
         ]
 
     # In appointment/models.py - Appointment.clean()
