@@ -63,6 +63,11 @@ def send_otp(phone: str) -> dict:
     {"success": False, "error": str}
         Request rejected (rate limit or daily ban).
     """
+    # 0. Dev bypass (DEBUG only — settings forces OTP_DEV_CODE empty otherwise).
+    #    Uses a fixed code, sends no SMS, and skips the cooldown so a local test
+    #    run isn't blocked for 3 minutes between attempts.
+    dev_code = getattr(settings, "OTP_DEV_CODE", "")
+
     # 1. Daily ban check
     fail_count = cache.get(_key_daily_fail(phone), 0)
     if fail_count >= OTP_MAX_DAILY_FAIL:
@@ -73,7 +78,7 @@ def send_otp(phone: str) -> dict:
         }
 
     # 2. Rate limit check (3-minute cooldown)
-    if cache.get(_key_rate(phone)):
+    if not dev_code and cache.get(_key_rate(phone)):
         return {
             "success": False,
             "error": "لطفاً ۳ دقیقه صبر کنید و سپس دوباره درخواست کنید",
@@ -84,7 +89,11 @@ def send_otp(phone: str) -> dict:
     #    send any text we supply. We must therefore store the code Melipayamak
     #    returns as the source of truth, otherwise every verification fails with
     #    "wrong code" (user receives Melipayamak's code, we stored our own).
-    code = _send_via_melipayamak(phone)
+    if dev_code:
+        logger.warning("OTP dev bypass active — using fixed code for %s****", phone[-4:])
+        code = dev_code
+    else:
+        code = _send_via_melipayamak(phone)
     if not code:
         return {
             "success": False,

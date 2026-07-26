@@ -91,17 +91,29 @@ else:
 # implicit LocMemCache default was per-process and silently broke OTP under
 # multi-worker deployments.
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'IGNORE_EXCEPTIONS': True,  # cache outage must not take down the API
-        },
-        'KEY_PREFIX': 'nobatyar',
+if DEBUG and not os.getenv('REDIS_URL'):
+    # Local single-process runserver with no Redis around: fall back to LocMemCache.
+    # Without this the django-redis client silently swallows every set/get
+    # (IGNORE_EXCEPTIONS), which breaks OTP and register tokens in a way that
+    # looks like "کد منقضی شده" rather than a connection error.
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'nobatyar-dev',
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'IGNORE_EXCEPTIONS': True,  # cache outage must not take down the API
+            },
+            'KEY_PREFIX': 'nobatyar',
+        }
+    }
 DJANGO_REDIS_IGNORE_EXCEPTIONS = True
 
 # مدل کاربر سفارشی
@@ -190,3 +202,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Melipayamak SMS Config
 MELIPAYAMAK_OTP_TOKEN = os.getenv('MELIPAYAMAK_OTP_TOKEN', '')
 MELIPAYAMAK_FROM = os.getenv('MELIPAYAMAK_FROM', '')
+
+# Dev-only OTP bypass. When DEBUG is on and OTP_DEV_CODE is set, the OTP service
+# skips Melipayamak (no SMS, no credit burned) and accepts this fixed code.
+# Forced empty whenever DEBUG is off, so it can never be enabled in production.
+OTP_DEV_CODE = os.getenv('OTP_DEV_CODE', '') if DEBUG else ''
+
+# Dev-only SMS bypass. When on, api/sms.py logs outgoing messages instead of
+# dispatching them, so local test runs never text a real phone number. Covers
+# every sender (booking, approval/rejection, reminders, subscription lifecycle).
+# Forced off whenever DEBUG is off.
+SMS_DEV_MODE = (os.getenv('SMS_DEV_MODE', 'False') == 'True') if DEBUG else False

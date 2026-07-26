@@ -15,7 +15,18 @@ def _token() -> str:
     return getattr(settings, 'MELIPAYAMAK_OTP_TOKEN', '') or _DEFAULT_TOKEN
 
 
+def _dev_mode() -> bool:
+    """Dev bypass: log messages instead of dispatching them (see settings.SMS_DEV_MODE).
+
+    settings forces this off whenever DEBUG is off, so production always sends.
+    """
+    return bool(getattr(settings, 'SMS_DEV_MODE', False))
+
+
 def send_otp(phone: str) -> Optional[str]:  # به جای str | None
+    if _dev_mode():
+        logger.warning('SMS dev bypass — OTP not sent to %s****', phone[-4:])
+        return None
     url = f'https://console.melipayamak.com/api/send/otp/{_token()}'
     try:
         response = requests.post(url, json={'to': phone}, timeout=10)
@@ -38,6 +49,12 @@ def send_sms(phone: str, message: str) -> bool:
          as failed. Simple-send returns ``{"recId": <positive int>, "status": ...}``
          on success, so we key off ``recId``.
     """
+    if _dev_mode():
+        logger.warning(
+            'SMS dev bypass — not sending to %s****. Message:\n%s', phone[-4:], message
+        )
+        return True
+
     url = f'https://console.melipayamak.com/api/send/simple/{_token()}'
     sender = getattr(settings, 'MELIPAYAMAK_FROM', '') or ''
 
