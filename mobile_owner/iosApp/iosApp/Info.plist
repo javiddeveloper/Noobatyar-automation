@@ -6,9 +6,12 @@
 	<string>نوبت یار</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Production is HTTPS (api.noobatyar.ir), so App Transport Security stays
+	     on. NSAllowsArbitraryLoads is gone; only local networking is exempt, so
+	     a developer can still point the app at a dev server on their machine. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>CFBundleURLTypes</key>

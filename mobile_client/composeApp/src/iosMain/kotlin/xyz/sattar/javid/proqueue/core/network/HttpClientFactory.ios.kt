@@ -28,9 +28,12 @@ actual object HttpClientFactory {
         }
         install(DefaultRequest) {
             url {
-                protocol = URLProtocol.HTTP
-                host = "10.0.2.2"
-                port = 8000
+                // Production API. No explicit port: HTTPS defaults to 443.
+                // For local work point this back at 127.0.0.1:8000 over HTTP —
+                // the iOS simulator shares the host's loopback, and ATS still
+                // permits local networking.
+                protocol = URLProtocol.HTTPS
+                host = "api.noobatyar.ir"
                 path("api/")
             }
         }

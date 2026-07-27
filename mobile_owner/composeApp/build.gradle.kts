@@ -18,8 +18,8 @@ import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
 buildkonfig {
     packageName = "xyz.sattar.javid.proqueue"
     defaultConfigs {
-        buildConfigField(STRING, "BASE_URL", "http://93.127.223.93")
-        buildConfigField(STRING, "BOOKING_BASE_URL", "http://93.127.223.93")
+        buildConfigField(STRING, "BASE_URL", "https://api.noobatyar.ir")
+        buildConfigField(STRING, "BOOKING_BASE_URL", "https://app.noobatyar.ir")
     }
 }
 

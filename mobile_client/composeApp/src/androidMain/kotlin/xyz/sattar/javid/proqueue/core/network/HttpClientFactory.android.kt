@@ -33,9 +33,12 @@ actual object HttpClientFactory {
         install(AuthInterceptor)
         install(DefaultRequest) {
             url {
-                protocol = URLProtocol.HTTP
-                host = "10.0.2.2"
-                port = 8000
+                // Production API. No explicit port: HTTPS defaults to 443.
+                // For local work point this back at 10.0.2.2:8000 over HTTP —
+                // the emulator's alias for the host machine, which the network
+                // security config still permits in cleartext.
+                protocol = URLProtocol.HTTPS
+                host = "api.noobatyar.ir"
                 path("api/")
             }
         }

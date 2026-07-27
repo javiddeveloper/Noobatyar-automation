@@ -10,8 +10,8 @@ const nextConfig = {
         pathname: '/media/**',
       },
       {
-        protocol: 'http',
-        hostname: '93.127.223.93',
+        protocol: 'https',
+        hostname: 'api.noobatyar.ir',
         pathname: '/media/**',
       },
       {

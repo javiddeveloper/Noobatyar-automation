@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Production is reached over HTTPS (api.noobatyar.ir), so it needs no
+    exception here. 10.0.2.2 stays: that is the Android emulator's alias for the
+    developer's own machine, where the Django dev server speaks plain HTTP.
+-->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">93.127.223.93</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
 </network-security-config>
