@@ -73,17 +73,23 @@ services:
     build:
       context: ../front_client
       args:
-        - NEXT_PUBLIC_API_URL=http://93.127.223.93
+        # Baked into the bundle at build time — changing it needs a rebuild of
+        # this image, not just a restart.
+        - NEXT_PUBLIC_API_URL=https://api.noobatyar.ir
     restart: always
     environment:
-      - NEXT_PUBLIC_API_URL=http://93.127.223.93
+      - NEXT_PUBLIC_API_URL=https://api.noobatyar.ir
 
   nginx:
     image: nginx:1.25
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Certificates are issued by certbot on the host; nginx only reads them.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
       - static_volume:/app/static
       - media_volume:/app/media
     depends_on:
