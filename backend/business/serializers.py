@@ -68,6 +68,37 @@ class BusinessSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "work_end_hour must be greater than work_start_hour"
                 )
+
+        # A payment method must be *usable*, not merely switched on. Storing CARD
+        # with no card number, or ONLINE with neither a Zibal merchant nor a
+        # payment link, leaves the client on a checkout screen with nothing to
+        # pay to — which read as «شماره کارت ثبت نشده» and dead-ended the booking.
+        def current(field):
+            """Effective value after this write: partial updates keep the rest."""
+            if field in data:
+                return data[field]
+            return getattr(self.instance, field, None)
+
+        accepted = current('accepted_payment_methods') or []
+
+        if 'CARD' in accepted and not str(current('card_number') or '').strip():
+            raise serializers.ValidationError({
+                'card_number': 'برای پرداخت کارت به کارت، شماره کارت الزامی است'
+            })
+
+        if 'ONLINE' in accepted and not (
+            str(current('merchant_id') or '').strip()
+            or str(current('payment_link') or '').strip()
+        ):
+            raise serializers.ValidationError({
+                'merchant_id': 'برای پرداخت آنلاین، مرچنت آیدی زیبال یا لینک پرداخت الزامی است'
+            })
+
+        if current('deposit_mode') in ('MANDATORY', 'OPTIONAL') and not current('deposit_amount'):
+            raise serializers.ValidationError({
+                'deposit_amount': 'برای دریافت بیعانه، مبلغ آن باید بیشتر از صفر باشد'
+            })
+
         return data
 
     def validate_logo(self, value):
@@ -143,7 +174,11 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
     returns on the public booking page, so nothing new is exposed here.
 
     Still excluded: merchant_id, notification_*, enable_*_sms, created_at/updated_at.
+    ``online_gateway_enabled`` is how the checkout screen learns a real Zibal
+    gateway is available without the merchant id itself crossing the wire.
     """
+    online_gateway_enabled = serializers.SerializerMethodField()
+
     class Meta:
         model = Business
         fields = [
@@ -154,7 +189,13 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
             'payment_method', 'accepted_payment_methods',
             'deposit_mode', 'deposit_amount',
             'card_number', 'card_owner_name', 'payment_link',
+            'online_gateway_enabled',
         ]
+
+    def get_online_gateway_enabled(self, obj) -> bool:
+        """True when the owner configured a merchant, i.e. the client can be sent
+        to a real gateway instead of the manual link-and-tracking-number flow."""
+        return bool((obj.merchant_id or '').strip())
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

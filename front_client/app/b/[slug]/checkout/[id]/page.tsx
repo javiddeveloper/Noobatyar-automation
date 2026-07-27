@@ -6,6 +6,7 @@ import {
   getAppointment,
   payAppointment,
   payAppointmentWithReceipt,
+  startOnlineDeposit,
   type Appointment,
   type PaymentMethod,
 } from '@/lib/api';
@@ -25,13 +26,18 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   const biz = appointment?.business;
   const accepted = biz?.accepted_payment_methods;
   const depositMode = biz?.deposit_mode;
   // A mandatory deposit cannot be settled in person, so cash is not offered.
   // An optional deposit always allows paying at the venue instead.
-  const canPayOnline = !!accepted?.includes('ONLINE') && !!biz?.payment_link;
+  // Online is payable either through a real Zibal gateway or, for businesses
+  // without a merchant account, the older static payment link. Requiring the
+  // link alone would hide the option from every gateway-configured business.
+  const canPayOnline =
+    !!accepted?.includes('ONLINE') && (!!biz?.online_gateway_enabled || !!biz?.payment_link);
   const canPayCard = !accepted || accepted.includes('CARD');
   const canPayCash =
     depositMode !== 'MANDATORY' && (!!accepted?.includes('CASH') || depositMode === 'OPTIONAL');
@@ -90,6 +96,25 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       .catch(() => setError('نوبت یافت نشد یا دسترسی ندارید'))
       .finally(() => setLoading(false));
   }, [id, slug, router]);
+
+  /**
+   * Hands the client to Zibal. The booking is settled by the gateway callback
+   * on the server, so there is nothing to submit from this page afterwards —
+   * the client returns straight to /appointments.
+   */
+  const handleGatewayRedirect = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setRedirecting(true);
+    try {
+      const { payment_url } = await startOnlineDeposit(id, token);
+      window.location.href = payment_url;
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'خطا در اتصال به درگاه پرداخت');
+      setRedirecting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     // Card and online transfers must carry proof; paying in person carries none.
@@ -268,7 +293,31 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         
         {method === 'ONLINE' && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-muted)', fontSize: 14 }}>
-            {biz?.payment_link ? (
+            {biz?.online_gateway_enabled ? (
+              /* Real Zibal gateway: the bank confirms the payment and the
+                 booking is settled by the callback, so there is no tracking
+                 number for the client to copy back. */
+              <>
+                <p style={{ marginBottom: 20 }}>
+                  برای پرداخت بیعانه به درگاه بانکی منتقل می‌شوید.
+                </p>
+                <button
+                  onClick={handleGatewayRedirect}
+                  disabled={redirecting}
+                  style={{
+                    width: '100%', height: 52, borderRadius: 12, border: 'none',
+                    background: 'var(--color-primary)', color: '#fff', fontSize: 15,
+                    fontWeight: 600, fontFamily: 'inherit',
+                    cursor: redirecting ? 'default' : 'pointer', opacity: redirecting ? 0.6 : 1,
+                  }}
+                >
+                  {redirecting ? 'در حال انتقال…' : 'پرداخت با درگاه بانکی'}
+                </button>
+                <p style={{ marginTop: 16, fontSize: 12, color: 'var(--color-faint)' }}>
+                  پس از پرداخت موفق، نوبت شما بلافاصله قطعی می‌شود.
+                </p>
+              </>
+            ) : biz?.payment_link ? (
               <>
                 <p style={{ marginBottom: 16 }}>
                   برای پرداخت آنلاین مبلغ بیعانه، لطفا از طریق لینک زیر اقدام کنید:
@@ -316,7 +365,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       {/* ── Toast ── */}
       {toast && <div className="toast">{toast}</div>}
 
-      {/* ── Fixed Bottom Button ── */}
+      {/* ── Fixed Bottom Button ──
+           Hidden for the real gateway: that flow finishes at the bank and is
+           settled by the server callback, so a "submit" here would have nothing
+           to send and would only invite a double payment. */}
+      {!(method === 'ONLINE' && biz?.online_gateway_enabled) && (
       <div className="btn-group">
         <button
           className="btn-primary"
@@ -326,6 +379,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           {submitting ? 'در حال ثبت...' : method === 'CASH' ? 'ثبت نوبت (پرداخت در محل)' : 'ثبت نهایی نوبت'}
         </button>
       </div>
+      )}
 
     </div>
   );

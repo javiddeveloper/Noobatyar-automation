@@ -195,6 +195,11 @@ if not DEBUG:
 
 # Zibal Payment Gateway
 ZIBAL_MERCHANT_ID = os.getenv('ZIBAL_MERCHANT_ID', 'zibal')  # 'zibal' is the sandbox merchant id
+
+# Where the deposit gateway sends the client's browser back to. Only the client
+# web app has an appointments screen to land on, so this is app.noobatyar.ir
+# rather than the API host.
+CLIENT_WEB_URL = os.getenv('CLIENT_WEB_URL', 'https://app.noobatyar.ir')
 SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')  # Your site's base URL
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

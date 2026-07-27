@@ -224,17 +224,35 @@ private fun PaymentTab(
                         enabled = !isLoading,
                         value = merchantId,
                         onValueChange = onMerchantId,
-                        label = "مرچنت آیدی (Merchant ID)",
-                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        label = "مرچنت آیدی زیبال (Merchant ID)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 4.dp),
                         keyboardType = KeyboardType.Text
+                    )
+                    Text(
+                        text = "با پر کردن این فیلد، مشتری مستقیم به درگاه بانکی می‌رود و " +
+                                "بیعانه به حساب زیبالِ شما واریز می‌شود. نوبت بلافاصله قطعی " +
+                                "می‌شود و نیازی به بررسی فیش نیست. مرچنت آیدی را از پنل " +
+                                "zibal.ir بردارید.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 32.dp, bottom = 12.dp)
                     )
                     AppTextField(
                         enabled = !isLoading,
                         value = paymentLink,
                         onValueChange = onPaymentLink,
-                        label = "لینک درگاه پرداخت (مثال: zarinpal.com/pay/...)",
-                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 8.dp),
+                        label = "لینک پرداخت (در نبودِ مرچنت آیدی)",
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp, bottom = 4.dp),
                         keyboardType = KeyboardType.Uri
+                    )
+                    Text(
+                        text = "فقط وقتی لازم است که حساب زیبال ندارید. مشتری به این لینک " +
+                                "می‌رود، پرداخت می‌کند و بعد باید شماره پیگیری را دستی وارد " +
+                                "کند تا شما تأیید کنید. چون مبلغ به لینک فرستاده نمی‌شود، " +
+                                "لینک باید مبلغِ ثابتِ برابر با بیعانه داشته باشد.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 32.dp, bottom = 8.dp)
                     )
                 }
             }
@@ -339,6 +357,16 @@ private fun CapacityTab(
                         modifier = Modifier.fillMaxWidth(),
                         keyboardType = KeyboardType.Number,
                         visualTransformation = xyz.sattar.javid.proqueue.core.ui.utils.CurrencyVisualTransformation()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // The deposit amount lives here but the *method* is chosen in
+                    // the «پرداخت» tab. Without saying so, the two screens look
+                    // unrelated and it is not obvious how the money arrives.
+                    Text(
+                        text = "بیعانه از همان روش‌هایی گرفته می‌شود که در تب «پرداخت» " +
+                                "فعال کرده‌اید — کارت به کارت یا درگاه آنلاین.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

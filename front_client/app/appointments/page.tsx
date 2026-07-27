@@ -118,6 +118,19 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'UPCOMING' | 'PAST' | 'CANCELED'>('UPCOMING');
+  // Set when the deposit gateway sends the client back here. Read from the URL
+  // client-side rather than via useSearchParams, which would force this whole
+  // page behind a Suspense boundary for one optional banner.
+  const [paymentResult, setPaymentResult] = useState<'success' | 'failed' | null>(null);
+
+  useEffect(() => {
+    const state = new URLSearchParams(window.location.search).get('payment');
+    if (state === 'success' || state === 'failed') {
+      setPaymentResult(state);
+      // Drop the parameter so a refresh does not replay the banner.
+      window.history.replaceState({}, '', '/appointments');
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -148,7 +161,24 @@ export default function AppointmentsPage() {
       </div>
 
       <div style={{ padding: '24px 24px' }}>
-        
+
+        {/* ── Deposit gateway result ── */}
+        {paymentResult && (
+          <div
+            style={{
+              marginBottom: 20, padding: '14px 16px', borderRadius: 14, fontSize: 14,
+              lineHeight: 1.8, textAlign: 'center',
+              background: paymentResult === 'success'
+                ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+              color: paymentResult === 'success' ? '#16a34a' : '#dc2626',
+            }}
+          >
+            {paymentResult === 'success'
+              ? '✅ پرداخت بیعانه با موفقیت انجام شد و نوبت شما قطعی است.'
+              : '❌ پرداخت انجام نشد. نوبت شما ثبت نهایی نشده است.'}
+          </div>
+        )}
+
         {/* ── Tabs ── */}
         <div style={{ display: 'flex', background: 'var(--color-surface-variant)', borderRadius: 14, padding: 4, marginBottom: 24 }}>
           {(['CANCELED', 'PAST', 'UPCOMING'] as const).map((tab) => (

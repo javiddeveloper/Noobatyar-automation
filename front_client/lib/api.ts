@@ -31,6 +31,9 @@ export interface Business {
   card_number?: string;
   card_owner_name?: string;
   payment_link?: string;
+  /** True when the business has a Zibal merchant, so checkout can redirect to a
+   *  real gateway instead of the manual link + tracking-number flow. */
+  online_gateway_enabled?: boolean;
 }
 
 export interface TimeSlot {
@@ -228,6 +231,21 @@ export async function payAppointment(
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ payment_reference: paymentReference, method: paymentMethod }),
   });
+}
+
+/**
+ * Opens a Zibal payment for the deposit and returns the gateway URL to send the
+ * client to. Only works when the business configured a Zibal merchant id;
+ * businesses that only set a static payment_link keep the manual flow instead.
+ */
+export async function startOnlineDeposit(id: number, token: string) {
+  return apiFetch<{ payment_url: string; track_id: string }>(
+    `/api/client/appointments/${id}/pay/online/`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
 }
 
 export async function cancelAppointment(id: number, token: string) {

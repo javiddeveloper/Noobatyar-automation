@@ -3,6 +3,8 @@ from .client_views import (
     ClientAppointmentCancelView,
     ClientAppointmentListView,
     ClientAppointmentPaymentView,
+    ClientAppointmentOnlinePaymentView,
+    ClientDepositCallbackView,
 )
 from .available_slots_view import AvailableSlotsView
 
@@ -14,7 +16,10 @@ except ImportError:
 
 urlpatterns = [
     path('', ClientAppointmentListView.as_view(), name='client-appointment-list'),
+    # Must precede the <int:...> routes so the literal segment is not shadowed.
+    path('deposit-callback/', ClientDepositCallbackView.as_view(), name='client-deposit-callback'),
     path('<int:pk>/pay/', ClientAppointmentPaymentView.as_view(), name='client-appointment-pay'),
+    path('<int:pk>/pay/online/', ClientAppointmentOnlinePaymentView.as_view(), name='client-appointment-pay-online'),
     path('<int:pk>/cancel/', ClientAppointmentCancelView.as_view(), name='client-appointment-cancel'),
     path('<int:business_id>/available-slots/', AvailableSlotsView.as_view(), name='client-available-slots'),
 ]

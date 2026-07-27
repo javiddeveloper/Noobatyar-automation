@@ -1,6 +1,6 @@
 from adrf.views import APIView
 from asgiref.sync import sync_to_async
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from api.responses import APIResponse
 from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
@@ -282,6 +282,134 @@ class ClientAppointmentPaymentView(APIView):
         )
 
 
+class ClientAppointmentOnlinePaymentView(APIView):
+    """Opens a Zibal payment for the deposit and hands back the gateway URL.
+
+    The money goes to the business owner's own Zibal merchant, so this is only
+    available when the owner both configured a merchant id and holds the
+    online-gateway entitlement.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    async def post(self, request, pk):
+        from django.urls import reverse
+
+        from accounting import entitlements
+        from .payment.zibal_deposit import create_deposit_payment
+
+        try:
+            appointment = await Appointment.objects.select_related('business').aget(
+                id=pk, user=request.user
+            )
+        except Appointment.DoesNotExist:
+            return APIResponse.error(message="نوبت یافت نشد", code=404)
+
+        if appointment.status != 'LOCKED':
+            return APIResponse.error(message="این نوبت قابل پرداخت نیست", code=400)
+
+        # Same lazy lock expiry as the manual payment path: an abandoned hold is
+        # released rather than sending the client to a gateway for a dead slot.
+        if appointment.expires_at and appointment.expires_at <= timezone.now():
+            appointment.status = 'CANCELLED'
+            await sync_to_async(refund_quota)(appointment, appointment.business.user_id)
+            await appointment.asave(update_fields=['status', 'quota_source', 'updated_at'])
+            await sync_to_async(invalidate_slots_cache)(
+                appointment.business_id, appointment.appointment_date
+            )
+            return APIResponse.error(
+                message="مهلت پرداخت این نوبت به پایان رسیده است. لطفاً دوباره نوبت بگیرید",
+                code=400,
+            )
+
+        business = appointment.business
+        if 'ONLINE' not in (business.accepted_payment_methods or []):
+            return APIResponse.error(message="این کسب‌وکار پرداخت آنلاین ندارد", code=400)
+
+        has_gateway = await sync_to_async(entitlements.has_feature)(
+            business.user_id, entitlements.FEATURE_ONLINE_GATEWAY
+        )
+        if not has_gateway:
+            return APIResponse.error(message="پرداخت آنلاین برای این کسب‌وکار فعال نیست", code=400)
+
+        callback_url = request.build_absolute_uri(
+            reverse('client-deposit-callback')
+        )
+        result = await sync_to_async(create_deposit_payment)(appointment, callback_url)
+        if not result['success']:
+            return APIResponse.error(message=result['error'], code=400)
+
+        # The trackId is how the callback finds this appointment again; the query
+        # string it arrives with is not trusted for identification.
+        appointment.payment_reference = result['track_id']
+        await appointment.asave(update_fields=['payment_reference', 'updated_at'])
+
+        return APIResponse.success(
+            data={'payment_url': result['payment_url'], 'track_id': result['track_id']},
+            message="در حال انتقال به درگاه پرداخت",
+        )
+
+
+class ClientDepositCallbackView(APIView):
+    """Where Zibal returns the client's browser after a deposit payment.
+
+    Unauthenticated on purpose — this is a browser redirect from the bank, with
+    no Authorization header. Nothing here trusts the query string beyond the
+    trackId lookup: whether the payment happened is decided by Zibal's verify
+    endpoint, so a hand-crafted ``?success=1`` confirms nothing.
+    """
+
+    permission_classes = [AllowAny]
+
+    async def get(self, request):
+        from django.conf import settings
+        from django.shortcuts import redirect
+
+        from .payment.zibal_deposit import verify_deposit_payment
+
+        client_web = getattr(settings, 'CLIENT_WEB_URL', '').rstrip('/')
+        track_id = (request.GET.get('trackId') or '').strip()
+
+        def _back(state: str, appointment_id=None):
+            suffix = f"&id={appointment_id}" if appointment_id else ""
+            return redirect(f"{client_web}/appointments?payment={state}{suffix}")
+
+        if not track_id:
+            return _back('failed')
+
+        try:
+            appointment = await Appointment.objects.select_related('business', 'visitor').aget(
+                payment_reference=track_id
+            )
+        except Appointment.DoesNotExist:
+            logger.warning("Deposit callback for unknown trackId %s", track_id)
+            return _back('failed')
+
+        # Replayed callback for an appointment already settled — treat as success
+        # rather than re-running the side effects.
+        if appointment.status != 'LOCKED':
+            return _back('success', appointment.id)
+
+        result = await sync_to_async(verify_deposit_payment)(appointment, track_id)
+        if not result['success']:
+            return _back('failed', appointment.id)
+
+        # Verified by the bank, so there is no receipt for the owner to eyeball:
+        # the booking is confirmed outright instead of queueing for approval.
+        appointment.status = 'WAITING'
+        appointment.locked_at = None
+        appointment.expires_at = None
+        await appointment.asave(
+            update_fields=['status', 'locked_at', 'expires_at', 'updated_at']
+        )
+        await sync_to_async(invalidate_slots_cache)(
+            appointment.business_id, appointment.appointment_date
+        )
+
+        _fire_deposit_paid_sms(appointment, appointment.business.phone)
+        return _back('success', appointment.id)
+
+
 class ClientAppointmentCancelView(APIView):
     """Lets a client cancel their own appointment before it starts."""
 
@@ -402,6 +530,47 @@ def _fire_booking_sms(appointment, client_phone, owner_phone):
         ),
         daemon=True,
         name=f"booking-sms-{appointment.id}",
+    ).start()
+
+
+def _fire_deposit_paid_sms(appointment, owner_phone):
+    """Messages for a booking settled through the gateway.
+
+    Separate from ``_fire_booking_sms`` because that one tells the client the
+    booking is "در انتظار تایید کسب‌وکار" — untrue here, where the bank already
+    confirmed the deposit and the appointment goes straight into the queue.
+    ``appointment.business`` and ``appointment.visitor`` must already be loaded.
+    """
+    import threading
+
+    from api.jalali import format_datetime
+    from api.sms import signed
+
+    time_str = format_datetime(appointment.appointment_date)
+
+    client_msg = signed(
+        f"✅ نوبت شما در {appointment.business.title} قطعی شد\n"
+        f"تاریخ: {time_str}\n"
+        f"بیعانه پرداخت شد"
+    )
+    owner_msg = signed(
+        f"💳 نوبت جدید با پرداخت آنلاین\n"
+        f"مشتری: {appointment.visitor.full_name}\n"
+        f"تاریخ: {time_str}"
+    )
+
+    threading.Thread(
+        target=_send_booking_sms,
+        kwargs=dict(
+            client_phone=appointment.visitor.phone_number,
+            owner_phone=owner_phone,
+            client_msg=client_msg,
+            owner_msg=owner_msg,
+            business_id=appointment.business_id,
+            visitor_id=appointment.visitor_id,
+        ),
+        daemon=True,
+        name=f"deposit-sms-{appointment.id}",
     ).start()
 
 
