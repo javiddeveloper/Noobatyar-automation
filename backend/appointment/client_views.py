@@ -337,19 +337,17 @@ class ClientAppointmentCancelView(APIView):
 
 def _fire_cancellation_sms(appointment, owner_phone):
     """Tell the owner their client cancelled, so the freed slot is not a surprise."""
-    from zoneinfo import ZoneInfo
     import threading
 
-    tehran_tz = ZoneInfo('Asia/Tehran')
-    local_time = appointment.appointment_date.astimezone(tehran_tz)
-    time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+    from api.jalali import format_datetime
+    from api.sms import signed
 
-    owner_msg = (
-        f"نوبت‌یار ❌\n"
-        f"لغو نوبت توسط مشتری\n"
+    time_str = format_datetime(appointment.appointment_date)
+
+    owner_msg = signed(
+        f"❌ لغو نوبت توسط مشتری\n"
         f"مشتری: {appointment.visitor.full_name}\n"
-        f"تاریخ: {time_str}\n"
-        f"کد: {appointment.id}"
+        f"تاریخ: {time_str}"
     )
 
     threading.Thread(
@@ -371,26 +369,22 @@ def _fire_booking_sms(appointment, client_phone, owner_phone):
     """Build the client/owner confirmation messages for a booked appointment and
     dispatch the fire-and-forget SMS thread. ``appointment.business`` and
     ``appointment.visitor`` must already be loaded (no DB access here)."""
-    from zoneinfo import ZoneInfo
     import threading
 
-    tehran_tz = ZoneInfo('Asia/Tehran')
-    local_time = appointment.appointment_date.astimezone(tehran_tz)
-    time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+    from api.jalali import format_datetime
+    from api.sms import signed
 
-    client_msg = (
-        f"نوبت‌یار ✅\n"
-        f"نوبت شما در {appointment.business.title}\n"
+    time_str = format_datetime(appointment.appointment_date)
+
+    client_msg = signed(
+        f"✅ نوبت شما در {appointment.business.title}\n"
         f"تاریخ: {time_str}\n"
-        f"در انتظار تایید کسب‌وکار\n"
-        f"کد نوبت: {appointment.id}"
+        f"در انتظار تایید کسب‌وکار"
     )
-    owner_msg = (
-        f"نوبت‌یار 📋\n"
-        f"درخواست نوبت جدید\n"
+    owner_msg = signed(
+        f"📋 درخواست نوبت جدید\n"
         f"مشتری: {appointment.visitor.full_name}\n"
-        f"تاریخ: {time_str}\n"
-        f"کد: {appointment.id}"
+        f"تاریخ: {time_str}"
     )
 
     # Fire-and-forget on a daemon thread so it is independent of the request's

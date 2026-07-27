@@ -38,7 +38,7 @@ class Command(BaseCommand):
 
     # ── 1. Renewal reminders ─────────────────────────────────────────────────
     def _send_renewal_reminders(self, now):
-        from api.sms import send_sms
+        from api.sms import send_sms, signed
 
         window_end = now + timedelta(days=REMINDER_DAYS)
         due = Subscription.objects.filter(
@@ -52,9 +52,8 @@ class Command(BaseCommand):
             phone = getattr(sub.user, "phone", None)
             if phone:
                 days = max(1, sub.days_left())
-                msg = (
-                    f"نوبت‌یار ⏰\n"
-                    f"اشتراک «{sub.plan.name}» شما تا {days} روز دیگر به پایان می‌رسد.\n"
+                msg = signed(
+                    f"⏰ اشتراک «{sub.plan.name}» شما تا {days} روز دیگر به پایان می‌رسد.\n"
                     f"برای جلوگیری از قطع خدمات، همین حالا تمدید کنید."
                 )
                 try:

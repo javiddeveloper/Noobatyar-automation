@@ -718,8 +718,10 @@ def _notify_client_of_decision(appointment, old_status, new_status):
     (WAITING → IN_PROGRESS → COMPLETED) is not worth an SMS credit. Runs on a
     daemon thread with its own DB connection, like the booking SMS.
     """
-    from zoneinfo import ZoneInfo
     import threading
+
+    from api.jalali import format_datetime
+    from api.sms import signed
 
     if old_status not in ('PENDING_APPROVAL', 'PENDING_VERIFICATION'):
         return
@@ -735,22 +737,17 @@ def _notify_client_of_decision(appointment, old_status, new_status):
     if not client_phone:
         return
 
-    local_time = appointment.appointment_date.astimezone(ZoneInfo('Asia/Tehran'))
-    time_str = local_time.strftime('%Y/%m/%d ساعت %H:%M')
+    time_str = format_datetime(appointment.appointment_date)
 
     if new_status == 'CANCELLED':
-        message = (
-            f"نوبت‌یار ❌\n"
-            f"متأسفانه نوبت شما در {business_title} تایید نشد.\n"
-            f"تاریخ: {time_str}\n"
-            f"کد نوبت: {appointment.id}"
+        message = signed(
+            f"❌ متأسفانه نوبت شما در {business_title} تایید نشد.\n"
+            f"تاریخ: {time_str}"
         )
     else:
-        message = (
-            f"نوبت‌یار ✅\n"
-            f"نوبت شما در {business_title} تایید شد.\n"
-            f"تاریخ: {time_str}\n"
-            f"کد نوبت: {appointment.id}"
+        message = signed(
+            f"✅ نوبت شما در {business_title} تایید شد.\n"
+            f"تاریخ: {time_str}"
         )
 
     threading.Thread(

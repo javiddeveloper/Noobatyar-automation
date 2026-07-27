@@ -23,6 +23,21 @@ def _dev_mode() -> bool:
     return bool(getattr(settings, 'SMS_DEV_MODE', False))
 
 
+# Outgoing messages are signed at the bottom with the site address rather than
+# opened with a "نوبت‌یار" header: the recipient sees their own news first, and
+# the footer still says who sent it while doubling as a way back to the site.
+SMS_FOOTER = 'noobatyar.ir'
+
+
+def signed(body: str) -> str:
+    """Append the standard footer to a message body.
+
+    Every notification goes through here so the wording (and the domain, should
+    it ever change) lives in exactly one place.
+    """
+    return f'{body}\n\n{SMS_FOOTER}'
+
+
 def send_otp(phone: str) -> Optional[str]:  # به جای str | None
     if _dev_mode():
         logger.warning('SMS dev bypass — OTP not sent to %s****', phone[-4:])

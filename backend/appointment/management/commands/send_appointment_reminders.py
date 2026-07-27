@@ -18,9 +18,9 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.db.models import Max
 from django.utils import timezone
-from zoneinfo import ZoneInfo
 
 from accounting import usage
+from api.jalali import format_datetime
 from appointment.models import Appointment
 from business.models import Business
 
@@ -115,7 +115,7 @@ class Command(BaseCommand):
         return due
 
     def _send_one(self, appointment, now):
-        from api.sms import send_sms
+        from api.sms import send_sms, signed
         from visitor.models import SmsLog
 
         phone = appointment.visitor.phone_number
@@ -129,12 +129,9 @@ class Command(BaseCommand):
             )
             return 'skipped'
 
-        local_time = appointment.appointment_date.astimezone(ZoneInfo('Asia/Tehran'))
-        message = (
-            f"نوبت‌یار ⏰\n"
-            f"یادآوری نوبت شما در {appointment.business.title}\n"
-            f"تاریخ: {local_time.strftime('%Y/%m/%d ساعت %H:%M')}\n"
-            f"کد نوبت: {appointment.id}"
+        message = signed(
+            f"⏰ یادآوری نوبت شما در {appointment.business.title}\n"
+            f"تاریخ: {format_datetime(appointment.appointment_date)}"
         )
 
         ok = send_sms(phone, message)
