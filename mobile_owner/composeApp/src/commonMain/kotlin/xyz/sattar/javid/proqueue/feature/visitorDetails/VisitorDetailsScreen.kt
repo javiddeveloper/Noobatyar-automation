@@ -120,6 +120,10 @@ fun VisitorDetailsScreen(
         viewModel.sendIntent(VisitorDetailsIntent.LoadVisitorDetails(visitorId))
     }
 
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let { snackbarHostState.showSnackbar(it) }
+    }
+
     HandleEffects(
         events = viewModel.events,
         onNavigateBack = onNavigateBack
@@ -132,7 +136,8 @@ fun VisitorDetailsScreen(
         onIntent = viewModel::sendIntent,
         onNavigateBack = onNavigateBack,
         onNavigateToCreateAppointment = { onNavigateToCreateAppointment(visitorId) },
-        onGenerateMessage = viewModel::generateReminderMessage
+        onGenerateMessage = viewModel::generateReminderMessage,
+        onRetry = { viewModel.sendIntent(VisitorDetailsIntent.LoadVisitorDetails(visitorId)) }
     )
 }
 
@@ -145,7 +150,8 @@ fun VisitorDetailsScreenContent(
     onIntent: (VisitorDetailsIntent) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToCreateAppointment: () -> Unit,
-    onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String
+    onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String,
+    onRetry: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -423,6 +429,20 @@ fun VisitorDetailsScreenContent(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = uiState.message ?: "اطلاعات مشتری در دسترس نیست",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(onClick = onRetry) {
+                        Text("تلاش مجدد")
                     }
                 }
             }

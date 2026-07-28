@@ -84,8 +84,14 @@ class VisitorView(APIView):
             page_size = int(request.query_params.get('page_size', 10))
             page_size = min(page_size, 100)  # حداکثر 100 آیتم در هر صفحه
 
+            # Same readability rule as get_readable_visitor(): include visitors
+            # who booked online under their own account but have an appointment
+            # at one of this owner's businesses, not just visitors the owner
+            # created directly.
             visitors = [
-                b async for b in Visitor.objects.filter(user=user).order_by('-created_at')
+                b async for b in Visitor.objects.filter(
+                    Q(user=user) | Q(appointments__business__user=user)
+                ).distinct().order_by('-created_at')
             ]
 
             # Paginate

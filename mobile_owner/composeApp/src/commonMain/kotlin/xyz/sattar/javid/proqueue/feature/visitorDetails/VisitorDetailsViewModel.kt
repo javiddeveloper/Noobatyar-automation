@@ -121,14 +121,22 @@ class VisitorDetailsViewModel(
     private fun loadVisitorDetails(visitorId: Long): Flow<PartialState> = flow {
         emit(PartialState.IsLoading(true))
         try {
-            val visitor = visitorRepository.getVisitorById(visitorId)
             val business = BusinessStateHolder.selectedBusiness.value
+            if (business == null) {
+                emit(PartialState.ShowMessage("کسب‌وکاری انتخاب نشده است"))
+                return@flow
+            }
 
-            if (visitor != null && business != null) {
-                // Sync visitor history
-                syncAppointmentsUseCase(businessId = business.id, visitorId = visitorId)
-                messageRepository.syncMessages(visitorId = visitorId, businessId = business.id)
+            // Sync first: for a visitor who booked online (linked to their own
+            // account, not this owner's), the direct visitor fetch below can
+            // still 404 on a stale cache, but the nested visitor data riding
+            // along with their appointments lets this upsert the local cache
+            // before we give up on them.
+            syncAppointmentsUseCase(businessId = business.id, visitorId = visitorId)
+            messageRepository.syncMessages(visitorId = visitorId, businessId = business.id)
 
+            val visitor = visitorRepository.getVisitorById(visitorId)
+            if (visitor != null) {
                 val appointments = appointmentRepository.getVisitorHistoryForBusiness(visitorId, business.id)
                 val messages = messageRepository.getMessagesForVisitorAndBusiness(visitorId, business.id)
                 emit(PartialState.DetailsLoaded(visitor, appointments, messages))
