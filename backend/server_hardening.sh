@@ -95,6 +95,11 @@ if command -v docker >/dev/null 2>&1; then
     else
         warn "installing iptables-persistent so these rules survive a reboot"
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent
+        # On at least one Ubuntu 24.04 image, apt resolves this install by
+        # removing the ufw package outright (the kernel-level rules survive,
+        # but the CLI and its systemd unit are gone, and `ufw status` below
+        # would abort the script under set -e). Put it straight back.
+        dpkg -s ufw >/dev/null 2>&1 || { warn "iptables-persistent removed ufw — reinstalling it"; apt-get install -y -qq ufw; }
         netfilter-persistent save >/dev/null && ok "iptables rules persisted"
     fi
 else
