@@ -7,21 +7,22 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class Visitor(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='visitors')
+    # Optional: set only when an owner manually adds this person as a contact
+    # (VisitorView.post). Anyone who books an appointment — through the client
+    # web app or otherwise — is a Visitor first and never needs this set, since
+    # a Visitor no longer requires an account of any kind to exist. A visitor
+    # is identified by phone_number alone (globally, across the whole
+    # platform), not scoped per-owner, so the same person booking at two
+    # different businesses is still a single Visitor row.
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='visitors', null=True, blank=True)
     full_name = models.CharField(max_length=255)
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'visitor'
         ordering = ['-created_at']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'phone_number'],
-                name='unique_user_phone'
-            )
-        ]
 
     def __str__(self):
         return f"{self.full_name} ({self.phone_number})"

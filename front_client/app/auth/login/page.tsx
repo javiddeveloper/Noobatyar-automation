@@ -29,9 +29,8 @@ function LoginForm() {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  const saveTokens = (tokens: { access: string; refresh: string }) => {
-    localStorage.setItem('access_token', tokens.access);
-    localStorage.setItem('refresh_token', tokens.refresh);
+  const saveToken = (token: string) => {
+    localStorage.setItem('visitor_token', token);
   };
 
   /* ── Step 1: Send OTP ── */
@@ -66,8 +65,8 @@ function LoginForm() {
     try {
       const cleaned = phone.replace(/\s/g, '');
       const result = await verifyOtp(cleaned, fullCode);
-      if (result.is_registered && result.tokens) {
-        saveTokens(result.tokens);
+      if (result.is_registered && result.token) {
+        saveToken(result.token);
         router.push(redirect);
       } else if (!result.is_registered && result.register_token) {
         setRegisterToken(result.register_token);
@@ -91,7 +90,7 @@ function LoginForm() {
     try {
       const cleaned = phone.replace(/\s/g, '');
       const result = await completeRegister(cleaned, registerToken, name.trim());
-      saveTokens(result.tokens);
+      saveToken(result.token);
       router.push(redirect);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'خطا در ثبت‌نام');

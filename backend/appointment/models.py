@@ -37,7 +37,13 @@ class Appointment(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='appointments'
+        related_name='appointments',
+        null=True,
+        blank=True,
+        help_text="Set when an owner creates this appointment on a visitor's "
+                  "behalf (the acting owner). Null for appointments a visitor "
+                  "books themselves through the client app — there is no "
+                  "account to point at, only Appointment.visitor."
     )
     business = models.ForeignKey(
         Business,

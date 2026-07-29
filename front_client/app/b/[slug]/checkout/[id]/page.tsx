@@ -78,7 +78,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
   useEffect(() => {
     if (!id) return;
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('visitor_token');
     if (!token) {
       router.push(`/auth/login?redirect=/b/${slug}/checkout/${id}`);
       return;
@@ -103,7 +103,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
    * the client returns straight to /appointments.
    */
   const handleGatewayRedirect = async () => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('visitor_token');
     if (!token) return;
 
     setRedirecting(true);
@@ -123,7 +123,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       return;
     }
 
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('visitor_token');
     if (!token) return;
 
     setSubmitting(true);

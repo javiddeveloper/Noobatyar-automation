@@ -1,7 +1,8 @@
 from adrf.views import APIView
 from asgiref.sync import sync_to_async
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from api.responses import APIResponse
+from visitor.auth import VisitorTokenAuthentication, IsVisitorAuthenticated
 from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
 from .cache_utils import invalidate_slots_cache
@@ -14,7 +15,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ClientAppointmentListView(APIView):
-    permission_classes = [IsAuthenticated]
+    # request.user is a Visitor here (see visitor/auth.py), never a `User`.
+    authentication_classes = [VisitorTokenAuthentication]
+    permission_classes = [IsVisitorAuthenticated]
 
     async def get(self, request):
         # Paginate + serialize in one sync block: the serializer's
@@ -26,7 +29,7 @@ class ClientAppointmentListView(APIView):
     def _list_paginated(self, request):
         queryset = (
             Appointment.objects
-            .filter(user=request.user)
+            .filter(visitor=request.user)
             .select_related('business', 'visitor')
             .order_by('-appointment_date')
         )
@@ -48,7 +51,6 @@ class ClientAppointmentListView(APIView):
     async def post(self, request):
         from datetime import datetime, timezone
         from business.models import Business
-        from visitor.models import Visitor
         from .client_serializers import ClientAppointmentCreateSerializer
 
         serializer = ClientAppointmentCreateSerializer(data=request.data)
@@ -75,15 +77,9 @@ class ClientAppointmentListView(APIView):
                 code=409,
             )
 
-        # Ensure visitor exists for this user
-        # Visitor model fields: user, full_name, phone_number
-        visitor, created = await Visitor.objects.aget_or_create(
-            user=request.user,
-            phone_number=request.user.phone,
-            defaults={
-                'full_name': request.user.name or request.user.phone,
-            }
-        )
+        # request.user is the Visitor resolved by VisitorTokenAuthentication —
+        # already exists, no account/get_or_create needed here.
+        visitor = request.user
 
         app_date = datetime.fromtimestamp(serializer.validated_data['appointment_date'] / 1000.0, tz=timezone.utc)
         duration = serializer.validated_data.get('service_duration') or business.default_service_duration
@@ -98,7 +94,7 @@ class ClientAppointmentListView(APIView):
         # Create the row inside a transaction that first re-checks the slot, so
         # two clients racing for the same time cannot both win.
         appointment, conflict = await sync_to_async(self._create_if_free)(
-            request.user, business, visitor, app_date, duration,
+            business, visitor, app_date, duration,
             serializer.validated_data.get('description', ''), requires_payment,
         )
         if conflict:
@@ -127,14 +123,14 @@ class ClientAppointmentListView(APIView):
         # No payment needed → confirm the booking and notify client + owner now.
         appointment.business = business
         appointment.visitor = visitor
-        _fire_booking_sms(appointment, request.user.phone, business.phone)
+        _fire_booking_sms(appointment, visitor.phone_number, business.phone)
         return APIResponse.success(
             data={'id': appointment.id, 'requires_payment': False},
             message="نوبت شما با موفقیت ثبت شد و در انتظار تایید کسب‌وکار است."
         )
 
     @staticmethod
-    def _create_if_free(user, business, visitor, app_date, duration, description, requires_payment):
+    def _create_if_free(business, visitor, app_date, duration, description, requires_payment):
         """
         Re-check the slot and create the appointment atomically.
 
@@ -155,7 +151,9 @@ class ClientAppointmentListView(APIView):
 
             now = timezone.now()
             appointment = Appointment.objects.create(
-                user=user,
+                # No `User` involved in a self-booked appointment — only the
+                # Visitor identifies who this is for.
+                user=None,
                 business=business,
                 visitor=visitor,
                 appointment_date=app_date,
@@ -197,12 +195,13 @@ def _requires_payment(business):
 
 
 class ClientAppointmentPaymentView(APIView):
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [VisitorTokenAuthentication]
+    permission_classes = [IsVisitorAuthenticated]
 
     async def post(self, request, pk):
         try:
             appointment = await Appointment.objects.select_related('business', 'visitor').aget(
-                id=pk, user=request.user
+                id=pk, visitor=request.user
             )
         except Appointment.DoesNotExist:
             return APIResponse.error(message="نوبت یافت نشد", code=404)
@@ -273,7 +272,7 @@ class ClientAppointmentPaymentView(APIView):
         )
 
         # ── SMS Notifications via Melipayamak ─────────────────────────
-        _fire_booking_sms(appointment, request.user.phone, appointment.business.phone)
+        _fire_booking_sms(appointment, request.user.phone_number, appointment.business.phone)
         # ─────────────────────────────────────────────────────────────
 
         return APIResponse.success(
@@ -290,7 +289,8 @@ class ClientAppointmentOnlinePaymentView(APIView):
     online-gateway entitlement.
     """
 
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [VisitorTokenAuthentication]
+    permission_classes = [IsVisitorAuthenticated]
 
     async def post(self, request, pk):
         from django.urls import reverse
@@ -300,7 +300,7 @@ class ClientAppointmentOnlinePaymentView(APIView):
 
         try:
             appointment = await Appointment.objects.select_related('business').aget(
-                id=pk, user=request.user
+                id=pk, visitor=request.user
             )
         except Appointment.DoesNotExist:
             return APIResponse.error(message="نوبت یافت نشد", code=404)
@@ -413,7 +413,8 @@ class ClientDepositCallbackView(APIView):
 class ClientAppointmentCancelView(APIView):
     """Lets a client cancel their own appointment before it starts."""
 
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [VisitorTokenAuthentication]
+    permission_classes = [IsVisitorAuthenticated]
 
     # Anything still ahead of the appointment time can be dropped by the client.
     CANCELLABLE_STATUSES = (
@@ -427,7 +428,7 @@ class ClientAppointmentCancelView(APIView):
     async def post(self, request, pk):
         try:
             appointment = await Appointment.objects.select_related('business', 'visitor').aget(
-                id=pk, user=request.user
+                id=pk, visitor=request.user
             )
         except Appointment.DoesNotExist:
             return APIResponse.error(message="نوبت یافت نشد", code=404)

@@ -48,15 +48,15 @@ class VisitorView(APIView):
     permission_classes = [IsAuthenticated]
 
     async def _get_visitor_or_404(self, visitor_id: int, user) -> Visitor:
-        """Helper to fetch visitor by ID and check ownership"""
-        try:
-            visitor = await sync_to_async(Visitor.objects.get)(
-                id=visitor_id,
-                user=user
-            )
-            return visitor
-        except Visitor.DoesNotExist:
-            return None
+        """Fetch a visitor this owner may edit/delete.
+
+        Same rule as get_readable_visitor(): an owner curated this contact
+        directly, or the visitor has an appointment at one of the owner's
+        businesses. Visitor.user is optional now (most self-booked visitors
+        never set it), so restricting this to `user=owner` would make almost
+        every online booking un-editable by the owner it belongs to.
+        """
+        return await get_readable_visitor(visitor_id, user)
 
     async def get(self, request, visitor_id=None):
         """List all visitors or retrieve single visitor"""
@@ -120,16 +120,32 @@ class VisitorView(APIView):
             )
 
     async def post(self, request):
-        """Create new visitor"""
+        """Create new visitor, or attach to an existing one by phone number.
+
+        phone_number is globally unique on Visitor now (it's one real person
+        across the whole platform, not a per-owner record), so a blind create
+        would 500 on a visitor who already exists — whether from their own
+        online booking or another owner having added them first.
+        """
         try:
             serializer = VisitorSerializer(data=request.data)
 
             if await sync_to_async(serializer.is_valid)():
-                visitor = await sync_to_async(serializer.save)(user=request.user)
+                phone = serializer.validated_data['phone_number']
+                full_name = serializer.validated_data['full_name']
+
+                visitor, created = await sync_to_async(Visitor.objects.get_or_create)(
+                    phone_number=phone,
+                    defaults={'full_name': full_name, 'user': request.user},
+                )
+                if not created and visitor.user_id is None:
+                    visitor.user = request.user
+                    await sync_to_async(visitor.save)(update_fields=['user'])
+
                 return APIResponse.success(
                     data=VisitorSerializer(visitor).data,
-                    message="مشتری با موفقیت ایجاد شد",
-                    status=201
+                    message="مشتری با موفقیت ایجاد شد" if created else "این مشتری از قبل ثبت شده بود",
+                    status=201 if created else 200,
                 )
 
             return APIResponse.error(
@@ -198,7 +214,7 @@ class VisitorView(APIView):
                 )
 
             # ذخیره نام مشتری برای پیام حذف
-            visitor_name = f"{visitor.first_name} {visitor.last_name}" if visitor.first_name or visitor.last_name else visitor.phone_number or visitor.email or f"ID:{visitor.id}"
+            visitor_name = visitor.full_name or visitor.phone_number or f"ID:{visitor.id}"
             
             await sync_to_async(visitor.delete)()
             

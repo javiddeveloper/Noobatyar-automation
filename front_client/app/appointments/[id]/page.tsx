@@ -48,7 +48,7 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
 
   const handleCancel = async () => {
     if (!appointment) return;
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('visitor_token');
     if (!token) return;
 
     setCancelling(true);
@@ -69,7 +69,7 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   useEffect(() => {
     params.then((p) => {
       const aptId = parseInt(p.id, 10);
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('visitor_token');
       if (!token) {
         router.replace(`/auth/login?redirect=/appointments/${aptId}`);
         return;

@@ -74,8 +74,7 @@ function hasAuthHeader(headers: HeadersInit | undefined): boolean {
  */
 export function forceReLogin(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('visitor_token');
   // Avoid a redirect loop if we're already on the login screen.
   if (window.location.pathname.startsWith('/auth/login')) return;
   const target = encodeURIComponent(window.location.pathname + window.location.search);
@@ -101,7 +100,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     if (hasAuthHeader(extraHeaders)) {
       forceReLogin();
     } else if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
+      localStorage.removeItem('visitor_token');
     }
     throw new UnauthorizedError('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
   }
@@ -114,25 +113,34 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ── Auth: OTP Flow ──────────────────────────────────────────────────────────
+// These hit the client-only auth surface (/api/client/auth/...), which only
+// ever creates/returns a Visitor — never a full owner-app `User` account. See
+// backend/visitor/client_auth_views.py.
 export async function sendOtp(phone: string): Promise<{ expires_in: number }> {
-  return apiFetch('/api/auth/otp/send/', {
+  return apiFetch('/api/client/auth/otp/send/', {
     method: 'POST',
     body: JSON.stringify({ phone }),
   });
 }
 
+export interface Visitor {
+  id: number;
+  full_name: string;
+  phone_number: string;
+}
+
 export interface OtpVerifyResult {
   is_registered: boolean;
   // If registered:
-  user?: object;
-  tokens?: { access: string; refresh: string };
-  // If new user:
+  visitor?: Visitor;
+  token?: string;
+  // If new visitor:
   register_token?: string;
   expires_in?: number;
 }
 
 export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyResult> {
-  return apiFetch<OtpVerifyResult>('/api/auth/otp/verify/', {
+  return apiFetch<OtpVerifyResult>('/api/client/auth/otp/verify/', {
     method: 'POST',
     body: JSON.stringify({ phone, code }),
   });
@@ -142,8 +150,8 @@ export async function completeRegister(
   phone: string,
   register_token: string,
   name: string
-): Promise<{ user: object; tokens: { access: string; refresh: string } }> {
-  return apiFetch('/api/auth/register/', {
+): Promise<{ visitor: Visitor; token: string }> {
+  return apiFetch('/api/client/auth/register/', {
     method: 'POST',
     body: JSON.stringify({ phone, register_token, name }),
   });
@@ -192,7 +200,7 @@ export async function bookAppointment(
 ) {
   return apiFetch<{ id: number; requires_payment?: boolean }>('/api/client/appointments/', {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: token ? { Authorization: `Visitor ${token}` } : {},
     body: JSON.stringify({
       business_id: businessId,
       appointment_date: appointmentDate,
@@ -206,7 +214,7 @@ export async function getMyAppointments(token: string): Promise<Appointment[]> {
   // The endpoint is paginated ({ results: [...] }); tolerate a bare array too.
   const data = await apiFetch<Appointment[] | { results: Appointment[] }>(
     '/api/client/appointments/',
-    { headers: { Authorization: `Bearer ${token}` } }
+    { headers: { Authorization: `Visitor ${token}` } }
   );
   return Array.isArray(data) ? data : data.results ?? [];
 }
@@ -228,7 +236,7 @@ export async function payAppointment(
 ) {
   return apiFetch<{ id: number }>(`/api/client/appointments/${id}/pay/`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Visitor ${token}` },
     body: JSON.stringify({ payment_reference: paymentReference, method: paymentMethod }),
   });
 }
@@ -243,7 +251,7 @@ export async function startOnlineDeposit(id: number, token: string) {
     `/api/client/appointments/${id}/pay/online/`,
     {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Visitor ${token}` },
     },
   );
 }
@@ -251,7 +259,7 @@ export async function startOnlineDeposit(id: number, token: string) {
 export async function cancelAppointment(id: number, token: string) {
   return apiFetch<{ id: number }>(`/api/client/appointments/${id}/cancel/`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Visitor ${token}` },
   });
 }
 
@@ -259,7 +267,7 @@ export async function payAppointmentWithReceipt(id: number, formData: FormData, 
   const res = await fetch(`${BASE_URL}/api/client/appointments/${id}/pay/`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Visitor ${token}`,
     },
     body: formData,
   });

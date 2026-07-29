@@ -101,7 +101,7 @@ export default function BookingPage({ params }: Props) {
   // re-selection happens once that day's slots have loaded (effect below).
   useEffect(() => {
     if (!business || !slug) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('visitor_token') : null;
     if (!token) return;
     const raw = typeof window !== 'undefined' ? localStorage.getItem('booking_intent') : null;
     if (!raw) return;
@@ -162,7 +162,7 @@ export default function BookingPage({ params }: Props) {
     if (!selectedSlot || !business) return;
 
     // Check auth token
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('visitor_token') : null;
     if (!token) {
       saveIntentAndLogin();
       return;

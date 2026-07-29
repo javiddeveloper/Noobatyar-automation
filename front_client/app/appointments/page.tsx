@@ -133,7 +133,7 @@ export default function AppointmentsPage() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('visitor_token');
     if (!token) {
       router.replace('/auth/login?redirect=/appointments');
       return;
