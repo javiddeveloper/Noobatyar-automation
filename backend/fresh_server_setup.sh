@@ -77,9 +77,14 @@ ENV_FILE="$APP_DIR/backend/.env"
 if [ -f "$ENV_FILE" ]; then
     ok "$ENV_FILE already exists — leaving it as is"
 else
+    # pipefail must be off here: `tr ... | head -c N` makes tr die of SIGPIPE
+    # once head closes the pipe after N bytes, and pipefail would otherwise
+    # treat that expected SIGPIPE as a real failure and abort the script.
+    set +o pipefail
     DJANGO_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))" 2>/dev/null \
         || tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64)
     PG_PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)
+    set -o pipefail
 
     cat > "$ENV_FILE" <<EOF
 DEBUG=False
