@@ -2,6 +2,8 @@
 
 این فایل شامل تمام کارهایی است که برای دیپلوی کردن پروژه بک‌اند روی سرور لینوکس ابونتو (IP: `93.127.223.93`) انجام شده است.
 
+> **به‌روزرسانی ۲۰۲۶-۰۷-۲۹:** سرور روی حالت clean-slate بازنصب شد و از این پس با دامنه + TLS سرو می‌شود، نه IP خام. جزئیات کامل و مراحل بازتولید در [`DEPLOY_TLS_DOMAIN.md`](../DEPLOY_TLS_DOMAIN.md) و [`backend/fresh_server_setup.sh`](fresh_server_setup.sh) آمده — بخش‌های زیر که هنوز IP خام یا Portainer عمومی را ارجاع می‌دهند، تاریخی‌اند و باید در کنار آن سند خوانده شوند.
+
 ## ۱. داکرایز کردن پروژه (Dockerization)
 برای اینکه پروژه قابلیت اجرای مستقل و پایدار روی سرور داشته باشه، فایل‌های زیر ایجاد شدند:
 - **`Dockerfile`**: برای ساخت ایمیج بک‌اند جنگو (با استفاده از `python:3.10-slim` و نصب `gunicorn` + `uvicorn`).
@@ -43,11 +45,18 @@ docker compose exec web python manage.py shell < seed_test_data.py
 
 ## ۵. پنل مدیریت Portainer
 برای مانیتورینگ و مدیریت راحت‌تر سرور بدون نیاز به ترمینال، پنل **Portainer** روی سرور نصب شد.
-- **آدرس دسترسی:** `http://93.127.223.93:9000/`
-- در این پنل به راحتی می‌تونید کانتینرها رو مشاهده کنید، لاگ ارورهای جنگو رو زنده ببینید، و کانتینرها رو ری‌استارت کنید.
+- **از ۲۰۲۶-۰۷-۲۹ به بعد، پورت ۹۰۰۰ از بیرون بسته است** (`backend/server_hardening.sh` آن را در زنجیره `DOCKER-USER` فقط به `127.0.0.1` محدود می‌کند). دسترسی از طریق تانل SSH:
+  ```bash
+  ssh -L 9000:localhost:9000 root@93.127.223.93
+  ```
+  سپس در مرورگر خودتان `http://localhost:9000` را باز کنید.
 
-## ۶. تنظیمات کلاینت (موبایل)
-در سورس کد اپلیکیشن موبایل (`mobile_owner`)، تمام آدرس‌های Localhost (`10.0.2.2:8000`) که برای شبیه‌ساز اندروید تنظیم شده بودند، به آدرس واقعی سرور (`http://93.127.223.93`) تغییر پیدا کردند تا اپلیکیشن بتونه به سرور واقعی وصل بشه.
+## ۶. تنظیمات کلاینت (موبایل و وب)
+اپ اونر (`mobile_owner`) و کلاینت وب (`front_client`) از دامنه استفاده می‌کنند، نه IP خام:
+- `mobile_owner/composeApp/build.gradle.kts`: `BASE_URL = https://api.noobatyar.ir`، `BOOKING_BASE_URL = https://app.noobatyar.ir`
+- `front_client`: در build زمان، `NEXT_PUBLIC_API_URL=https://api.noobatyar.ir` در `docker-compose.yml` ست شده.
+
+IP خام (`93.127.223.93`) عمداً در `ALLOWED_HOSTS` باقی مانده تا نسخه‌های قدیمی‌تر اپ که هنوز IP دارند از کار نیفتند — جزئیات در [`DEPLOY_TLS_DOMAIN.md`](../DEPLOY_TLS_DOMAIN.md).
 
 ## ۷. معماری بهینه‌سازی برای بار بالا (هزاران درخواست همزمان)
 برای پایداری و ظرفیت واقعی زیر بار سنگین، این تغییرات اعمال شد:
@@ -68,14 +77,14 @@ docker compose exec web python manage.py shell < seed_test_data.py
 |-------|-----------------|-------|
 | `SECRET_KEY` | (اجباری در پروداکشن) | کلید جنگو؛ اگر ست نشود اجرا متوقف می‌شود |
 | `DEBUG` | `False` | در پروداکشن حتماً `False` |
-| `ALLOWED_HOSTS` | `93.127.223.93,domain.com` | جدا با کاما |
+| `ALLOWED_HOSTS` | `api.noobatyar.ir,app.noobatyar.ir,93.127.223.93` | جدا با کاما؛ IP خام عمداً می‌ماند برای اپ‌های قدیمی |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | — | اطلاعات دیتابیس |
-| `CORS_ALLOWED_ORIGINS` | `https://domain.com` | دامنه‌های مجاز CORS (در پروداکشن؛ جدا با کاما) |
+| `CORS_ALLOWED_ORIGINS` | `https://app.noobatyar.ir,https://api.noobatyar.ir` | دامنه‌های مجاز CORS (در پروداکشن؛ جدا با کاما) |
 | `ZIBAL_MERCHANT_ID` | `zibal` (سندباکس) | مرچنت آیدی درگاه زیبال |
-| `SITE_URL` | `http://93.127.223.93` | آدرس پایه سایت (کال‌بک پرداخت) |
+| `SITE_URL` | `https://api.noobatyar.ir` | آدرس پایه سایت (کال‌بک پرداخت) |
 | `MELIPAYAMAK_OTP_TOKEN` | — | توکن ارسال OTP ملی‌پیامک |
 | `MELIPAYAMAK_FROM` | — | شماره فرستنده پیامک |
-| `GUNICORN_WORKERS` | `4` | تعداد workerها (پیشنهاد: `2*CPU+1`) |
+| `GUNICORN_WORKERS` | `4` | تعداد workerها (پیشنهاد: `2*CPU+1`؛ روی سرور تک‌هسته‌ای فعلی عمداً `2` ست شده) |
 | `JWT_ACCESS_HOURS` | `24` | عمر access token (ساعت) |
 | `JWT_REFRESH_DAYS` | `14` | عمر refresh token (روز) |
 | `THROTTLE_ANON` / `THROTTLE_USER` | `60/min` / `300/min` | سقف نرخ عمومی |
