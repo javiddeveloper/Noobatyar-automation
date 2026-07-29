@@ -27,6 +27,14 @@ class Visitor(models.Model):
     def __str__(self):
         return f"{self.full_name} ({self.phone_number})"
 
+    @property
+    def is_authenticated(self):
+        """Duck-typed like Django's User/AnonymousUser: DRF's default
+        UserRateThrottle (and anything else that treats request.user
+        generically) checks this attribute, and a Visitor set as request.user
+        by VisitorTokenAuthentication has no other reason to carry it."""
+        return True
+
 
 class SmsLog(models.Model):
     STATUS_CHOICES = [
