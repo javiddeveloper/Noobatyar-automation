@@ -15,7 +15,7 @@ interface AppointmentDao {
         SELECT * FROM Appointment 
         WHERE businessId = :businessId 
         AND DATE(appointmentDate/1000, 'unixepoch', 'localtime') = DATE(:date/1000, 'unixepoch', 'localtime')
-        AND status = 'WAITING'
+        AND status IN ('WAITING', 'PENDING_APPROVAL', 'PENDING_VERIFICATION')
         ORDER BY ABS(appointmentDate - :date) ASC
     """)
     suspend fun getWaitingQueue(businessId: Long, date: Long): List<AppointmentWithDetailsEntity>
@@ -24,7 +24,7 @@ interface AppointmentDao {
     @Query("""
         SELECT * FROM Appointment 
         WHERE businessId = :businessId 
-        AND status = 'WAITING'
+        AND status IN ('WAITING', 'PENDING_APPROVAL', 'PENDING_VERIFICATION')
         ORDER BY appointmentDate ASC
     """)
     suspend fun getAllWaitingAppointments(businessId: Long): List<AppointmentWithDetailsEntity>
@@ -79,7 +79,7 @@ interface AppointmentDao {
         SELECT MAX(appointmentDate) FROM Appointment 
         WHERE businessId = :businessId 
         AND DATE(appointmentDate/1000, 'unixepoch') = DATE(:date/1000, 'unixepoch')
-        AND status = 'WAITING'
+        AND status IN ('WAITING', 'PENDING_APPROVAL', 'PENDING_VERIFICATION')
     """)
     suspend fun getLastQueuePosition(businessId: Long, date: Long): Int?
 
@@ -94,7 +94,7 @@ interface AppointmentDao {
         SET updatedAt = :updatedAt 
         WHERE businessId = :businessId 
         AND DATE(appointmentDate/1000, 'unixepoch') = DATE(:date/1000, 'unixepoch')
-        AND status = 'WAITING'
+        AND status IN ('WAITING', 'PENDING_APPROVAL', 'PENDING_VERIFICATION')
     """)
     suspend fun reorderQueueAfterRemoval(businessId: Long, date: Long, updatedAt: Long)
 
@@ -155,7 +155,7 @@ interface AppointmentDao {
             WHERE businessId = :businessId 
             AND visitorId = :visitorId 
             AND DATE(appointmentDate/1000, 'unixepoch', 'localtime') = DATE(:date/1000, 'unixepoch', 'localtime')
-            AND status = 'WAITING'
+            AND status IN ('WAITING', 'PENDING_APPROVAL', 'PENDING_VERIFICATION')
         )
     """)
     suspend fun hasActiveAppointment(businessId: Long, visitorId: Long, date: Long): Boolean
