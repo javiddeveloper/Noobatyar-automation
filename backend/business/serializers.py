@@ -159,6 +159,13 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
             data['phone'] = None
             data['address'] = None
 
+        # Dynamically block booking if the owner has no active quota/subscription
+        from accounting.usage import can_book_appointment
+        if data.get('booking_enabled') and not can_book_appointment(instance.user_id):
+            data['booking_enabled'] = False
+            if not data.get('notice_message'):
+                data['notice_message'] = "پذیرش نوبت جدید برای این کسب‌وکار موقتاً غیرفعال است."
+
         return data
 
 
@@ -207,5 +214,12 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
                 and not instance.allow_anonymous_view:
             data['phone'] = None
             data['address'] = None
+
+        # Dynamically block booking if the owner has no active quota/subscription
+        from accounting.usage import can_book_appointment
+        if data.get('booking_enabled') and not can_book_appointment(instance.user_id):
+            data['booking_enabled'] = False
+            if not data.get('notice_message'):
+                data['notice_message'] = "پذیرش نوبت جدید برای این کسب‌وکار موقتاً غیرفعال است."
 
         return data
