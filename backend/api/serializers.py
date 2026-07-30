@@ -1,7 +1,22 @@
 # api/serializers.py
 from rest_framework import serializers
+
 from .models import User
-import re
+from .phone import is_iran_mobile, normalize_phone
+
+
+def _clean_mobile(value):
+    """Normalise a mobile number, rejecting anything that isn't one.
+
+    Shared by every phone field on this module's serializers, which each carried
+    an identical copy of the same regex check. Normalising first means a number
+    typed on a Persian keyboard is converted rather than refused — the digits
+    ۰۹۱۲... are a valid number, just not ASCII.
+    """
+    phone = normalize_phone(value)
+    if not is_iran_mobile(phone):
+        raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
+    return phone
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -19,11 +34,10 @@ class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        if User.objects.filter(phone=value).exists():
+        phone = _clean_mobile(value)
+        if User.objects.filter(phone=phone).exists():
             raise serializers.ValidationError("این شماره قبلاً ثبت شده")
-        return value
+        return phone
 
     def validate(self, attrs):
         if not attrs.get('password') and not attrs.get('register_token'):
@@ -35,9 +49,7 @@ class SendOTPSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=11)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        return value
+        return _clean_mobile(value)
 
 class VerifyOTPSerializer(serializers.Serializer):
     """تأیید OTP عمومی"""
@@ -45,9 +57,7 @@ class VerifyOTPSerializer(serializers.Serializer):
     code = serializers.CharField(min_length=4, max_length=6)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        return value
+        return _clean_mobile(value)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -56,9 +66,7 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        return value
+        return _clean_mobile(value)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -86,9 +94,7 @@ class ForgotPasswordSendOTPSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=11)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        return value
+        return _clean_mobile(value)
 
 
 class ForgotPasswordVerifyOTPSerializer(serializers.Serializer):
@@ -97,9 +103,7 @@ class ForgotPasswordVerifyOTPSerializer(serializers.Serializer):
     code = serializers.CharField(min_length=4, max_length=6)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        return value
+        return _clean_mobile(value)
 
 
 class ResetPasswordSerializer(serializers.Serializer):
@@ -109,9 +113,7 @@ class ResetPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(min_length=8, write_only=True)
 
     def validate_phone(self, value):
-        if not re.match(r'^09[0-9]{9}$', value):
-            raise serializers.ValidationError("فرمت شماره: 09XXXXXXXXX")
-        return value
+        return _clean_mobile(value)
 
     def validate_new_password(self, value):
         if len(value) < 8:

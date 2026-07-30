@@ -11,6 +11,7 @@ from django.core.cache import cache
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 
+from api.phone import normalize_phone
 from api.responses import APIResponse
 from api.services.otp import send_otp as otp_send, verify_otp as otp_verify
 from api.throttles import OTPRateThrottle
@@ -24,7 +25,13 @@ PHONE_RE = re.compile(r'^09\d{9}$')
 
 
 def _clean_phone(request) -> str | None:
-    phone = (request.data.get('phone') or '').strip()
+    """Normalised mobile number from the request, or None if it isn't one.
+
+    Normalising before matching means a number typed on a Persian keyboard is
+    accepted rather than bounced with «شماره موبایل معتبر نیست» — the customer
+    typed a valid number, just not in ASCII digits.
+    """
+    phone = normalize_phone(request.data.get('phone') or '')
     return phone if PHONE_RE.match(phone) else None
 
 

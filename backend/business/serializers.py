@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from api.phone import is_iran_phone, normalize_phone
+
 from .models import Business
 
 
@@ -38,6 +40,27 @@ class BusinessSerializer(serializers.ModelSerializer):
             'max_appointments_per_hour', 'deposit_mode', 'deposit_amount',
         ]
         read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at', 'owner', 'is_locked']
+
+    def validate_phone(self, value):
+        """Normalise and check the business contact number.
+
+        This field had no validation at all, which is how a phone typed on a
+        Persian keyboard (۰۲۱۳۹۰۹۳۰۹۳) reached Melipayamak and came back as
+        «شماره گیرنده نامعتبر است». Persian/Arabic digits and the usual
+        separators are accepted and converted rather than rejected — the owner
+        typed a perfectly good number, it just wasn't in ASCII.
+
+        Landlines are allowed: this is the number clients call, not necessarily
+        one that can receive SMS.
+        """
+        if not value:
+            return value
+        normalized = normalize_phone(value)
+        if not is_iran_phone(normalized):
+            raise serializers.ValidationError(
+                "شماره باید ۱۱ رقم و با ۰ شروع شود (مثل ۰۲۱۱۲۳۴۵۶۷۸ یا ۰۹۱۲۱۲۳۴۵۶۷)"
+            )
+        return normalized
 
     def validate_work_start_hour(self, value):
         if not 0 <= value <= 23:

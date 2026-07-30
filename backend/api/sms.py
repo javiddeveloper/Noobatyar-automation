@@ -5,6 +5,8 @@ from typing import Optional
 
 from django.conf import settings
 
+from .phone import is_iran_phone, normalize_phone
+
 logger = logging.getLogger(__name__)
 
 class SmsNotConfigured(RuntimeError):
@@ -53,6 +55,7 @@ def signed(body: str) -> str:
 
 
 def send_otp(phone: str) -> Optional[str]:  # به جای str | None
+    phone = normalize_phone(phone)
     if _dev_mode():
         logger.warning('SMS dev bypass — OTP not sent to %s****', phone[-4:])
         return None
@@ -82,6 +85,19 @@ def send_sms(phone: str, message: str) -> tuple[bool, str]:
          as failed. Simple-send returns ``{"recId": <positive int>, "status": ...}``
          on success, so we key off ``recId``.
     """
+    # Normalise at the boundary rather than trusting every caller: a business
+    # phone stored as ۰۲۱۳۹۰۹۳۰۹۳ was rejected with «شماره گیرنده نامعتبر است».
+    raw_phone = phone
+    phone = normalize_phone(phone)
+    if phone != raw_phone:
+        logger.info("Normalised SMS recipient %r -> %r", raw_phone, phone)
+
+    if not is_iran_phone(phone):
+        # Fail before spending a credit on something the provider will reject.
+        detail = f'شماره گیرنده معتبر نیست: {raw_phone!r}'
+        logger.error("Refusing to send SMS: %s", detail)
+        return False, detail
+
     if _dev_mode():
         logger.warning(
             'SMS dev bypass — not sending to %s****. Message:\n%s', phone[-4:], message

@@ -1,6 +1,6 @@
 from rest_framework import serializers
+from api.phone import is_iran_mobile, normalize_phone
 from .models import Visitor, SmsLog, VisitorActivity
-import re
 
 
 class VisitorSerializer(serializers.ModelSerializer):
@@ -10,12 +10,18 @@ class VisitorSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate_phone_number(self, value):
-        """Validate Iranian phone number format"""
-        if not re.match(r'^09\d{9}$', value):
+        """Normalise and validate an Iranian mobile number.
+
+        Normalising first means a number typed on a Persian keyboard, or pasted
+        with dashes or a +98 prefix, is converted instead of rejected. Mobile
+        only here (unlike Business.phone): this is the number we send SMS to.
+        """
+        normalized = normalize_phone(value)
+        if not is_iran_mobile(normalized):
             raise serializers.ValidationError(
                 "شماره تلفن باید با 09 شروع شده و 11 رقم باشد"
             )
-        return value
+        return normalized
 
     def validate_full_name(self, value):
         """Ensure name is not empty or whitespace"""
