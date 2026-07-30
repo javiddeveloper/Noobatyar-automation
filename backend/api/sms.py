@@ -26,7 +26,7 @@ def _dev_mode() -> bool:
 # Outgoing messages are signed at the bottom with the site address rather than
 # opened with a "نوبت‌یار" header: the recipient sees their own news first, and
 # the footer still says who sent it while doubling as a way back to the site.
-SMS_FOOTER = 'noobatyar.ir'
+SMS_FOOTER = 'نوبت‌یار'
 
 
 def signed(body: str) -> str:
@@ -53,7 +53,7 @@ def send_otp(phone: str) -> Optional[str]:  # به جای str | None
         return None
 
 
-def send_sms(phone: str, message: str) -> bool:
+def send_sms(phone: str, message: str) -> tuple[bool, str]:
     """Send a standard text message using Melipayamak's simple-send API.
 
     Two bugs were fixed here relative to the previous prototype:
@@ -68,7 +68,7 @@ def send_sms(phone: str, message: str) -> bool:
         logger.warning(
             'SMS dev bypass — not sending to %s****. Message:\n%s', phone[-4:], message
         )
-        return True
+        return True, "dev mode bypass"
 
     url = f'https://console.melipayamak.com/api/send/simple/{_token()}'
     sender = getattr(settings, 'MELIPAYAMAK_FROM', '') or ''
@@ -93,9 +93,12 @@ def send_sms(phone: str, message: str) -> bool:
         rec_id = result.get('recId') or result.get('recID') or 0
         status_text = str(result.get('status', ''))
         success = bool(rec_id) or ('موفق' in status_text)
+        
+        error_detail = ""
         if not success:
+            error_detail = str(result)
             logger.error("SMS send failed to %s: %s", phone, result)
-        return success
+        return success, error_detail
     except Exception as e:
         logger.error("Error sending SMS to %s: %s", phone, e)
-        return False
+        return False, str(e)

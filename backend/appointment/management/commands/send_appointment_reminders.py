@@ -134,13 +134,14 @@ class Command(BaseCommand):
             f"تاریخ: {format_datetime(appointment.appointment_date)}"
         )
 
-        ok = send_sms(phone, message)
+        ok, err = send_sms(phone, message)
 
         SmsLog.objects.create(
             business_id=appointment.business_id,
             visitor_id=appointment.visitor_id,
             message_text=message,
             status='SENT' if ok else 'FAILED',
+            error_detail=err if not ok else ""
         )
 
         # Stamp even on failure: the provider may still have delivered it, and

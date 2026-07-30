@@ -602,12 +602,13 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
         elif owner_id is not None and not usage.consume_sms(owner_id):
             logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
         else:
-            client_ok = send_sms(client_phone, client_msg)
+            client_ok, client_err = send_sms(client_phone, client_msg)
             SmsLog.objects.create(
                 business_id=business_id,
                 visitor_id=visitor_id,
                 message_text=client_msg,
                 status='SENT' if client_ok else 'FAILED',
+                error_detail=client_err if not client_ok else ""
             )
             logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
     except Exception as e:
