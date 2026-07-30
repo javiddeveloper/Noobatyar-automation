@@ -210,6 +210,36 @@ export async function bookAppointment(
   });
 }
 
+/** One row of the visitor's own activity log. */
+export interface ActivityEntry {
+  id: number;
+  action: string;
+  action_label: string;
+  actor_type: 'VISITOR' | 'OWNER' | 'SYSTEM';
+  actor_label: string;
+  business: number | null;
+  business_title: string | null;
+  appointment: number | null;
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+/** The signed-in visitor's own identity. */
+export async function getMe(token: string): Promise<Visitor> {
+  return apiFetch<Visitor>('/api/client/auth/me/', {
+    headers: { Authorization: `Visitor ${token}` },
+  });
+}
+
+export async function getMyActivity(token: string): Promise<ActivityEntry[]> {
+  // Paginated like the appointments endpoint; tolerate a bare array too.
+  const data = await apiFetch<ActivityEntry[] | { results: ActivityEntry[] }>(
+    '/api/client/activity/',
+    { headers: { Authorization: `Visitor ${token}` } }
+  );
+  return Array.isArray(data) ? data : data.results ?? [];
+}
+
 export async function getMyAppointments(token: string): Promise<Appointment[]> {
   // The endpoint is paginated ({ results: [...] }); tolerate a bare array too.
   const data = await apiFetch<Appointment[] | { results: Appointment[] }>(

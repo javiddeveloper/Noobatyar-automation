@@ -3,39 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAppointment, cancelAppointment, categoryLabel, type Appointment } from '@/lib/api';
+import { CATEGORY_EMOJI, STATUS_LABELS, formatDate } from '@/lib/format';
 
 // Anything still ahead of the appointment time can be cancelled by the client.
 const CANCELLABLE = ['LOCKED', 'PENDING_APPROVAL', 'PENDING_VERIFICATION', 'WAITING', 'CONFIRMED'];
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  BEAUTY_SALON: '💅',
-  DOCTOR: '🏥',
-  CONSULTANT: '💼',
-  OTHER: '🏢',
-};
-
-const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  LOCKED:               { label: 'در انتظار پرداخت', color: '#b45309', bg: '#fef3c7' },
-  PENDING_VERIFICATION: { label: 'در انتظار تایید پرداخت', color: '#d97706', bg: '#fef3c7' },
-  PENDING_APPROVAL:     { label: 'در انتظار تایید', color: '#d97706', bg: '#fef3c7' },
-  WAITING:              { label: 'در صف',          color: '#047857', bg: '#d1fae5' },
-  CONFIRMED:            { label: 'تایید شده',      color: '#047857', bg: '#d1fae5' },
-  IN_PROGRESS:          { label: 'در حال سرویس',   color: '#1d4ed8', bg: '#dbeafe' },
-  COMPLETED:            { label: 'انجام شد',       color: '#374151', bg: '#f3f4f6' },
-  CANCELLED:            { label: 'لغو شد',         color: '#b91c1c', bg: '#fee2e2' },
-  NO_SHOW:              { label: 'غیبت',           color: '#b91c1c', bg: '#fee2e2' },
-};
-
-function formatDate(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleString('fa-IR', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export default function AppointmentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();

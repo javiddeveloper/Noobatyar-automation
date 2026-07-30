@@ -3,41 +3,12 @@
 import { useState, useEffect, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMyAppointments, categoryLabel, mediaUrl, type Appointment } from '@/lib/api';
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  BEAUTY_SALON: '💅',
-  DOCTOR: '🏥',
-  CONSULTANT: '💼',
-  OTHER: '🏢',
-};
-
-const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  LOCKED:               { label: 'در انتظار پرداخت', color: '#b45309', bg: '#fef3c7' },
-  PENDING_VERIFICATION: { label: 'در انتظار تایید پرداخت', color: '#d97706', bg: '#fef3c7' },
-  PENDING_APPROVAL:     { label: 'در انتظار تایید', color: '#d97706', bg: '#fef3c7' },
-  WAITING:              { label: 'در صف',          color: '#047857', bg: '#d1fae5' },
-  CONFIRMED:            { label: 'تایید شده',      color: '#047857', bg: '#d1fae5' },
-  IN_PROGRESS:          { label: 'در حال سرویس',   color: '#1d4ed8', bg: '#dbeafe' },
-  COMPLETED:            { label: 'انجام شد',       color: '#374151', bg: '#f3f4f6' },
-  CANCELLED:            { label: 'لغو شد',         color: '#b91c1c', bg: '#fee2e2' },
-  NO_SHOW:              { label: 'غیبت',           color: '#b91c1c', bg: '#fee2e2' },
-};
-
-function formatDate(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleString('fa-IR', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function toPersianNumerals(n: number): string {
-  const map = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-  return String(n).replace(/[0-9]/g, (d) => map[Number(d)]);
-}
+import {
+  CATEGORY_EMOJI,
+  STATUS_LABELS,
+  formatDate,
+  toPersianNumerals,
+} from '@/lib/format';
 
 // Business logo with graceful fallback to the category emoji when the image
 // is missing or fails to load.
@@ -155,9 +126,21 @@ export default function AppointmentsPage() {
     <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
       
       <div className="toolbar">
+        {/* Left slot stays empty: the floating .theme-toggle is fixed at
+            top-left with z-index 200 and would swallow any click here. */}
         <div className="toolbar-placeholder" />
         <h1 className="toolbar-title">نوبت‌های من</h1>
-        <button className="toolbar-back" onClick={() => router.back()}>›</button>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button
+            className="toolbar-back"
+            aria-label="پروفایل من"
+            title="پروفایل من"
+            onClick={() => router.push('/profile')}
+          >
+            👤
+          </button>
+          <button className="toolbar-back" onClick={() => router.back()}>›</button>
+        </div>
       </div>
 
       <div style={{ padding: '24px 24px' }}>
