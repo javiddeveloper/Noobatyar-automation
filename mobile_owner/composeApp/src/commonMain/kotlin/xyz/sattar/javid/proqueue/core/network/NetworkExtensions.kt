@@ -7,18 +7,19 @@ import io.ktor.http.HttpStatusCode
 
 suspend inline fun <reified T> HttpResponse.toApiResponse(): ApiResponse<T> {
     return try {
-        if (this.status == HttpStatusCode.TooManyRequests) {
-             val networkResponse = try {
-                 this.body<NetworkResponse<T>>()
-             } catch (e: Exception) {
-                 null
-             }
-             return ApiResponse.Error(
-                 message = networkResponse?.message ?: "تعداد درخواست‌های شما بیش از حد مجاز است.",
-                 code = 429
-             )
+        // --- Handle error status codes BEFORE deserializing body ---
+        // Ktor may or may not throw ClientRequestException depending on expectSuccess config.
+        // We handle it here explicitly so error bodies (which may have field types that don't
+        // match the success schema, e.g. data.phone_number = ["error msg"] instead of a String)
+        // are never deserialized into NetworkResponse<T>.
+        if (this.status.value >= 400) {
+            val rawBody = try { this.body<String>() } catch (ex: Exception) { "" }
+            return ApiResponse.Error(
+                message = extractErrorMessage(rawBody),
+                code = this.status.value
+            )
         }
-        
+
         val networkResponse = this.body<NetworkResponse<T>>()
         if (networkResponse.status == "success" && networkResponse.data != null) {
             ApiResponse.Success(networkResponse.data)
@@ -31,67 +32,64 @@ suspend inline fun <reified T> HttpResponse.toApiResponse(): ApiResponse<T> {
             )
         }
     } catch (e: ClientRequestException) {
-        val errorResponseText = try {
-            e.response.body<String>()
-        } catch (ex: Exception) {
-            ""
-        }
-        
-        var extractedMessage: String? = null
-        
-        if (errorResponseText.isNotEmpty()) {
-            try {
-                val jsonParser = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                val jsonObject = jsonParser.parseToJsonElement(errorResponseText).let {
-                    if (it is kotlinx.serialization.json.JsonObject) it else null
-                }
-                
-                if (jsonObject != null) {
-                    val dataObj = jsonObject["data"]?.let { if (it is kotlinx.serialization.json.JsonObject) it else null }
-                    if (dataObj != null && dataObj.isNotEmpty()) {
-                        val messages = mutableListOf<String>()
-                        for ((_, value) in dataObj) {
-                            if (value is kotlinx.serialization.json.JsonArray && value.isNotEmpty()) {
-                                val firstElement = value[0]
-                                if (firstElement is kotlinx.serialization.json.JsonPrimitive && firstElement.isString) {
-                                    messages.add(firstElement.content)
-                                }
-                            } else if (value is kotlinx.serialization.json.JsonPrimitive && value.isString) {
-                                messages.add(value.content)
-                            }
-                        }
-                        if (messages.isNotEmpty()) {
-                            extractedMessage = messages.joinToString("\n")
-                        }
-                    }
-                    
-                    if (extractedMessage == null) {
-                        val msgPrimitive = jsonObject["message"]?.let { if (it is kotlinx.serialization.json.JsonPrimitive) it else null }
-                        if (msgPrimitive != null && msgPrimitive.isString) {
-                            extractedMessage = msgPrimitive.content
-                        }
-                    }
-                }
-            } catch (ex: Exception) {
-                // Ignore parsing errors, fallback below
-            }
-        }
-        
-        if (e.response.status == HttpStatusCode.TooManyRequests) {
-            ApiResponse.Error(
-                message = extractedMessage ?: "تعداد درخواست‌های شما بیش از حد مجاز است.",
-                code = 429
-            )
-        } else {
-            ApiResponse.Error(
-                message = extractedMessage ?: e.message ?: "Unknown Error",
-                code = e.response.status.value
-            )
-        }
+        val rawBody = try { e.response.body<String>() } catch (ex: Exception) { "" }
+        ApiResponse.Error(
+            message = extractErrorMessage(rawBody),
+            code = e.response.status.value
+        )
     } catch (e: Exception) {
         ApiResponse.Error(message = e.message ?: "Unknown Error", code = 500)
     }
 }
+
+/**
+ * Parses a raw JSON error response body and extracts a human-readable error message.
+ *
+ * Tries in order:
+ * 1. Values inside "data" object (validation errors — may be strings or string arrays)
+ * 2. Top-level "message" field
+ * 3. Fallback generic message
+ */
+fun extractErrorMessage(rawBody: String): String {
+    if (rawBody.isBlank()) return "خطایی رخ داده است."
+    return try {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val root = json.parseToJsonElement(rawBody)
+        if (root !is kotlinx.serialization.json.JsonObject) return "خطایی رخ داده است."
+
+        val messages = mutableListOf<String>()
+
+        val dataEl = root["data"]
+        if (dataEl is kotlinx.serialization.json.JsonObject && dataEl.isNotEmpty()) {
+            for ((_, value) in dataEl) {
+                when {
+                    value is kotlinx.serialization.json.JsonArray && value.isNotEmpty() -> {
+                        val first = value[0]
+                        if (first is kotlinx.serialization.json.JsonPrimitive && first.isString) {
+                            messages.add(first.content)
+                        }
+                    }
+                    value is kotlinx.serialization.json.JsonPrimitive && value.isString -> {
+                        messages.add(value.content)
+                    }
+                }
+            }
+        }
+
+        if (messages.isNotEmpty()) return messages.joinToString("\n")
+
+        val msgEl = root["message"]
+        if (msgEl is kotlinx.serialization.json.JsonPrimitive && msgEl.isString) {
+            return msgEl.content
+        }
+
+        "خطایی رخ داده است."
+    } catch (ex: Exception) {
+        "خطایی رخ داده است."
+    }
+}
+
+
 
 suspend inline fun <reified T> HttpResponse.toDirectApiResponse(): ApiResponse<T> {
     return try {
