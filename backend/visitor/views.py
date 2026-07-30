@@ -10,8 +10,9 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 import logging
 
-from .models import Visitor, SmsLog
+from .models import Visitor, SmsLog, VisitorArchive, VisitorActivity
 from .serializers import VisitorSerializer, SmsLogSerializer
+from .activity import record_activity
 from api.responses import APIResponse  # اضافه کردن import
 
 logger = logging.getLogger(__name__)
@@ -44,17 +45,33 @@ async def get_readable_visitor(visitor_id, user):
         return None
 
 
+async def get_owned_visitor(visitor_id, user):
+    """Return a visitor the given user is allowed to MODIFY, else None.
+
+    Deliberately stricter than get_readable_visitor(): only a contact this owner
+    created themselves. A Visitor row is global — phone_number is unique
+    platform-wide, so one row is shared by every business the person books at —
+    which means the read rule ("has an appointment at one of my businesses")
+    would let any owner rename or re-number someone who is really another
+    business's client, for the whole platform.
+    """
+    try:
+        return await sync_to_async(Visitor.objects.get)(id=visitor_id, user=user)
+    except Visitor.DoesNotExist:
+        return None
+
+
 class VisitorView(APIView):
     permission_classes = [IsAuthenticated]
 
     async def _get_visitor_or_404(self, visitor_id: int, user) -> Visitor:
-        """Fetch a visitor this owner may edit/delete.
+        """Fetch a visitor this owner may act on at all (read-level access).
 
-        Same rule as get_readable_visitor(): an owner curated this contact
-        directly, or the visitor has an appointment at one of the owner's
-        businesses. Visitor.user is optional now (most self-booked visitors
-        never set it), so restricting this to `user=owner` would make almost
-        every online booking un-editable by the owner it belongs to.
+        An owner curated this contact directly, or the visitor has an
+        appointment at one of the owner's businesses. Visitor.user is optional
+        (most self-booked visitors never set it), so restricting this to
+        `user=owner` would hide almost every online booking from the owner it
+        belongs to. Writes that change shared data use get_owned_visitor().
         """
         return await get_readable_visitor(visitor_id, user)
 
@@ -87,11 +104,13 @@ class VisitorView(APIView):
             # Same readability rule as get_readable_visitor(): include visitors
             # who booked online under their own account but have an appointment
             # at one of this owner's businesses, not just visitors the owner
-            # created directly.
+            # created directly. Visitors this owner archived are hidden from
+            # their list only — the row itself is untouched and still visible to
+            # every other business the person books at.
             visitors = [
                 b async for b in Visitor.objects.filter(
                     Q(user=user) | Q(appointments__business__user=user)
-                ).distinct().order_by('-created_at')
+                ).exclude(archives__owner=user).distinct().order_by('-created_at')
             ]
 
             # Paginate
@@ -167,19 +186,46 @@ class VisitorView(APIView):
             )
 
     async def put(self, request, visitor_id):
-        """Update existing visitor"""
+        """Update a visitor this owner created.
+
+        Editing is restricted to contacts the owner added themselves, because the
+        Visitor row is shared platform-wide — see get_owned_visitor().
+        """
         try:
-            visitor = await self._get_visitor_or_404(visitor_id, request.user)
+            visitor = await get_owned_visitor(visitor_id, request.user)
             if not visitor:
+                # Distinguish "not yours to edit" from "does not exist", so the
+                # owner is not left guessing why their own list rejects an edit.
+                if await self._get_visitor_or_404(visitor_id, request.user):
+                    return APIResponse.error(
+                        message="این مراجع توسط شما ثبت نشده و اطلاعاتش بین همه کسب‌وکارها مشترک است؛ ویرایش آن مجاز نیست",
+                        code=403
+                    )
                 return APIResponse.error(
                     message="مشتری یافت نشد",
                     code=404
                 )
 
+            before = {'full_name': visitor.full_name, 'phone_number': visitor.phone_number}
             serializer = VisitorSerializer(visitor, data=request.data, partial=True)
 
             if await sync_to_async(serializer.is_valid)():
                 updated_visitor = await sync_to_async(serializer.save)()
+
+                changed = {
+                    field: {'from': old, 'to': getattr(updated_visitor, field)}
+                    for field, old in before.items()
+                    if getattr(updated_visitor, field) != old
+                }
+                if changed:
+                    await sync_to_async(record_activity)(
+                        updated_visitor,
+                        'PROFILE_UPDATED',
+                        actor_type=VisitorActivity.ACTOR_OWNER,
+                        actor_user=request.user,
+                        changed=changed,
+                    )
+
                 return APIResponse.success(
                     data=VisitorSerializer(updated_visitor).data,
                     message="مشتری با موفقیت بروزرسانی شد"
@@ -204,7 +250,13 @@ class VisitorView(APIView):
             )
 
     async def delete(self, request, visitor_id):
-        """Delete visitor"""
+        """Archive a visitor from this owner's list — never delete the row.
+
+        The method and URL are unchanged so existing clients keep working, but
+        the semantics are now "hide from my list". Deleting the row would take
+        the person's appointments at *other* businesses with it and lock them out
+        of their own account permanently — see VisitorArchive's docstring.
+        """
         try:
             visitor = await self._get_visitor_or_404(visitor_id, request.user)
             if not visitor:
@@ -213,25 +265,70 @@ class VisitorView(APIView):
                     code=404
                 )
 
-            # ذخیره نام مشتری برای پیام حذف
             visitor_name = visitor.full_name or visitor.phone_number or f"ID:{visitor.id}"
-            
-            await sync_to_async(visitor.delete)()
-            
-            logger.info(f"Visitor {visitor_id} deleted by user {request.user.id}")
-            
+
+            _, created = await sync_to_async(VisitorArchive.objects.get_or_create)(
+                owner=request.user, visitor=visitor
+            )
+
+            if created:
+                await sync_to_async(record_activity)(
+                    visitor,
+                    'ARCHIVED_BY_OWNER',
+                    actor_type=VisitorActivity.ACTOR_OWNER,
+                    actor_user=request.user,
+                )
+                logger.info(f"Visitor {visitor_id} archived by user {request.user.id}")
+
             return APIResponse.success(
-                message=f"مشتری '{visitor_name}' با موفقیت حذف شد",
+                message=f"مشتری '{visitor_name}' از لیست شما بایگانی شد",
                 status=204,
                 data=None
             )
 
         except Exception as e:
-            logger.error(f"Error deleting visitor: {str(e)}")
+            logger.error(f"Error archiving visitor: {str(e)}")
             return APIResponse.error(
-                message="خطا در حذف مشتری",
+                message="خطا در بایگانی مشتری",
                 code=500
             )
+
+
+class VisitorRestoreView(APIView):
+    """Undo an archive, putting the visitor back in this owner's list."""
+
+    permission_classes = [IsAuthenticated]
+
+    async def post(self, request, visitor_id):
+        try:
+            visitor = await get_readable_visitor(visitor_id, request.user)
+            if not visitor:
+                return APIResponse.error(message="مشتری یافت نشد", code=404)
+
+            deleted, _ = await sync_to_async(
+                VisitorArchive.objects.filter(owner=request.user, visitor=visitor).delete
+            )()
+
+            if deleted:
+                await sync_to_async(record_activity)(
+                    visitor,
+                    'RESTORED_BY_OWNER',
+                    actor_type=VisitorActivity.ACTOR_OWNER,
+                    actor_user=request.user,
+                )
+                logger.info(f"Visitor {visitor_id} restored by user {request.user.id}")
+                message = "مشتری به لیست شما بازگردانده شد"
+            else:
+                message = "این مشتری در بایگانی شما نبود"
+
+            return APIResponse.success(
+                data=VisitorSerializer(visitor).data,
+                message=message,
+            )
+
+        except Exception as e:
+            logger.error(f"Error restoring visitor: {str(e)}")
+            return APIResponse.error(message="خطا در بازگردانی مشتری", code=500)
 
 
 class VisitorMessageHistoryView(APIView):

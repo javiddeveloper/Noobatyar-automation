@@ -21,6 +21,8 @@ from appointment.occupancy import refund_quota
 from accounting import usage
 from api.responses import APIResponse
 from api.views import _extract_error
+from visitor.activity import record_activity
+from visitor.models import VisitorActivity
 
 
 logger = logging.getLogger(__name__)
@@ -532,6 +534,19 @@ class AppointmentView(APIView):
             updated.append('quota_source')
         appointment.save(update_fields=updated)
         invalidate_slots_cache(appointment.business_id, appointment.appointment_date)
+
+        # This endpoint is already scoped to the business owner, so the owner of
+        # the business is the actor — no need to thread `request` down here.
+        record_activity(
+            appointment.visitor_id,
+            'APPOINTMENT_STATUS_CHANGED',
+            actor_type=VisitorActivity.ACTOR_OWNER,
+            actor_user=appointment.business.user_id,
+            business=appointment.business_id,
+            appointment=appointment,
+            old=old_status,
+            new=new_status,
+        )
 
         # Tell the client the verdict — until now they were only told their
         # booking was received, never whether it was accepted or rejected.

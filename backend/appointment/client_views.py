@@ -3,6 +3,8 @@ from asgiref.sync import sync_to_async
 from rest_framework.permissions import AllowAny
 from api.responses import APIResponse
 from visitor.auth import VisitorTokenAuthentication, IsVisitorAuthenticated
+from visitor.activity import record_activity
+from visitor.models import VisitorActivity
 from .models import Appointment
 from .client_serializers import ClientAppointmentSerializer
 from .cache_utils import invalidate_slots_cache
@@ -112,6 +114,15 @@ class ClientAppointmentListView(APIView):
 
         # Slot occupancy changed → drop cached slot views for this business/date.
         await sync_to_async(invalidate_slots_cache)(business_id, app_date)
+
+        await sync_to_async(record_activity)(
+            visitor,
+            'APPOINTMENT_BOOKED',
+            actor_type=VisitorActivity.ACTOR_VISITOR,
+            business=business,
+            appointment=appointment,
+            status=appointment.status,
+        )
 
         if requires_payment:
             # SMS is deferred until payment is completed (ClientAppointmentPaymentView).
@@ -442,6 +453,7 @@ class ClientAppointmentCancelView(APIView):
                 code=400,
             )
 
+        previous_status = appointment.status
         appointment.status = 'CANCELLED'
         appointment.locked_at = None
         appointment.expires_at = None
@@ -454,6 +466,16 @@ class ClientAppointmentCancelView(APIView):
         # Freeing the slot changes availability for everyone.
         await sync_to_async(invalidate_slots_cache)(
             appointment.business_id, appointment.appointment_date
+        )
+
+        await sync_to_async(record_activity)(
+            appointment.visitor,
+            'APPOINTMENT_CANCELLED',
+            actor_type=VisitorActivity.ACTOR_VISITOR,
+            business=appointment.business,
+            appointment=appointment,
+            old=previous_status,
+            new='CANCELLED',
         )
 
         _fire_cancellation_sms(appointment, appointment.business.phone)

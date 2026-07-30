@@ -7,12 +7,26 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Known-working default keeps OTP login functional when the env var is unset.
-_DEFAULT_TOKEN = 'ba64aae8cd1f46619c8439b5dba70da9'
+class SmsNotConfigured(RuntimeError):
+    """Raised when no provider token is configured."""
 
 
 def _token() -> str:
-    return getattr(settings, 'MELIPAYAMAK_OTP_TOKEN', '') or _DEFAULT_TOKEN
+    """The Melipayamak API token, from MELIPAYAMAK_OTP_TOKEN only.
+
+    There used to be a hardcoded token here as a fallback "so OTP keeps working
+    when the env var is unset". That was a live credential committed to a public
+    repository, and because it silently papered over missing configuration it is
+    also why a broken SMS setup went unnoticed for so long. Failing loudly is the
+    point: a missing token should be a deployment error, not a silent downgrade.
+    """
+    token = (getattr(settings, 'MELIPAYAMAK_OTP_TOKEN', '') or '').strip()
+    if not token:
+        raise SmsNotConfigured(
+            'MELIPAYAMAK_OTP_TOKEN is not set — cannot send SMS. '
+            'Set it in the environment (see DEPLOYMENT.md).'
+        )
+    return token
 
 
 def _dev_mode() -> bool:
@@ -42,7 +56,11 @@ def send_otp(phone: str) -> Optional[str]:  # به جای str | None
     if _dev_mode():
         logger.warning('SMS dev bypass — OTP not sent to %s****', phone[-4:])
         return None
-    url = f'https://console.melipayamak.com/api/send/otp/{_token()}'
+    try:
+        url = f'https://console.melipayamak.com/api/send/otp/{_token()}'
+    except SmsNotConfigured as e:
+        logger.error("%s", e)
+        return None
     try:
         response = requests.post(url, json={'to': phone}, timeout=10)
         result = response.json()
@@ -70,7 +88,14 @@ def send_sms(phone: str, message: str) -> tuple[bool, str]:
         )
         return True, "dev mode bypass"
 
-    url = f'https://console.melipayamak.com/api/send/simple/{_token()}'
+    try:
+        url = f'https://console.melipayamak.com/api/send/simple/{_token()}'
+    except SmsNotConfigured as e:
+        # Surfaced to the caller so it lands in SmsLog.error_detail and the
+        # owner's credit is refunded, rather than raising a 500.
+        logger.error("%s", e)
+        return False, str(e)
+
     sender = getattr(settings, 'MELIPAYAMAK_FROM', '') or ''
 
     if not sender:

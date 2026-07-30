@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Visitor, SmsLog
+from .models import Visitor, SmsLog, VisitorActivity
 import re
 
 
@@ -32,3 +32,23 @@ class SmsLogSerializer(serializers.ModelSerializer):
         model = SmsLog
         fields = ['id', 'visitor', 'visitor_name', 'visitor_phone', 'business', 'message_text', 'status', 'sent_at']
         read_only_fields = ['id', 'sent_at']
+
+
+class VisitorActivitySerializer(serializers.ModelSerializer):
+    """Read-only activity row for the visitor's own profile page.
+
+    Ships human-readable Persian labels alongside the raw codes so the client
+    does not have to keep its own copy of the choice tables.
+    """
+
+    action_label = serializers.CharField(source='get_action_display', read_only=True)
+    actor_label = serializers.CharField(source='get_actor_type_display', read_only=True)
+    business_title = serializers.CharField(source='business.title', read_only=True, default=None)
+
+    class Meta:
+        model = VisitorActivity
+        fields = [
+            'id', 'action', 'action_label', 'actor_type', 'actor_label',
+            'business', 'business_title', 'appointment', 'detail', 'created_at',
+        ]
+        read_only_fields = fields
