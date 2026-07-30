@@ -113,7 +113,7 @@ class VisitorSelectionViewModel(
                 }
             }
         } catch (e: Exception) {
-            emit(VisitorSelectionState.PartialState.ShowMessage(e.message ?: "خطا در حذف مراجع"))
+            emit(VisitorSelectionState.PartialState.ShowMessage(e.message ?: "خطا در بایگانی مراجع"))
         }
     }
 }

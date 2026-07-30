@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.archive
 import proqueue.composeapp.generated.resources.back
 import proqueue.composeapp.generated.resources.cancel
 import proqueue.composeapp.generated.resources.create_first_visitor
@@ -108,7 +109,7 @@ fun VisitorSelectionScreenContent(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(stringResource(Res.string.delete))
+                    Text(stringResource(Res.string.archive))
                 }
             },
             dismissButton = {

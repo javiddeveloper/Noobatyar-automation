@@ -102,8 +102,9 @@
     <string name="search_placeholder">جستجو نام یا شماره تماس...</string>
     <string name="back">بازگشت</string>
     <string name="create_new_visitor">ایجاد مراجع جدید</string>
-    <string name="visitor_delete_title">حذف مراجع</string>
-    <string name="visitor_delete_message">آیا از حذف این مراجع اطمینان دارید؟ \nتمام نوبت‌ها و پیام های این مراجع در همه کسب‌وکارها حذف خواهند شد.</string>
+    <string name="archive">بایگانی</string>
+    <string name="visitor_delete_title">بایگانی مراجع</string>
+    <string name="visitor_delete_message">این مراجع از لیست شما پنهان می‌شود. \nنوبت‌ها و پیام‌های او حذف نمی‌شوند و در سایر کسب‌وکارها دست‌نخورده می‌مانند.</string>
     <string name="no_visitors_found">مراجعی ثبت نشده است</string>
     <string name="create_first_visitor">اولین مراجع را ایجاد کنید</string>
 
