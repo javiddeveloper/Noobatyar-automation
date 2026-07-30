@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import xyz.sattar.javid.proqueue.core.utils.toEnglishDigits
 
 @Composable
 fun OTPTextField(
@@ -119,7 +120,7 @@ fun OTPTextField(
                     selection = TextRange(otp.length)
                 ),
                 onValueChange = { newValue ->
-                    val filtered = newValue.text.filter { it.isDigit() }.take(6)
+                    val filtered = newValue.text.toEnglishDigits().filter { it.isDigit() }.take(6)
 
                     onOTPChange(filtered)
 

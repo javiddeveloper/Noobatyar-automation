@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import xyz.sattar.javid.proqueue.core.utils.toEnglishDigits
 
 @Composable
 fun AppTextField(
@@ -95,9 +96,19 @@ private fun AppTextFieldInternal(
 
         OutlinedTextField(
             value = value,
-            onValueChange = {
-                if (it.length <= maxLength) {
-                    onValueChange(it)
+            onValueChange = { newValue ->
+                if (newValue.length <= maxLength) {
+                    val finalValue = if (
+                        keyboardType == KeyboardType.Number ||
+                        keyboardType == KeyboardType.NumberPassword ||
+                        keyboardType == KeyboardType.Phone ||
+                        keyboardType == KeyboardType.Decimal
+                    ) {
+                        newValue.toEnglishDigits()
+                    } else {
+                        newValue
+                    }
+                    onValueChange(finalValue)
                 }
             },
             placeholder = placeholder?.let { { Text(it) } },
