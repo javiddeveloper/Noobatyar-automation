@@ -93,10 +93,17 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     ...restOptions,
   });
 
-  // A 401 on an authenticated request means the token expired or was revoked:
-  // drop it and send the user back to login. (Public endpoints — e.g. the OTP
-  // flow — never carry an Authorization header, so they won't trigger this.)
-  if (res.status === 401) {
+  // A rejected credential means the token expired or was revoked: drop it and
+  // send the user back to login. (Public endpoints — e.g. the OTP flow — never
+  // carry an Authorization header, so they won't trigger this.)
+  //
+  // 403 counts too, not just 401. DRF returns 403 for an authentication failure
+  // unless an authenticator advertises a WWW-Authenticate challenge, and every
+  // endpoint on this surface is scoped to the caller's own visitor record — so
+  // there is no "signed in but forbidden" state a visitor can legitimately hit.
+  // Treating 403 as recoverable is what keeps a stale token from becoming a dead
+  // end with no way to sign out.
+  if (res.status === 401 || (res.status === 403 && hasAuthHeader(extraHeaders))) {
     if (hasAuthHeader(extraHeaders)) {
       forceReLogin();
     } else if (typeof window !== 'undefined') {
@@ -301,7 +308,8 @@ export async function payAppointmentWithReceipt(id: number, formData: FormData, 
     },
     body: formData,
   });
-  if (res.status === 401) {
+  // Same 401-or-403 rule as apiFetch(); this upload always carries a token.
+  if (res.status === 401 || res.status === 403) {
     forceReLogin();
     throw new UnauthorizedError('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
   }

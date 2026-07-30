@@ -59,6 +59,11 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  function signOut() {
+    localStorage.removeItem('visitor_token');
+    router.replace('/auth/login');
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('visitor_token');
     if (!token) {
@@ -96,6 +101,24 @@ export default function ProfilePage() {
             <button className="btn-primary" onClick={() => location.reload()}>
               تلاش مجدد
             </button>
+            {/* Always offer the way out: if the failure is the stored session
+                itself, retrying forever is the one thing that cannot help. */}
+            <div style={{ marginTop: 14 }}>
+              <button
+                onClick={signOut}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-muted)',
+                  fontSize: 13,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                خروج از حساب و ورود دوباره
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -163,6 +186,25 @@ export default function ProfilePage() {
                 })}
               </div>
             )}
+
+            <button
+              onClick={signOut}
+              style={{
+                width: '100%',
+                marginTop: 28,
+                padding: '14px 16px',
+                borderRadius: 16,
+                background: 'var(--color-surface)',
+                border: '1.5px solid var(--color-border)',
+                color: 'var(--color-danger, #b91c1c)',
+                fontSize: 14,
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+              }}
+            >
+              خروج از حساب
+            </button>
           </>
         )}
       </div>

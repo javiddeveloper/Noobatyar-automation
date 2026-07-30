@@ -30,6 +30,18 @@ def sign_visitor_token(visitor_id: int) -> str:
 class VisitorTokenAuthentication(BaseAuthentication):
     keyword = 'Visitor'
 
+    def authenticate_header(self, request):
+        """Return a WWW-Authenticate value so failures stay 401, not 403.
+
+        Without this DRF downgrades every AuthenticationFailed raised below to
+        403 Forbidden (it only keeps 401 when some authenticator advertises a
+        challenge). The client treats 401 as "session is gone → clear the token
+        and re-run OTP", so a 403 left anyone with an unusable token — an expired
+        one, or a visitor an owner had deleted — permanently stuck: no redirect,
+        no way to sign out, just a "مشتری یافت نشد" toast on every action.
+        """
+        return self.keyword
+
     def authenticate(self, request):
         auth = request.headers.get('Authorization', '')
         if not auth.startswith(f'{self.keyword} '):
