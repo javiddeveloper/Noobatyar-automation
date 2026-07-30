@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set timeout -1
-spawn scp -o StrictHostKeyChecking=no deploy_bundle.zip root@93.127.223.93:/root/app/
-expect "password:"
-send "gbJPRmA6qRWrXOpdd5IB\r"
-expect eof
