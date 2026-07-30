@@ -18,9 +18,13 @@ deploy_bundle.zip
 # Deploy artefacts built from the working tree.
 backend_update.zip
 frontend_update.zip
-step*.exp
-upload_update.exp
-deploy_update.exp
+
+# Ad-hoc expect scripts. These embed the server password in plaintext, and the
+# three narrow patterns that used to live here let 17 of them slip in anyway
+# (add_swap.exp, deploy_ssh.exp, update_backend.exp, …). Ignore the extension
+# outright. NOTE: .gitignore does not untrack what is already committed — the
+# ones in history still need `git rm --cached` plus a history rewrite.
+*.exp
 
 # Python local dev
 .venv/
@@ -37,3 +41,5 @@ backend/db.sqlite3.bak-*
 # already committed stay tracked on purpose; a deploy from the repo still needs
 # the business logo.
 backend/media/
+.DS_Store
+*.tar.gz
