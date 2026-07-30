@@ -49,6 +49,8 @@ import xyz.sattar.javid.proqueue.core.ui.components.AppointmentsListBottomSheet
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.time.ExperimentalTime
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @Composable
 fun CreateAppointmentScreen(
@@ -152,21 +154,8 @@ fun CreateAppointmentScreenContent(
     }
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                    action = {
-                        TextButton(onClick = { data.dismiss() }) {
-                            Text(stringResource(Res.string.confirm))
-                        }
-                    }
-                ) {
-                    Text(data.visuals.message)
-                }
-            }
+            ToastyHost(hostState = snackbarHostState)
         },
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = {

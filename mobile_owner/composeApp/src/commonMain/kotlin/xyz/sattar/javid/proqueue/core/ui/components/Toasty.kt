@@ -1,27 +1,29 @@
 package xyz.sattar.javid.proqueue.core.ui.components
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
 
@@ -43,51 +45,98 @@ fun ToastyHost(
     
     // We use a Popup to break out of Scaffold's bottom constraints and display at the top.
     if (currentSnackbarData != null) {
+        val popupPositionProvider = remember {
+            object : PopupPositionProvider {
+                override fun calculatePosition(
+                    anchorBounds: IntRect,
+                    windowSize: IntSize,
+                    layoutDirection: LayoutDirection,
+                    popupContentSize: IntSize
+                ): IntOffset {
+                    val x = (windowSize.width - popupContentSize.width) / 2
+                    val y = 0
+                    return IntOffset(x, y)
+                }
+            }
+        }
+
         Popup(
-            alignment = Alignment.TopCenter,
+            popupPositionProvider = popupPositionProvider,
             properties = PopupProperties(
                 focusable = false,
                 dismissOnBackPress = false,
                 dismissOnClickOutside = false
             )
         ) {
+            // Auto-dismiss the toast after 2.5 seconds (much shorter than before)
+            LaunchedEffect(currentSnackbarData) {
+                if (currentSnackbarData != null) {
+                    delay(2500L)
+                    currentSnackbarData.dismiss()
+                }
+            }
+
             AnimatedVisibility(
                 visible = currentSnackbarData != null,
-                enter = slideInVertically(initialOffsetY = { -it - 50 }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { -it - 50 }) + fadeOut(),
+                enter = slideInVertically(
+                    initialOffsetY = { -it },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ) + fadeIn(animationSpec = tween(300)),
+                exit = slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(250)
+                ) + fadeOut(animationSpec = tween(250)),
                 modifier = modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(defaultType)
                 
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = backgroundColor,
+                        containerColor = backgroundColor.copy(alpha = 0.98f),
                         contentColor = contentColor
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                    border = BorderStroke(1.dp, contentColor.copy(alpha = 0.15f)),
                     onClick = { currentSnackbarData.dismiss() }
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = contentColor
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    color = contentColor.copy(alpha = 0.15f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Text(
                             text = currentSnackbarData.visuals.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = contentColor
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                lineHeight = 20.sp
+                            ),
+                            fontWeight = FontWeight.SemiBold,
+                            color = contentColor,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }

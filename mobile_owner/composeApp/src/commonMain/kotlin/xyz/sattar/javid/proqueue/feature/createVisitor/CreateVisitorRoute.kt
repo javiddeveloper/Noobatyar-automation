@@ -59,6 +59,8 @@ import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @Composable
 fun CreateVisitorRoute(
@@ -155,21 +157,8 @@ fun CreateVisitorScreen(
     }
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                    action = {
-                        TextButton(onClick = { data.dismiss() }) {
-                            Text(stringResource(Res.string.confirm))
-                        }
-                    }
-                ) {
-                    Text(data.visuals.message)
-                }
-            }
+            ToastyHost(hostState = snackbarHostState)
         },
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = {

@@ -104,6 +104,8 @@ import xyz.sattar.javid.proqueue.core.utils.openWhatsApp
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 import xyz.sattar.javid.proqueue.domain.model.message.Message
 import xyz.sattar.javid.proqueue.domain.model.visitor.Visitor
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @Composable
 fun VisitorDetailsScreen(
@@ -167,7 +169,7 @@ fun VisitorDetailsScreenContent(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         if (uiState.isLoading) {
             Column(

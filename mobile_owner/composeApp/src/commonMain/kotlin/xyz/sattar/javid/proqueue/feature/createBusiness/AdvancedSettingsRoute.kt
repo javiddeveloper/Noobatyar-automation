@@ -22,6 +22,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.accept
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 /**
  * Standalone "advanced settings" screen (payment / capacity / reminders),
@@ -79,7 +81,7 @@ fun AdvancedSettingsRoute(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

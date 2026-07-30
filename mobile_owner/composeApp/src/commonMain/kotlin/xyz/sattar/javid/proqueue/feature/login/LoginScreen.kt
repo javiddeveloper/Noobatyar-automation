@@ -43,6 +43,8 @@ import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @Composable
 fun LoginScreen(
@@ -91,7 +93,7 @@ fun LoginScreenContent(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         Box(
             modifier = modifier

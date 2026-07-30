@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.Flow
 import org.koin.compose.viewmodel.koinViewModel
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.AddOnPackDto
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 /**
  * One-off add-on packs — SMS credit top-ups or a temporary feature unlock —
@@ -52,7 +54,7 @@ fun AddonsScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("بسته‌های افزودنی", style = MaterialTheme.typography.titleLarge) },

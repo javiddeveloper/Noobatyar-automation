@@ -63,6 +63,8 @@ import proqueue.composeapp.generated.resources.no_business_found
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @Composable
 fun BusinessListScreen(
@@ -136,7 +138,7 @@ fun BusinessListScreenContent(
     onDeleteRequest: (Long) -> Unit
 ) {
     Scaffold(
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

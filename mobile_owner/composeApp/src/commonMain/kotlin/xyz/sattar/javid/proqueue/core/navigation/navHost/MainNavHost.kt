@@ -51,6 +51,8 @@ import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
 import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
 import xyz.sattar.javid.proqueue.feature.createBusiness.AdvancedSettingsRoute
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @Composable
 fun MainNavHost(
@@ -108,7 +110,7 @@ fun MainNavHost(
     Scaffold(
         snackbarHost = {
             Box(modifier = Modifier.navigationBarsPadding()) {
-                SnackbarHost(snackbarHostState) 
+                ToastyHost(hostState = snackbarHostState) 
             }
         },
         bottomBar = {

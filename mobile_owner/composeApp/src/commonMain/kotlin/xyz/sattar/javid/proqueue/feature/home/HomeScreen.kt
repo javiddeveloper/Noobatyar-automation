@@ -114,6 +114,9 @@ fun HomeScreenContent(
     }
 
     Scaffold(
+        snackbarHost = {
+            xyz.sattar.javid.proqueue.core.ui.components.ToastyHost(hostState = snackbarHostState)
+        },
         contentWindowInsets = WindowInsets(0),
         topBar = {
             MainTopAppBar(

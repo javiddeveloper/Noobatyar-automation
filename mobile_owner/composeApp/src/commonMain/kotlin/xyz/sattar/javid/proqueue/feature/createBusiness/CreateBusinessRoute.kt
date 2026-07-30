@@ -87,6 +87,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.AddLocation
 import coil3.compose.AsyncImage
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -312,19 +314,7 @@ fun CreateBusinessScreen(
     }
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                    action = {
-                        TextButton(onClick = { data.dismiss() }) {
-                            Text(stringResource(Res.string.confirm))
-                        }
-                    }
-                ) {
-                    Text(data.visuals.message)
-                }
-            }
+            ToastyHost(hostState = snackbarHostState)
         },
         topBar = {
             TopAppBar(
