@@ -134,7 +134,7 @@ class ClientAppointmentListView(APIView):
         # No payment needed → confirm the booking and notify client + owner now.
         appointment.business = business
         appointment.visitor = visitor
-        _fire_booking_sms(appointment, visitor.phone_number, business.phone)
+        _fire_booking_sms(appointment, visitor.phone_number)
         return APIResponse.success(
             data={'id': appointment.id, 'requires_payment': False},
             message="نوبت شما با موفقیت ثبت شد و در انتظار تایید کسب‌وکار است."
@@ -283,7 +283,7 @@ class ClientAppointmentPaymentView(APIView):
         )
 
         # ── SMS Notifications via Melipayamak ─────────────────────────
-        _fire_booking_sms(appointment, request.user.phone_number, appointment.business.phone)
+        _fire_booking_sms(appointment, request.user.phone_number)
         # ─────────────────────────────────────────────────────────────
 
         return APIResponse.success(
@@ -417,7 +417,7 @@ class ClientDepositCallbackView(APIView):
             appointment.business_id, appointment.appointment_date
         )
 
-        _fire_deposit_paid_sms(appointment, appointment.business.phone)
+        _fire_deposit_paid_sms(appointment)
         return _back('success', appointment.id)
 
 
@@ -478,7 +478,7 @@ class ClientAppointmentCancelView(APIView):
             new='CANCELLED',
         )
 
-        _fire_cancellation_sms(appointment, appointment.business.phone)
+        _fire_cancellation_sms(appointment)
 
         return APIResponse.success(
             data={'id': appointment.id},
@@ -486,7 +486,7 @@ class ClientAppointmentCancelView(APIView):
         )
 
 
-def _fire_cancellation_sms(appointment, owner_phone):
+def _fire_cancellation_sms(appointment):
     """Tell the owner their client cancelled, so the freed slot is not a surprise."""
     import threading
 
@@ -505,7 +505,6 @@ def _fire_cancellation_sms(appointment, owner_phone):
         target=_send_booking_sms,
         kwargs=dict(
             client_phone=None,     # the client initiated this; no confirmation SMS
-            owner_phone=owner_phone,
             client_msg=None,
             owner_msg=owner_msg,
             business_id=appointment.business_id,
@@ -516,7 +515,7 @@ def _fire_cancellation_sms(appointment, owner_phone):
     ).start()
 
 
-def _fire_booking_sms(appointment, client_phone, owner_phone):
+def _fire_booking_sms(appointment, client_phone):
     """Build the client/owner confirmation messages for a booked appointment and
     dispatch the fire-and-forget SMS thread. ``appointment.business`` and
     ``appointment.visitor`` must already be loaded (no DB access here)."""
@@ -545,7 +544,6 @@ def _fire_booking_sms(appointment, client_phone, owner_phone):
         target=_send_booking_sms,
         kwargs=dict(
             client_phone=client_phone,
-            owner_phone=owner_phone,
             client_msg=client_msg,
             owner_msg=owner_msg,
             business_id=appointment.business_id,
@@ -556,7 +554,7 @@ def _fire_booking_sms(appointment, client_phone, owner_phone):
     ).start()
 
 
-def _fire_deposit_paid_sms(appointment, owner_phone):
+def _fire_deposit_paid_sms(appointment):
     """Messages for a booking settled through the gateway.
 
     Separate from ``_fire_booking_sms`` because that one tells the client the
@@ -586,7 +584,6 @@ def _fire_deposit_paid_sms(appointment, owner_phone):
         target=_send_booking_sms,
         kwargs=dict(
             client_phone=appointment.visitor.phone_number,
-            owner_phone=owner_phone,
             client_msg=client_msg,
             owner_msg=owner_msg,
             business_id=appointment.business_id,
@@ -597,7 +594,7 @@ def _fire_deposit_paid_sms(appointment, owner_phone):
     ).start()
 
 
-def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business_id, visitor_id):
+def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_id):
     """
     Background daemon-thread target: sends SMS to client and business owner via
     Melipayamak and logs the client SMS result in SmsLog.
@@ -609,11 +606,18 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
     from visitor.models import SmsLog
     from business.models import Business
 
-    # Resolve the owner whose plan pays for these SMS.
+    # Resolve the owner whose plan pays for these SMS, and the number that
+    # actually reaches them. business.phone is a display number for
+    # customers — often a landline — and was never the owner's own contact;
+    # owner notifications go to the phone their account was registered with.
+    owner_id = None
+    owner_phone = None
     try:
-        owner_id = Business.objects.values_list('user_id', flat=True).get(id=business_id)
+        owner_id, owner_phone = Business.objects.values_list(
+            'user_id', 'user__phone'
+        ).get(id=business_id)
     except Business.DoesNotExist:
-        owner_id = None
+        pass
 
     # Send to client (consumes one SMS credit from the owner's plan/wallet).
     # Callers pass client_msg=None when the client triggered the action
