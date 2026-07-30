@@ -41,105 +41,57 @@ fun ToastyHost(
     modifier: Modifier = Modifier,
     defaultType: ToastyType = ToastyType.Error
 ) {
-    val currentSnackbarData = hostState.currentSnackbarData
-    
-    // We use a Popup to break out of Scaffold's bottom constraints and display at the top.
-    if (currentSnackbarData != null) {
-        val popupPositionProvider = remember {
-            object : PopupPositionProvider {
-                override fun calculatePosition(
-                    anchorBounds: IntRect,
-                    windowSize: IntSize,
-                    layoutDirection: LayoutDirection,
-                    popupContentSize: IntSize
-                ): IntOffset {
-                    val x = (windowSize.width - popupContentSize.width) / 2
-                    val y = 0
-                    return IntOffset(x, y)
-                }
-            }
-        }
-
-        Popup(
-            popupPositionProvider = popupPositionProvider,
-            properties = PopupProperties(
-                focusable = false,
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false
-            )
+    SnackbarHost(
+        hostState = hostState,
+        modifier = modifier.fillMaxWidth()
+    ) { data ->
+        val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(defaultType)
+        
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = backgroundColor.copy(alpha = 0.98f),
+                contentColor = contentColor
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            border = BorderStroke(1.dp, contentColor.copy(alpha = 0.15f)),
+            modifier = Modifier
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .fillMaxWidth(),
+            onClick = { data.dismiss() }
         ) {
-            // Auto-dismiss the toast after 2.5 seconds (much shorter than before)
-            LaunchedEffect(currentSnackbarData) {
-                if (currentSnackbarData != null) {
-                    delay(2500L)
-                    currentSnackbarData.dismiss()
-                }
-            }
-
-            AnimatedVisibility(
-                visible = currentSnackbarData != null,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
-                ) + fadeIn(animationSpec = tween(300)),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(250)
-                ) + fadeOut(animationSpec = tween(250)),
-                modifier = modifier
+            Row(
+                modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(defaultType)
-                
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = backgroundColor.copy(alpha = 0.98f),
-                        contentColor = contentColor
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                    border = BorderStroke(1.dp, contentColor.copy(alpha = 0.15f)),
-                    onClick = { currentSnackbarData.dismiss() }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = contentColor.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(
-                                    color = contentColor.copy(alpha = 0.15f),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = contentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Text(
-                            text = currentSnackbarData.visuals.message,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                lineHeight = 20.sp
-                            ),
-                            fontWeight = FontWeight.SemiBold,
-                            color = contentColor,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
+                Text(
+                    text = data.visuals.message,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        lineHeight = 20.sp
+                    ),
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
