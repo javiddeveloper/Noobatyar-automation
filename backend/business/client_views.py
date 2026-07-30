@@ -1,4 +1,5 @@
 from adrf.views import APIView
+from asgiref.sync import sync_to_async
 from rest_framework.permissions import AllowAny
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -37,10 +38,17 @@ class ClientBusinessListView(APIView):
         page_obj = paginator.get_page(page)
 
         serializer = PublicBusinessSerializer(
-            page_obj.object_list, 
+            page_obj.object_list,
             many=True,
             context={'request': request}
         )
+
+        # PublicBusinessSerializer.to_representation() checks the owner's
+        # subscription (can_book_appointment -> sync ORM queries) to decide
+        # whether to gray out booking, so accessing .data raises
+        # SynchronousOnlyOperation unless it's pushed off this async view's
+        # event loop thread.
+        results = await sync_to_async(lambda: serializer.data)()
 
         return APIResponse.success(
             data={
@@ -49,7 +57,7 @@ class ClientBusinessListView(APIView):
                 'current_page': page_obj.number,
                 'next': page_obj.next_page_number() if page_obj.has_next() else None,
                 'previous': page_obj.previous_page_number() if page_obj.has_previous() else None,
-                'results': serializer.data
+                'results': results
             },
             message="لیست کسب و کارها با موفقیت دریافت شد"
         )
@@ -68,7 +76,10 @@ class ClientBusinessDetailView(APIView):
             )
 
         serializer = PublicBusinessSerializer(business, context={'request': request})
+        # Same reason as ClientBusinessListView: to_representation() does a
+        # sync ORM lookup to check the owner's subscription.
+        data = await sync_to_async(lambda: serializer.data)()
         return APIResponse.success(
-            data=serializer.data,
+            data=data,
             message="اطلاعات کسب و کار با موفقیت دریافت شد"
         )
