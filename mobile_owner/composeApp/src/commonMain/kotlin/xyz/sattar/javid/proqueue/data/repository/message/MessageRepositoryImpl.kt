@@ -55,32 +55,23 @@ class MessageRepositoryImpl(
         }
     }
 
-    override suspend fun syncMessages(visitorId: Long, businessId: Long): Boolean {
-        return try {
-            val response = visitorApiService.getVisitorMessages(visitorId = visitorId)
-            if (response is ApiResponse.Success) {
-                val dtos = response.data.results
-                val entities = dtos.map { dto ->
-                    xyz.sattar.javid.proqueue.data.localDataSource.message.MessageEntity(
-                        id = dto.id,
-                        appointmentId = dto.appointmentId ?: 0L,
-                        messageType = dto.messageType,
-                        content = dto.content,
-                        sentAt = DateTimeUtils.parseIsoToEpochMillis(dto.sentAt),
-                        businessTitle = dto.businessTitle ?: "--"
-                    )
-                }
-                // Option: Delete all existing messages for visitor and business and re-insert, or upsert.
-                // It's safer to just iterate and insert with Ignore/Replace since they have ids
-                entities.forEach { messageDao.insertMessage(it) }
-                true
-            } else if (response is ApiResponse.Error) {
-                throw Exception(response.message)
-            } else {
-                false
+    override suspend fun getRemoteMessages(visitorId: Long, businessTitle: String): List<Message> {
+        val response = visitorApiService.getVisitorMessages(visitorId = visitorId)
+        return when (response) {
+            is ApiResponse.Success -> response.data.results.map { dto ->
+                Message(
+                    id = dto.id,
+                    appointmentId = 0L,
+                    messageType = "SMS",
+                    content = dto.messageText,
+                    sentAt = DateTimeUtils.parseIsoToEpochMillis(dto.sentAt),
+                    businessTitle = businessTitle,
+                    remote = true,
+                    status = dto.status
+                )
             }
-        } catch (e: Exception) {
-            throw e
+            is ApiResponse.Error -> throw Exception(response.message)
+            else -> emptyList()
         }
     }
 }

@@ -27,6 +27,7 @@ class SettingsViewModel(
             SettingsIntent.LoadSettings -> loadSettings()
             SettingsIntent.OnAboutClick -> sendEvent(SettingsEvent.NavigateToAbout)
             SettingsIntent.OnChangeBusinessClick -> sendEvent(SettingsEvent.NavigateToBusinessSelection)
+            is SettingsIntent.OnEditBusinessClick -> sendEvent(SettingsEvent.NavigateToEditBusiness(intent.businessId))
             SettingsIntent.OnDeleteBusinessClick -> deleteBusiness()
             SettingsIntent.OnNotificationsClick -> sendEvent(SettingsEvent.NavigateToNotifications)
             SettingsIntent.OnMessagesClick -> sendEvent(SettingsEvent.NavigateToMessages)

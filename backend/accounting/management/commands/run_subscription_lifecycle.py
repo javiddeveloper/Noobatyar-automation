@@ -57,7 +57,11 @@ class Command(BaseCommand):
                     f"برای جلوگیری از قطع خدمات، همین حالا تمدید کنید."
                 )
                 try:
-                    send_sms(phone, msg)
+                    # Platform-level notice to the owner about their own
+                    # subscription, so it is not billed to their SMS quota.
+                    ok, err = send_sms(phone, msg)
+                    if not ok:
+                        self.stderr.write(f"reminder SMS failed for {phone}: {err}")
                 except Exception as exc:  # noqa: BLE001 — reminder must not crash the job
                     self.stderr.write(f"reminder SMS failed for {phone}: {exc}")
             sub.reminder_sent = True

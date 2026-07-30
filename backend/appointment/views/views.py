@@ -776,10 +776,14 @@ def _send_client_sms(phone, message, business_id, visitor_id):
         owner_id = None
 
     try:
-        if owner_id is not None and not usage.consume_sms(owner_id):
+        receipt = usage.consume_sms(owner_id) if owner_id is not None else None
+        if owner_id is not None and not receipt:
             logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
             return
         ok, err = send_sms(phone, message)
+        if not ok:
+            # Failed sends are not billable — return the credit to its bucket.
+            usage.refund_sms(receipt)
         SmsLog.objects.create(
             business_id=business_id,
             visitor_id=visitor_id,

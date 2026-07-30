@@ -103,11 +103,13 @@ fun AdvancedSettingsRoute(
     ) { paddingValues ->
         val business = uiState.business
         if (business == null) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                CircularProgressIndicator()
+                repeat(4) {
+                    xyz.sattar.javid.proqueue.core.ui.components.ListItemShimmer(height = 88.dp)
+                }
             }
         } else {
             Column(

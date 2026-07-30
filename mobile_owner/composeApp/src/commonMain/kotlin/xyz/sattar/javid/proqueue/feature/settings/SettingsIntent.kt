@@ -4,6 +4,7 @@ sealed interface SettingsIntent {
     data object LoadSettings : SettingsIntent
     data object OnAboutClick : SettingsIntent
     data object OnChangeBusinessClick : SettingsIntent
+    data class OnEditBusinessClick(val businessId: Long) : SettingsIntent
     data object OnDeleteBusinessClick : SettingsIntent
     data object OnNotificationsClick : SettingsIntent
     data object OnMessagesClick : SettingsIntent

@@ -190,11 +190,13 @@ fun VisitorSelectionScreenContent(
 
             when {
                 uiState.filteredVisitors.isEmpty() && uiState.isLoading && uiState.currentPage == 1 -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        CircularProgressIndicator()
+                        repeat(6) {
+                            xyz.sattar.javid.proqueue.core.ui.components.ListItemShimmer(height = 88.dp)
+                        }
                     }
                 }
 
@@ -240,7 +242,7 @@ fun VisitorSelectionScreenContent(
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                    xyz.sattar.javid.proqueue.core.ui.components.ListItemShimmer(height = 88.dp)
                                 }
                             }
                         }

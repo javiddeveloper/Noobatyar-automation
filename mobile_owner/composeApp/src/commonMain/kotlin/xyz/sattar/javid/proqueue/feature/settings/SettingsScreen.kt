@@ -60,6 +60,7 @@ fun SettingsScreen(
     userViewModel: xyz.sattar.javid.proqueue.feature.profile.UserViewModel = koinViewModel(),
     onNavigateToAbout: () -> Unit = {},
     onChangeBusiness: () -> Unit = {},
+    onNavigateToEditBusiness: (Long) -> Unit = {},
     onNavigateToAdvancedSettings: (Long) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
@@ -82,6 +83,7 @@ fun SettingsScreen(
         events = viewModel.events,
         onNavigateToAbout = onNavigateToAbout,
         onChangeBusiness = onChangeBusiness,
+        onNavigateToEditBusiness = onNavigateToEditBusiness,
         onNavigateToNotifications = onNavigateToNotifications,
         onNavigateToMessages = onNavigateToMessages
     )
@@ -223,6 +225,20 @@ fun SettingsContent(
                         title = stringResource(Res.string.change_business),
                         subtitle = null,
                         onClick = { onIntent(SettingsIntent.OnChangeBusinessClick) },
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsItem(
+                        icon = Icons.Rounded.Edit,
+                        title = "ویرایش کسب و کار",
+                        subtitle = null,
+                        onClick = {
+                            uiState.currentBusiness?.let { business ->
+                                onIntent(SettingsIntent.OnEditBusinessClick(business.id))
+                            }
+                        },
                         tint = MaterialTheme.colorScheme.onSurface
                     )
 
@@ -780,6 +796,7 @@ private fun HandleEvents(
     events: kotlinx.coroutines.flow.Flow<SettingsEvent>,
     onNavigateToAbout: () -> Unit,
     onChangeBusiness: () -> Unit,
+    onNavigateToEditBusiness: (Long) -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToMessages: () -> Unit
 ) {
@@ -792,6 +809,10 @@ private fun HandleEvents(
 
             SettingsEvent.NavigateToBusinessSelection -> {
                 scope.launch { onChangeBusiness() }
+            }
+
+            is SettingsEvent.NavigateToEditBusiness -> {
+                scope.launch { onNavigateToEditBusiness(event.businessId) }
             }
 
             SettingsEvent.BusinessDeleted -> {

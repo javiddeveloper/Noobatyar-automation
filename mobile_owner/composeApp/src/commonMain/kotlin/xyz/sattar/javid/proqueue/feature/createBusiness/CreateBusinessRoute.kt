@@ -351,7 +351,14 @@ fun CreateBusinessScreen(
         }
     ) { paddingValues ->
         if (uiState.isLoading) {
-            CircularProgressIndicator()
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                repeat(4) {
+                    xyz.sattar.javid.proqueue.core.ui.components.ListItemShimmer(height = 88.dp)
+                }
+            }
         } else if (uiState.businessCreated) {
             onIntent(CreateBusinessIntent.BusinessCreated)
         }

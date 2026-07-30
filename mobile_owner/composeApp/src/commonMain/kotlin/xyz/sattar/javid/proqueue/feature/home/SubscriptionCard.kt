@@ -78,17 +78,19 @@ fun SubscriptionCard(subscription: SubscriptionDto?) {
                 )
             }
 
-            if (isValid && subscription != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            if (subscription != null) {
                 SubscriptionInfoRow("تاریخ شروع:", formatIsoDate(subscription.startedAt))
                 SubscriptionInfoRow("تاریخ انقضا:", formatIsoDate(subscription.endsAt))
-                val daysRemaining = calculateDaysRemaining(subscription.endsAt)
-                SubscriptionInfoRow(
-                    label = "اعتبار باقی‌مانده:",
-                    value = "$daysRemaining روز",
-                    valueColor = if (daysRemaining < 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
-            } else {
+            }
+            val daysRemaining = calculateDaysRemaining(subscription?.endsAt)
+            SubscriptionInfoRow(
+                label = "اعتبار باقی‌مانده:",
+                value = "$daysRemaining روز",
+                valueColor = if (daysRemaining < 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+            )
+
+            if (!isValid) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "برای استفاده از تمامی امکانات نوبت یار، نسبت به تهیه اشتراک اقدام کنید.",

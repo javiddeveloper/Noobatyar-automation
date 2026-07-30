@@ -170,8 +170,13 @@ fun VisitorDetailsScreenContent(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                repeat(4) {
+                    xyz.sattar.javid.proqueue.core.ui.components.ListItemShimmer(height = 88.dp)
+                }
             }
         } else if (uiState.visitor != null) {
             var visible by remember { mutableStateOf(false) }
@@ -769,32 +774,36 @@ fun MessageItemCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    var showMenu by remember { mutableStateOf(false) }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Rounded.MoreVert, contentDescription = null)
-                    }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = {
+                    // Server-side SMS logs are read-only history; there is no
+                    // local row to delete, so don't offer the action.
+                    if (!message.remote) {
+                        var showMenu by remember { mutableStateOf(false) }
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Rounded.MoreVert, contentDescription = null)
+                        }
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = {
 
-                                Text(
-                                    stringResource(Res.string.delete),
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onDeleteClick()
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        )
+                                    Text(
+                                        stringResource(Res.string.delete),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onDeleteClick()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -812,18 +821,35 @@ fun MessageItemCard(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            val badgeColor = mediaColor(message.messageType)
-            androidx.compose.material3.Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = badgeColor.copy(alpha = if (isDark) 0.3f else 0.12f)
-            ) {
-                Text(
-                    text = channelLabel(message.messageType),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) badgeColor.copy(alpha = 0.9f) else badgeColor
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val badgeColor = mediaColor(message.messageType)
+                androidx.compose.material3.Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = badgeColor.copy(alpha = if (isDark) 0.3f else 0.12f)
+                ) {
+                    Text(
+                        text = channelLabel(message.messageType),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) badgeColor.copy(alpha = 0.9f) else badgeColor
+                    )
+                }
+                if (message.status == "FAILED") {
+                    val errorColor = MaterialTheme.colorScheme.error
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = errorColor.copy(alpha = if (isDark) 0.3f else 0.12f)
+                    ) {
+                        Text(
+                            text = "ارسال نشد",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) errorColor.copy(alpha = 0.9f) else errorColor
+                        )
+                    }
+                }
             }
         }
     }

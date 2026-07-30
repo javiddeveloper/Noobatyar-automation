@@ -123,7 +123,8 @@ class Command(BaseCommand):
             return 'skipped'
 
         owner_id = appointment.business.user_id
-        if not usage.consume_sms(owner_id):
+        receipt = usage.consume_sms(owner_id)
+        if not receipt:
             self.stderr.write(
                 f"#{appointment.id}: اعتبار پیامک کسب‌وکار {appointment.business_id} تمام شده است"
             )
@@ -135,6 +136,9 @@ class Command(BaseCommand):
         )
 
         ok, err = send_sms(phone, message)
+        if not ok:
+            # Failed sends are not billable — return the credit to its bucket.
+            usage.refund_sms(receipt)
 
         SmsLog.objects.create(
             business_id=appointment.business_id,

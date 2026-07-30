@@ -599,18 +599,24 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
     try:
         if not client_phone or not client_msg:
             pass
-        elif owner_id is not None and not usage.consume_sms(owner_id):
-            logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
         else:
-            client_ok, client_err = send_sms(client_phone, client_msg)
-            SmsLog.objects.create(
-                business_id=business_id,
-                visitor_id=visitor_id,
-                message_text=client_msg,
-                status='SENT' if client_ok else 'FAILED',
-                error_detail=client_err if not client_ok else ""
-            )
-            logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
+            receipt = usage.consume_sms(owner_id) if owner_id is not None else None
+            if owner_id is not None and not receipt:
+                logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+            else:
+                client_ok, client_err = send_sms(client_phone, client_msg)
+                if not client_ok:
+                    # The provider never accepted it, so the owner must not pay
+                    # for it — put the credit back where it came from.
+                    usage.refund_sms(receipt)
+                SmsLog.objects.create(
+                    business_id=business_id,
+                    visitor_id=visitor_id,
+                    message_text=client_msg,
+                    status='SENT' if client_ok else 'FAILED',
+                    error_detail=client_err if not client_ok else ""
+                )
+                logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
 
@@ -618,10 +624,14 @@ def _send_booking_sms(client_phone, owner_phone, client_msg, owner_msg, business
     try:
         if not owner_phone or not owner_msg:
             pass
-        elif owner_id is not None and not usage.consume_sms(owner_id):
-            logger.warning(f"SMS→owner skipped for business {business_id}: SMS quota exhausted")
         else:
-            owner_ok = send_sms(owner_phone, owner_msg)
-            logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
+            receipt = usage.consume_sms(owner_id) if owner_id is not None else None
+            if owner_id is not None and not receipt:
+                logger.warning(f"SMS→owner skipped for business {business_id}: SMS quota exhausted")
+            else:
+                owner_ok, owner_err = send_sms(owner_phone, owner_msg)
+                if not owner_ok:
+                    usage.refund_sms(receipt)
+                logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→owner error: {e}")

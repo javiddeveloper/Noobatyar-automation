@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MessageDto(
     @SerialName("id") val id: Long,
-    @SerialName("appointment") val appointmentId: Long?,
-    @SerialName("business_title") val businessTitle: String?,
-    @SerialName("message_type") val messageType: String,
-    @SerialName("content") val content: String,
+    @SerialName("visitor") val visitorId: Long,
+    @SerialName("business") val businessId: Long,
+    @SerialName("message_text") val messageText: String,
+    @SerialName("status") val status: String,
     @SerialName("sent_at") val sentAt: String
 )

@@ -190,13 +190,14 @@ def release_appointment(owner_or_id, source, booked_at=None):
     return _decrement_usage(_uid(owner_or_id), METRIC_APPOINTMENTS, booked_period)
 
 
-def _decrement_usage(user_id, metric, period):
-    """Give back one unit of this month's counter, never dropping below zero."""
+def _decrement_usage(user_id, metric, period, amount=1):
+    """Give back units of this month's counter, never dropping below zero."""
     key = _month_key(user_id, metric, period)
     try:
-        if int(cache.get(key) or 0) <= 0:
+        current = int(cache.get(key) or 0)
+        if current <= 0:
             return False
-        cache.decr(key, 1)
+        cache.decr(key, min(amount, current))
         return True
     except ValueError:
         # Key vanished between the read and the decrement — nothing to refund.
@@ -216,21 +217,39 @@ def appointment_balance(owner_or_id):
 
 # ── SMS quota (monthly allowance first, then wallet) ──────────────────────────
 
+def _sms_receipt(owner_or_id, monthly, wallet):
+    return {
+        "owner": _uid(owner_or_id),
+        SOURCE_MONTHLY: monthly,
+        SOURCE_WALLET: wallet,
+        "period": _period(),
+    }
+
+
 def consume_sms(owner_or_id, amount=1):
     """
     Try to consume ``amount`` SMS credits: first from this month's plan allowance,
-    then from the persistent wallet. Returns True if fully consumed, False if the
-    owner is out of credit (caller should skip sending).
+    then from the persistent wallet.
+
+    Returns a receipt recording which buckets paid for it, or ``None`` when the
+    owner is out of credit (caller should skip sending). The receipt is always
+    truthy on success, so ``if not consume_sms(...)`` still reads naturally.
+
+    Hold on to the receipt: if the send then fails, hand it to :func:`refund_sms`
+    so a message the provider never accepted costs the owner nothing. Unlike an
+    appointment, one SMS charge can straddle *both* buckets (a partial monthly
+    remainder topped up from the wallet), so the split has to be recorded here
+    rather than re-derived at refund time.
     """
     quota = entitlements.get_quota(owner_or_id, entitlements.QUOTA_MONTHLY_SMS)
     if quota == entitlements.UNLIMITED:
         add_usage(owner_or_id, METRIC_SMS, amount)
-        return True
+        return _sms_receipt(owner_or_id, monthly=amount, wallet=0)
 
     remaining_month = remaining(owner_or_id, METRIC_SMS, quota)
     if remaining_month >= amount:
         add_usage(owner_or_id, METRIC_SMS, amount)
-        return True
+        return _sms_receipt(owner_or_id, monthly=amount, wallet=0)
 
     # Draw the shortfall from the wallet.
     shortfall = amount - remaining_month
@@ -238,9 +257,39 @@ def consume_sms(owner_or_id, amount=1):
         if remaining_month:
             add_usage(owner_or_id, METRIC_SMS, remaining_month)
         add_wallet(owner_or_id, -shortfall)
-        return True
+        return _sms_receipt(owner_or_id, monthly=remaining_month, wallet=shortfall)
 
-    return False
+    return None
+
+
+def refund_sms(receipt):
+    """
+    Give back the credit a failed SMS consumed, using the receipt
+    :func:`consume_sms` returned. Returns True if anything was actually returned.
+
+    Same month-boundary rule as :func:`release_appointment`: wallet credit is
+    bought with money and never expires, so it is always refundable, but the
+    monthly counter is keyed per calendar month. If the charge happened in an
+    earlier month that counter has already reset, and refunding it now would hand
+    back an allowance the current month never spent.
+    """
+    if not receipt:
+        return False
+
+    owner = receipt.get("owner")
+    monthly = int(receipt.get(SOURCE_MONTHLY) or 0)
+    wallet = int(receipt.get(SOURCE_WALLET) or 0)
+    refunded = False
+
+    if wallet:
+        add_wallet(owner, wallet)
+        refunded = True
+
+    period = receipt.get("period") or _period()
+    if monthly and period == _period():
+        refunded = _decrement_usage(owner, METRIC_SMS, period, monthly) or refunded
+
+    return refunded
 
 
 def sms_balance(owner_or_id):

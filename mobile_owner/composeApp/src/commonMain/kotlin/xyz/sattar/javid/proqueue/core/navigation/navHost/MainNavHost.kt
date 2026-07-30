@@ -221,6 +221,9 @@ fun MainNavHost(
                         navController.navigate(AppScreens.AboutUs)
                     },
                     onChangeBusiness = onChangeBusiness,
+                    onNavigateToEditBusiness = { businessId ->
+                        navController.navigate(AppScreens.CreateBusiness(businessId = businessId))
+                    },
                     onNavigateToAdvancedSettings = { businessId ->
                         navController.navigate(AppScreens.AdvancedSettings(businessId = businessId))
                     },

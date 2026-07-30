@@ -7,6 +7,7 @@ import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.AppointmentRepository
 import xyz.sattar.javid.proqueue.domain.MessageRepository
 import xyz.sattar.javid.proqueue.domain.VisitorRepository
+import xyz.sattar.javid.proqueue.domain.model.message.Message
 import xyz.sattar.javid.proqueue.domain.usecase.GenerateReminderMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.SendMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.SyncAppointmentsUseCase
@@ -22,6 +23,16 @@ class VisitorDetailsViewModel(
 ) : BaseViewModel<VisitorDetailsState, PartialState, VisitorDetailsEvent, VisitorDetailsIntent>(
     initialState = VisitorDetailsState()
 ) {
+
+    /**
+     * Server SMS history for the visitor currently on screen. Held here so the
+     * local-only refreshes after send/delete don't drop it from the list.
+     */
+    private var remoteMessages: List<Message> = emptyList()
+
+    private suspend fun mergedMessages(visitorId: Long, businessId: Long): List<Message> =
+        (messageRepository.getMessagesForVisitorAndBusiness(visitorId, businessId) + remoteMessages)
+            .sortedByDescending { it.sentAt }
 
     override fun handleIntent(intent: VisitorDetailsIntent): Flow<PartialState> {
         return when (intent) {
@@ -42,7 +53,7 @@ class VisitorDetailsViewModel(
                     val visitor = uiState.value.visitor
                     val business = BusinessStateHolder.selectedBusiness.value
                     if (visitor != null && business != null) {
-                        val updatedMessages = messageRepository.getMessagesForVisitorAndBusiness(visitor.id, business.id)
+                        val updatedMessages = mergedMessages(visitor.id, business.id)
                         emit(
                             PartialState.DetailsLoaded(
                                 visitor = visitor,
@@ -64,7 +75,7 @@ class VisitorDetailsViewModel(
                     val visitor = uiState.value.visitor
                     val business = BusinessStateHolder.selectedBusiness.value
                     if (visitor != null && business != null) {
-                        val updatedMessages = messageRepository.getMessagesForVisitorAndBusiness(visitor.id, business.id)
+                        val updatedMessages = mergedMessages(visitor.id, business.id)
                         emit(
                             PartialState.DetailsLoaded(
                                 visitor = visitor,
@@ -133,12 +144,22 @@ class VisitorDetailsViewModel(
             // along with their appointments lets this upsert the local cache
             // before we give up on them.
             syncAppointmentsUseCase(businessId = business.id, visitorId = visitorId)
-            messageRepository.syncMessages(visitorId = visitorId, businessId = business.id)
+
+            // SMS history is a nice-to-have next to the visitor's own data —
+            // never let it take the whole screen down with it.
+            remoteMessages = try {
+                messageRepository.getRemoteMessages(
+                    visitorId = visitorId,
+                    businessTitle = business.title
+                )
+            } catch (_: Exception) {
+                emptyList()
+            }
 
             val visitor = visitorRepository.getVisitorById(visitorId)
             if (visitor != null) {
                 val appointments = appointmentRepository.getVisitorHistoryForBusiness(visitorId, business.id)
-                val messages = messageRepository.getMessagesForVisitorAndBusiness(visitorId, business.id)
+                val messages = mergedMessages(visitorId, business.id)
                 emit(PartialState.DetailsLoaded(visitor, appointments, messages))
             } else {
                 emit(PartialState.ShowMessage("اطلاعات یافت نشد"))
