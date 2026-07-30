@@ -159,7 +159,7 @@ def buy_addon(request):
     result = AddOnPaymentService().create_payment(
         user=request.user,
         pack=pack,
-        callback_url='https://noobatyar.ir/home/payment-result-addon',
+        callback_url='https://api.noobatyar.ir/api/accounting/addons/payment-result',
     )
     if not result['success']:
         return APIResponse.error(message=result.get('error', 'خطا در ایجاد درخواست پرداخت'))
@@ -218,8 +218,7 @@ def pay_for_plan(request):  # ✅ sync
     result = payment_service.create_payment(  # ✅ بدون await
         user=user,
         plan=plan,
-        callback_url='https://noobatyar.ir/home/payment-result'
-        # callback_url=request.build_absolute_uri('/payment-result')
+        callback_url='https://api.noobatyar.ir/api/accounting/payment-result'
     )
 
     if not result['success']:
