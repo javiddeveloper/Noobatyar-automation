@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Android adaptive icon, BACKGROUND layer.
+       Gradient only, full bleed, no artwork: the launcher masks this layer and
+       parallaxes it independently of the foreground, so anything drawn here
+       would slide out from under the mark. -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset=".55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx=".26" cy=".18" r=".9">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" fill="url(#bgGlow)"/>
+</svg>

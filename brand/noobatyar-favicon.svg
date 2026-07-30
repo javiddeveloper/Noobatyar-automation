@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="نوبت‌یار Noobatyar">
+  <title>نوبت‌یار — Noobatyar</title>
+  <!-- Simplified mark for 16-32px use. The checkmark of the full icon closes up
+       and turns to mush below ~20px, so it is dropped here and the ن silhouette
+       (open ring + dot) is thickened instead. Same mark, tuned for tiny sizes. -->
+  <defs>
+    <linearGradient id="fvBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset=".55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="url(#fvBg)"/>
+
+  <!-- Narrower gap than the full icon: at this size a wide gap plus a mark
+       floating in it starts to read as a power-button glyph. -->
+  <path d="M326 163.8A140 140 0 1 1 186 163.8"
+        fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+
+  <circle cx="256" cy="108" r="36" fill="#FBBF24"/>
+</svg>

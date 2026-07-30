@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="نوبت‌یار Noobatyar">
+  <title>نوبت‌یار — Noobatyar</title>
+  <!-- Full-bleed square, no corner rounding: for Android adaptive icons and iOS,
+       where the OS applies its own mask (circle, squircle, teardrop...).
+       The mark is scaled to 0.78, putting the artwork at ~53% of the canvas —
+       comfortably inside both the Android adaptive safe zone (inner 66%) and
+       the web maskable safe zone (inner 80%). Using the rounded
+       noobatyar-icon.svg here would get its corners clipped twice and the mark
+       cropped by round masks. -->
+  <defs>
+    <linearGradient id="sqBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset=".55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+    <radialGradient id="sqGlow" cx=".26" cy=".18" r=".9">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sqDot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FDE68A"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#sqBg)"/>
+  <rect width="512" height="512" fill="url(#sqGlow)"/>
+
+  <g transform="translate(256 260) scale(0.78) translate(-256 -268)">
+    <path d="M337.64 156.96A146 146 0 1 1 174.36 156.96"
+          fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+    <path d="M191 276L234 323L327 221"
+          fill="none" stroke="#FFFFFF" stroke-width="36"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="256" cy="122" r="28" fill="url(#sqDot)"/>
+  </g>
+</svg>

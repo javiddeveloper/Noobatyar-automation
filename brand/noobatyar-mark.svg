@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="78 90 356 356" width="356" height="356" role="img" aria-label="نوبت‌یار Noobatyar">
+  <title>نوبت‌یار — Noobatyar</title>
+  <!-- Mark only, transparent background, tight bounds.
+       The ring and check inherit `currentColor`, so this drops onto a light or
+       dark surface by setting `color` on the parent. The dot stays amber — it
+       is the one fixed brand accent. -->
+  <path d="M337.64 156.96A146 146 0 1 1 174.36 156.96"
+        fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+
+  <path d="M191 276L234 323L327 221"
+        fill="none" stroke="currentColor" stroke-width="36"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="256" cy="122" r="28" fill="#F59E0B"/>
+</svg>

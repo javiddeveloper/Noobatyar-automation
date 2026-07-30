@@ -1,11 +1,22 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import ThemeToggle from './components/ThemeToggle';
 
 export const metadata: Metadata = {
   title: 'نوبت‌یار | رزرو آنلاین نوبت',
   description: 'سیستم نوبت‌دهی آنلاین نوبت‌یار — از هر کجا، هر زمان نوبت بگیرید',
-  manifest: '/manifest.json',
+};
+
+// Icons and the web manifest are wired up by file convention, not from here:
+// app/icon.svg, app/apple-icon.png, app/favicon.ico and app/manifest.ts each
+// get their own <link> tag emitted by Next. Re-declaring `manifest` in the
+// metadata above is what previously pointed the browser at a non-existent
+// /manifest.json.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#7c3aed' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f0f0f' },
+  ],
 };
 
 // Applied before paint to prevent a flash of the wrong theme.

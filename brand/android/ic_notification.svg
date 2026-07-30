@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="68 80 376 376" width="376" height="376">
+  <!-- Android notification small icon (ReminderReceiver's setSmallIcon).
+       Android throws away the colour of a small icon and re-renders it from the
+       ALPHA CHANNEL alone, tinted to the system accent. So this is a flat white
+       silhouette on transparency — the amber dot is white here too, because a
+       coloured dot would come out identical anyway.
+
+       Feeding the full colour app icon in here would render as a solid white
+       rounded square, since that artwork is opaque across its whole plate. -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M337.64 156.96A146 146 0 1 1 174.36 156.96"/>
+    <path d="M191 276L234 323L327 221"/>
+  </g>
+  <circle cx="256" cy="122" r="28" fill="#FFFFFF"/>
+</svg>
