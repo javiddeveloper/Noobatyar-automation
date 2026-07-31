@@ -18,6 +18,24 @@ from . import entitlements, usage
 from rest_framework.decorators import api_view, permission_classes
 
 
+def _client_callback(path: str) -> str:
+    """Absolute URL on the customer web app for a payment gateway to return to.
+
+    These were hardcoded to https://noobatyar.ir/... — the bare domain, which
+    resolves to a *different server* than the one running this app. Zibal sent
+    every payer there after paying, so the page that calls the verify endpoint
+    never ran: transactions stayed `pending` with an empty zibal_response and
+    the plan or add-on was never applied.
+
+    CLIENT_WEB_URL already existed for exactly this (the deposit flow uses it)
+    and already defaults to the right host.
+    """
+    from django.conf import settings
+
+    base = (getattr(settings, 'CLIENT_WEB_URL', '') or '').rstrip('/')
+    return f'{base}{path}'
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def plan_list(request):
@@ -159,7 +177,7 @@ def buy_addon(request):
     result = AddOnPaymentService().create_payment(
         user=request.user,
         pack=pack,
-        callback_url='https://noobatyar.ir/home/payment-result-addon',
+        callback_url=_client_callback('/home/payment-result-addon'),
     )
     if not result['success']:
         return APIResponse.error(message=result.get('error', 'خطا در ایجاد درخواست پرداخت'))
@@ -218,7 +236,7 @@ def pay_for_plan(request):  # ✅ sync
     result = payment_service.create_payment(  # ✅ بدون await
         user=user,
         plan=plan,
-        callback_url='https://noobatyar.ir/home/payment-result'
+        callback_url=_client_callback('/home/payment-result'),
     )
 
     if not result['success']:
