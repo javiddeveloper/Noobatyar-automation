@@ -170,7 +170,7 @@ fun NotificationsScreenContent(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                     Text(
-                        text = "با فعال‌سازی، نزدیک زمان هر نوبت یک یادآوری خودکار برای مشتری ارسال می‌شود تا احتمال عدم حضور کاهش یابد.",
+                        text = "با فعال‌سازی، نزدیک زمان هر نوبت یک یادآوری برای شما ارسال می‌شود تا به مشتری یادآوری کنید و احتمال عدم حضور کاهش یابد.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
