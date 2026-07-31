@@ -20,6 +20,7 @@ data class CreateBusinessState (
     sealed class PartialState{
         data class IsLoading(val isLoading: Boolean): PartialState()
         data class ShowMessage(val message: String): PartialState()
+        object ClearMessage : PartialState()
         object BusinessCreated: PartialState()
         data class LogoSelected(val bytes: ByteArray): PartialState()
         data class BusinessLoaded(val business: Business): PartialState()

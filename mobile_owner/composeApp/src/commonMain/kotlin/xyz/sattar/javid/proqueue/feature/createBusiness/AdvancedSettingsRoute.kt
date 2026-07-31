@@ -77,7 +77,10 @@ fun AdvancedSettingsRoute(
     )
 
     LaunchedEffect(uiState.message) {
-        uiState.message?.let { snackbarHostState.showSnackbar(it) }
+        uiState.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.sendIntent(CreateBusinessIntent.ClearMessage)
+        }
     }
 
     Scaffold(

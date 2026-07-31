@@ -46,6 +46,7 @@ class CreateBusinessViewModel(
             }
 
             CreateBusinessIntent.BackPress -> sendEvent(CreateBusinessEvent.BackPressed)
+            CreateBusinessIntent.ClearMessage -> flow { emit(CreateBusinessState.PartialState.ClearMessage) }
             CreateBusinessIntent.BusinessCreated -> sendEvent(CreateBusinessEvent.NavigateToBusiness)
             is CreateBusinessIntent.LoadBusiness -> loadBusiness(intent.businessId)
             CreateBusinessIntent.LoadEntitlements -> loadEntitlements()
@@ -98,6 +99,8 @@ class CreateBusinessViewModel(
                     isLoading = false,
                     message = partialState.message
                 )
+            CreateBusinessState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
             is CreateBusinessState.PartialState.LogoSelected ->
                 currentState.copy(logoBytes = partialState.bytes, isLoading = false)
 

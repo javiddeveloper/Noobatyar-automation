@@ -312,6 +312,7 @@ fun CreateBusinessScreen(
         val msg = uiState.message
         if (msg != null) {
             snackbarHostState.showSnackbar(msg)
+            onIntent(CreateBusinessIntent.ClearMessage)
         }
     }
     Scaffold(

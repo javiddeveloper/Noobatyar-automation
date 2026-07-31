@@ -24,6 +24,7 @@ sealed class CreateBusinessIntent {
         val paymentLink: String
     ) : CreateBusinessIntent()
     object BackPress : CreateBusinessIntent()
+    object ClearMessage : CreateBusinessIntent()
     object BusinessCreated : CreateBusinessIntent()
     data class LoadBusiness(val businessId: Long) : CreateBusinessIntent()
     object LoadEntitlements : CreateBusinessIntent()
