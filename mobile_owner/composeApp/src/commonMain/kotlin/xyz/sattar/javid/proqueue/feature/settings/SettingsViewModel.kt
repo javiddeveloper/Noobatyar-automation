@@ -10,7 +10,8 @@ import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.usecase.DeleteBusinessUseCase
 
 class SettingsViewModel(
-    private val deleteBusinessUseCase: DeleteBusinessUseCase
+    private val deleteBusinessUseCase: DeleteBusinessUseCase,
+    private val businessRepository: xyz.sattar.javid.proqueue.domain.BusinessRepository
 ) : BaseViewModel<SettingsState, SettingsState.PartialState, SettingsEvent, SettingsIntent>(
     initialState = SettingsState()
 ) {
@@ -25,6 +26,7 @@ class SettingsViewModel(
     override fun handleIntent(intent: SettingsIntent): Flow<SettingsState.PartialState> {
         return when (intent) {
             SettingsIntent.LoadSettings -> loadSettings()
+            SettingsIntent.RefreshSettings -> refreshSettings()
             SettingsIntent.OnAboutClick -> sendEvent(SettingsEvent.NavigateToAbout)
             SettingsIntent.OnChangeBusinessClick -> sendEvent(SettingsEvent.NavigateToBusinessSelection)
             is SettingsIntent.OnEditBusinessClick -> sendEvent(SettingsEvent.NavigateToEditBusiness(intent.businessId))
@@ -72,7 +74,32 @@ class SettingsViewModel(
 
     private fun loadSettings(): Flow<SettingsState.PartialState> = flow {
         emit(SettingsState.PartialState.IsLoading(true))
-        val currentBusiness = xyz.sattar.javid.proqueue.core.state.BusinessStateHolder.selectedBusiness.value
+        val currentBusiness = BusinessStateHolder.selectedBusiness.value
         emit(SettingsState.PartialState.LoadSettings(currentBusiness))
+    }
+
+    /**
+     * Pull-to-refresh on the profile screen. Unlike [loadSettings], which only
+     * re-reads the cached selection, this re-fetches the businesses from the
+     * server so edits made elsewhere (or by the backend) actually show up.
+     */
+    private fun refreshSettings(): Flow<SettingsState.PartialState> = flow {
+        emit(SettingsState.PartialState.IsLoading(true))
+        try {
+            businessRepository.fetchAndCacheBusinesses(page = 1, pageSize = 20)
+            val selectedId = BusinessStateHolder.selectedBusiness.value?.id
+            val refreshed = selectedId?.let { businessRepository.getBusinessById(it) }
+            if (refreshed != null) {
+                // Keep the rest of the app (top bar, home) on the fresh copy too.
+                BusinessStateHolder.selectBusiness(refreshed)
+            }
+            emit(
+                SettingsState.PartialState.LoadSettings(
+                    refreshed ?: BusinessStateHolder.selectedBusiness.value
+                )
+            )
+        } catch (e: Exception) {
+            emit(SettingsState.PartialState.LoadSettings(BusinessStateHolder.selectedBusiness.value))
+        }
     }
 }

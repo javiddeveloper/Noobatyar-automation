@@ -185,7 +185,7 @@ val appModule: Module = module {
         )
     }
     viewModel { VisitorSelectionViewModel(get(), get()) }
-    viewModel { SettingsViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get()) }
     viewModel { VersionViewModel(get()) }
     viewModel { NotificationsViewModel(get(), get()) }
     viewModel { BusinessListViewModel(get(), get(), get()) }

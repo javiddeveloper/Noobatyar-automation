@@ -26,6 +26,7 @@ import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarDefaults
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
@@ -86,30 +87,7 @@ fun LastVisitorsScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (uiState.isLoading)
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                else
-                                    MaterialTheme.colorScheme.primaryContainer
-                            )
-                            .clickable(enabled = !uiState.isLoading) { onIntent(LastVisitorsIntent.LoadAppointments) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "بروزرسانی",
-                            tint = if (uiState.isLoading)
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else
-                                MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    // دکمه بروزرسانی حذف شد — جایش pull-to-refresh آمده است.
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
@@ -145,12 +123,15 @@ fun LastVisitorsScreenContent(
             }
         }
     ) { paddingValues ->
-        Box(
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { onIntent(LastVisitorsIntent.LoadAppointments) },
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             when {
                 uiState.isLoading -> {
                     Column(
@@ -311,6 +292,7 @@ fun LastVisitorsScreenContent(
                     onClearFilter = { onIntent(LastVisitorsIntent.ClearFilter) }
                 )
             }
+        }
         }
     }
 }

@@ -41,6 +41,7 @@ import proqueue.composeapp.generated.resources.phone
 import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
@@ -120,31 +121,7 @@ fun HomeScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    // دکمه بروزرسانی — طرح کاردی مثل دکمه تقویم
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (uiState.isLoading)
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                else
-                                    MaterialTheme.colorScheme.primaryContainer
-                            )
-                            .clickable(enabled = !uiState.isLoading) { onIntent(HomeIntent.RefreshQueue) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "بروزرسانی",
-                            tint = if (uiState.isLoading)
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else
-                                MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
+                    // دکمه بروزرسانی حذف شد — جایش pull-to-refresh آمده است.
                     // دکمه تقویم
                     Box(
                         modifier = Modifier
@@ -166,10 +143,19 @@ fun HomeScreenContent(
             )
         }
     ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { onIntent(HomeIntent.LoadData) },
+            // Keeps the badge clear of the glass top bar, which the content
+            // deliberately scrolls underneath.
+            indicatorTopPadding = paddingValues.calculateTopPadding(),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp),
             // contentPadding (not a padding modifier) so items scroll *under* the
             // glass top bar rather than starting below an opaque gap.
@@ -276,6 +262,7 @@ fun HomeScreenContent(
             }
 
             item { BottomBarSpacer() }
+        }
         }
     }
 }

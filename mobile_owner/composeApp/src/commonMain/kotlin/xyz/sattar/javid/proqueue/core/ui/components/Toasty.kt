@@ -5,9 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,8 +22,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,8 +43,56 @@ enum class ToastyType {
 }
 
 /**
+ * A single UI-facing message paired with the styling it should render with.
+ *
+ * Every `message: String?` field across the app's State classes used to lose the
+ * distinction between "this succeeded" and "this failed" — every toast rendered
+ * with [ToastyHost]'s fixed per-screen `defaultType`, which nobody ever
+ * overrode, so every message (including the app's rare success confirmations)
+ * showed with the red error style. [UiMessage] carries the type with the text
+ * itself, so a screen never has to guess.
+ */
+data class UiMessage(val text: String, val type: ToastyType = ToastyType.Error) {
+    companion object {
+        fun error(text: String) = UiMessage(text, ToastyType.Error)
+        fun success(text: String) = UiMessage(text, ToastyType.Success)
+        fun info(text: String) = UiMessage(text, ToastyType.Info)
+        fun warning(text: String) = UiMessage(text, ToastyType.Warning)
+    }
+}
+
+/** [SnackbarVisuals] that carries a [ToastyType] alongside the message text. */
+private data class ToastyVisuals(
+    override val message: String,
+    val type: ToastyType,
+    override val actionLabel: String? = null,
+    override val withDismissAction: Boolean = false,
+    override val duration: SnackbarDuration = SnackbarDuration.Short
+) : SnackbarVisuals
+
+/**
+ * Shows [message] with its own [UiMessage.type] rather than the host's fixed
+ * default — this is the one function every screen should call to surface a
+ * toast, so the color is always correct regardless of what [ToastyHost.defaultType]
+ * happens to be set to.
+ */
+suspend fun SnackbarHostState.showToasty(message: UiMessage) {
+    showSnackbar(
+        ToastyVisuals(message = message.text, type = message.type)
+    )
+}
+
+suspend fun SnackbarHostState.showToasty(text: String, type: ToastyType) {
+    showToasty(UiMessage(text, type))
+}
+
+/**
  * A custom Host that acts like SnackbarHost but displays toasts at the top of the screen
  * using a Popup overlay, so it doesn't matter where it is placed in the layout hierarchy.
+ *
+ * [defaultType] only applies to snackbars shown via the plain
+ * `showSnackbar(message: String)` API (which carries no type); anything shown
+ * via [showToasty] renders with its own type regardless of this default.
  */
 @Composable
 fun ToastyHost(
@@ -55,13 +108,18 @@ fun ToastyHost(
                 dismissOnClickOutside = false
             )
         ) {
-            Box(modifier = Modifier.padding(top = 16.dp)) {
+            Box(
+                modifier = Modifier
+                    .padding(WindowInsets.statusBars.asPaddingValues())
+                    .padding(top = 16.dp)
+            ) {
                 SnackbarHost(
                     hostState = hostState,
                     modifier = modifier.fillMaxWidth()
                 ) { data ->
-                    val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(defaultType)
-                    
+                    val type = (data.visuals as? ToastyVisuals)?.type ?: defaultType
+                    val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(type)
+
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(

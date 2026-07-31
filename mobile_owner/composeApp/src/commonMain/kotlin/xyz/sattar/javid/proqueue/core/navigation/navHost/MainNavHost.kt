@@ -65,18 +65,13 @@ fun MainNavHost(
 
     val notificationEvent by NotificationNavigationManager.navigationEvent.collectAsState()
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
     // Shared blur source/target state for the glass top & bottom bars.
     val hazeState = remember { HazeState() }
 
-    LaunchedEffect(Unit) {
-        GlobalErrorManager.errorFlow.collect { error ->
-            if (error is GlobalError.RateLimit) {
-                snackbarHostState.showSnackbar(error.message)
-            }
-        }
-    }
+    // GlobalError (Unauthorized / RateLimit) is now shown from a single
+    // always-mounted host in App.kt, which survives the navigation swap that
+    // Unauthorized triggers — this screen-local host used to only catch
+    // RateLimit, and would unmount before Unauthorized's toast could show.
 
     LaunchedEffect(notificationEvent) {
         notificationEvent?.let { event ->
@@ -108,11 +103,6 @@ fun MainNavHost(
 
     CompositionLocalProvider(LocalHazeState provides hazeState) {
     Scaffold(
-        snackbarHost = {
-            Box(modifier = Modifier.navigationBarsPadding()) {
-                ToastyHost(hostState = snackbarHostState) 
-            }
-        },
         bottomBar = {
             AnimatedVisibility(
                 visible = shouldShowBottomBar,

@@ -182,7 +182,7 @@
 
     <!-- Version Update -->
     <string name="new_update_available">بروزرسانی جدید در دسترس است</string>
-    <string name="version_label">نسخه %s</string>
+    <string name="version_label">نسخه %1$s</string>
     <string name="changelog_title">تغییرات این نسخه:</string>
     <string name="update_app">بروزرسانی نوبت یار</string>
     <string name="remind_later">بعداً یادآوری کن</string>

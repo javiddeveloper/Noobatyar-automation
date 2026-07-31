@@ -53,6 +53,7 @@ import xyz.sattar.javid.proqueue.core.state.AppThemeMode
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 
 @Composable
 fun SettingsScreen(
@@ -158,6 +159,11 @@ fun SettingsScreen(
         userName = userState.userName,
         userPhone = userState.userNumber,
         subscription = userState.subscription,
+        isRefreshing = uiState.isLoading || userState.isLoading,
+        onRefresh = {
+            viewModel.sendIntent(SettingsIntent.RefreshSettings)
+            userViewModel.sendIntent(xyz.sattar.javid.proqueue.feature.profile.UserIntent.LoadProfile)
+        },
         onIntent = viewModel::sendIntent,
         onShowThemeSheet = { showThemeSheet = true },
         onShowDeleteDialog = { showDeleteDialog = true },
@@ -179,6 +185,8 @@ fun SettingsContent(
     userName: String? = null,
     userPhone: String? = null,
     subscription: xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto? = null,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     onIntent: (SettingsIntent) -> Unit,
     onShowThemeSheet: () -> Unit,
     onShowDeleteDialog: () -> Unit,
@@ -194,11 +202,17 @@ fun SettingsContent(
         contentWindowInsets = WindowInsets.statusBars,
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(top = paddingValues.calculateTopPadding())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -341,6 +355,7 @@ fun SettingsContent(
             }
 
             BottomBarSpacer()
+        }
         }
     }
 }

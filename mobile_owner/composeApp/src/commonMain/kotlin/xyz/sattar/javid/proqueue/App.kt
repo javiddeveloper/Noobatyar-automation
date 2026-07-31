@@ -1,5 +1,8 @@
 package xyz.sattar.javid.proqueue
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -8,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.koinInject
@@ -19,6 +23,10 @@ import xyz.sattar.javid.proqueue.core.navigation.navHost.MainNavHost
 import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
+import xyz.sattar.javid.proqueue.core.ui.components.showToasty
+import xyz.sattar.javid.proqueue.core.utils.AppInfo
 import xyz.sattar.javid.proqueue.domain.BusinessRepository
 import xyz.sattar.javid.proqueue.domain.usecase.user.HasTokenUseCase
 import xyz.sattar.javid.proqueue.feature.version.VersionHandler
@@ -36,33 +44,49 @@ fun App() {
     val scope = rememberCoroutineScope()
     val businessRepository: BusinessRepository = koinInject()
 
+    // Mounted for the whole app (outside the auth/business/main nav swap below),
+    // so a toast triggered right before a forced navigation — e.g. the session
+    // expiring — actually survives to be seen instead of unmounting with the
+    // screen that requested it.
+    val globalSnackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(Unit) {
         GlobalErrorManager.errorFlow.collect { error ->
             when (error) {
                 GlobalError.Unauthorized -> {
+                    // Previously this reset auth state with zero explanation —
+                    // the user was just silently dropped back on the login screen.
+                    scope.launch {
+                        globalSnackbarHostState.showToasty(
+                            UiMessage.warning("نشست شما منقضی شده است. لطفاً دوباره وارد شوید.")
+                        )
+                    }
                     onAuthComplete = false
                     BusinessStateHolder.clearBusiness()
                     PreferencesManager.setDefaultBusinessId(null)
                 }
                 is GlobalError.RateLimit -> {
-                    // This could be handled globally, maybe via a snackbar in MainNavHost
-                    // But for now, just logging or we could add a GlobalSnackbarManager
+                    scope.launch {
+                        globalSnackbarHostState.showToasty(UiMessage.warning(error.message))
+                    }
                 }
             }
         }
     }
 
     AppTheme(themeMode = themeMode) {
-        // Handle Version Update
-        VersionHandler()
+        Box(modifier = Modifier.fillMaxSize()) {
+        // Handle Version Update (no iOS store listing yet, so skip this gate on iOS)
+        if (!AppInfo.isIOS) {
+            VersionHandler()
+        }
 
         if (!onAuthComplete) {
             AuthNavHost(
                 onRegisterComplete = { onAuthComplete = true },
                 onNavigateToHome = { onAuthComplete = true },
             )
-            return@AppTheme
-        }
+        } else {
 
         val selectedBusiness by BusinessStateHolder.selectedBusiness.collectAsState()
 
@@ -99,6 +123,10 @@ fun App() {
                     scope.launch { PreferencesManager.setDefaultBusinessId(null) }
                 }
             )
+        }
+        }
+
+        ToastyHost(hostState = globalSnackbarHostState)
         }
     }
 }

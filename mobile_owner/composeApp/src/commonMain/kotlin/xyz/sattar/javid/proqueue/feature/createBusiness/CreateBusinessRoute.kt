@@ -75,6 +75,7 @@ import proqueue.composeapp.generated.resources.work_start_hour
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
+import xyz.sattar.javid.proqueue.core.ui.components.ImageCropperDialog
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
 import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
@@ -299,16 +300,48 @@ fun CreateBusinessScreen(
     var showCategorySheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
+    // Photo waiting to be cropped: the picker hands over the raw file, and the
+    // cropper turns it into the square logo that actually gets uploaded.
+    var pendingCrop by remember { mutableStateOf<ByteArray?>(null) }
+
     val singleImagePicker = rememberImagePickerLauncher(
         selectionMode = SelectionMode.Single,
         scope = scope,
         onResult = { byteArrays ->
             val bytes = byteArrays.firstOrNull()
             if (bytes != null) {
-                onLogoBytes(bytes)
+                pendingCrop = bytes
             }
         }
     )
+
+    pendingCrop?.let { raw ->
+        val cropBitmap = remember(raw) {
+            try {
+                raw.toImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        }
+        if (cropBitmap != null) {
+            ImageCropperDialog(
+                source = raw,
+                bitmap = cropBitmap,
+                onDismiss = { pendingCrop = null },
+                onCropped = { cropped ->
+                    pendingCrop = null
+                    onLogoBytes(cropped)
+                }
+            )
+        } else {
+            // Undecodable file — fall back to uploading it untouched rather than
+            // leaving the user with a dialog that can never open.
+            LaunchedEffect(raw) {
+                onLogoBytes(raw)
+                pendingCrop = null
+            }
+        }
+    }
 
     LaunchedEffect(uiState.message) {
         val msg = uiState.message
