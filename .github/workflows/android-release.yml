@@ -5,6 +5,9 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -130,3 +133,35 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Sync iOS version with tag
+        working-directory: .
+        run: |
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          VERSION_CODE="${{ steps.version.outputs.version_code }}"
+          XCCONFIG="iosApp/Configuration/Config.xcconfig"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # The tag checkout left us in detached HEAD, and actions/checkout
+          # only fetched the tag ref, so fetch develop before branching off
+          # a worktree for it. Editing there keeps this commit on top of the
+          # latest tip instead of fighting the detached tree.
+          rm -rf ../ios-version-sync
+          git fetch origin develop:develop
+          git worktree add ../ios-version-sync develop
+
+          sed -i \
+            -e "s/^MARKETING_VERSION=.*/MARKETING_VERSION=${VERSION_NAME}/" \
+            -e "s/^CURRENT_PROJECT_VERSION=.*/CURRENT_PROJECT_VERSION=${VERSION_CODE}/" \
+            "../ios-version-sync/mobile_owner/${XCCONFIG}"
+
+          cd ../ios-version-sync
+          if git diff --quiet -- "mobile_owner/${XCCONFIG}"; then
+            echo "iOS version already up to date, nothing to commit."
+          else
+            git add "mobile_owner/${XCCONFIG}"
+            git commit -m "chore: sync iOS version to ${VERSION_NAME} (${VERSION_CODE})"
+            git push origin develop
+          fi
