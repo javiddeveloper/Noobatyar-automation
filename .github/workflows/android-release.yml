@@ -54,28 +54,79 @@ jobs:
         working-directory: mobile_owner/composeApp
         run: rm -f release.keystore.jks
 
-      - name: Rename APK
+      - name: Rename split APKs
         id: apk
         run: |
-          SRC=$(find composeApp/build/outputs/apk/release -name "*.apk" | head -n 1)
-          DEST="composeApp/build/outputs/apk/release/Noobatyar-Owner-${{ steps.version.outputs.version_name }}.apk"
-          mv "$SRC" "$DEST"
-          echo "path=mobile_owner/${DEST}" >> "$GITHUB_OUTPUT"
-          echo "name=Noobatyar-Owner-${{ steps.version.outputs.version_name }}.apk" >> "$GITHUB_OUTPUT"
+          OUT_DIR="composeApp/build/outputs/apk/release"
+          DEST_DIR="composeApp/build/outputs/apk/release/dist"
+          mkdir -p "$DEST_DIR"
+          VERSION="${{ steps.version.outputs.version_name }}"
+          for f in "$OUT_DIR"/*.apk; do
+            base=$(basename "$f" .apk)
+            # AGP names abi splits like composeApp-arm64-v8a-release.apk and the
+            # fat one composeApp-release.apk (universal)
+            arch=$(echo "$base" | sed -E 's/composeApp-(.*)-release/\1/; s/^composeApp-release$/universal/')
+            cp "$f" "$DEST_DIR/Noobatyar-Owner-${VERSION}-${arch}.apk"
+          done
+          echo "dir=mobile_owner/$DEST_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifact
+      - name: Verify release APKs are properly configured
+        working-directory: .
+        run: |
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          APKSIGNER="${BUILD_TOOLS}apksigner"
+          AAPT="${BUILD_TOOLS}aapt"
+          EXPECTED_VERSION="${{ steps.version.outputs.version_name }}"
+          EXPECTED_CODE="${{ steps.version.outputs.version_code }}"
+          FAIL=0
+          for f in "${{ steps.apk.outputs.dir }}"/*.apk; do
+            echo "== Checking $f =="
+
+            if ! "$APKSIGNER" verify "$f"; then
+              echo "::error::$f is not properly signed"
+              FAIL=1
+            fi
+
+            BADGING=$("$AAPT" dump badging "$f")
+
+            if ! echo "$BADGING" | grep -q "versionName='${EXPECTED_VERSION}'"; then
+              echo "::error::$f versionName does not match tag ${EXPECTED_VERSION}"
+              FAIL=1
+            fi
+
+            if ! echo "$BADGING" | grep -q "versionCode='${EXPECTED_CODE}'"; then
+              echo "::error::$f versionCode does not match expected ${EXPECTED_CODE}"
+              FAIL=1
+            fi
+
+            if ! echo "$BADGING" | grep -q "package: name='xyz.sattar.javid.proqueue'"; then
+              echo "::error::$f has unexpected applicationId"
+              FAIL=1
+            fi
+
+            if echo "$BADGING" | grep -q "application-debuggable"; then
+              echo "::error::$f is debuggable, must not ship a debuggable release build"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.apk.outputs.name }}
-          path: ${{ steps.apk.outputs.path }}
+          name: Noobatyar-Owner-${{ steps.version.outputs.version_name }}
+          path: ${{ steps.apk.outputs.dir }}/*.apk
 
       - name: Send to Telegram
         working-directory: .
         run: |
-          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-            -F chat_id="${TELEGRAM_CHAT_ID}" \
-            -F document=@"${{ steps.apk.outputs.path }}" \
-            -F caption="Noobatyar Owner ${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }})"
+          for f in "${{ steps.apk.outputs.dir }}"/*.apk; do
+            name=$(basename "$f")
+            curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+              -F chat_id="${TELEGRAM_CHAT_ID}" \
+              -F document=@"$f" \
+              -F caption="${name} (build ${{ steps.version.outputs.version_code }})"
+          done
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
