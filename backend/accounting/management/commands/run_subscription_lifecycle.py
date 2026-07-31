@@ -53,8 +53,8 @@ class Command(BaseCommand):
             if phone:
                 days = max(1, sub.days_left())
                 msg = signed(
-                    f"⏰ اشتراک «{sub.plan.name}» شما تا {days} روز دیگر به پایان می‌رسد.\n"
-                    f"برای جلوگیری از قطع خدمات، همین حالا تمدید کنید."
+                    f"⏰ اشتراک «{sub.plan.name}» شما تا {days} روز دیگر به پایان می‌رسد\n"
+                    f"برای جلوگیری از قطع خدمات، همین حالا تمدید کنید"
                 )
                 try:
                     # Platform-level notice to the owner about their own

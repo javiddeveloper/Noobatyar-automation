@@ -39,19 +39,61 @@ def _dev_mode() -> bool:
     return bool(getattr(settings, 'SMS_DEV_MODE', False))
 
 
-# Outgoing messages are signed at the bottom with the site address rather than
-# opened with a "نوبت‌یار" header: the recipient sees their own news first, and
-# the footer still says who sent it while doubling as a way back to the site.
+# Outgoing messages are signed at the bottom rather than opened with a
+# "نوبت‌یار" header: the recipient sees their own news first, and the footer
+# still says who sent it.
 SMS_FOOTER = 'نوبت‌یار'
+
+# Rules for MELIPAYAMAK_FROM, which is an *advertising* line (خط تبلیغاتی), per
+# their support:
+#   - every message must end with this opt-out keyword
+#   - links are rejected, and their filter counts a bare full stop as a link
+#   - delivery only happens between 08:00 and 22:00 Tehran time
+#   - recipients who blocked promotional SMS are never delivered to (shown red
+#     in the panel); those are not charged
+SMS_OPT_OUT = 'لغو11'
+SEND_WINDOW_START_HOUR = 8
+SEND_WINDOW_END_HOUR = 22
+
+
+def _strip_link_like(text: str) -> str:
+    """Remove what Melipayamak's filter reads as a link.
+
+    A single full stop is enough to trip it, so sentence-ending dots go — this
+    has to run over the whole assembled message, not just our own wording,
+    because an interpolated business title can carry one too.
+    """
+    return (text or '').replace('.', '')
+
+
+def prepare_text(body: str) -> str:
+    """Make a message body acceptable to the advertising line.
+
+    Strips link-like characters and guarantees the mandatory opt-out keyword is
+    the last thing in the message. Idempotent, so it is safe to apply again at
+    the send boundary to catch anything that skipped :func:`signed`.
+    """
+    text = _strip_link_like(body).rstrip()
+    if not text.endswith(SMS_OPT_OUT):
+        text = f'{text}\n{SMS_OPT_OUT}'
+    return text
+
+
+def within_send_window(now=None) -> bool:
+    """True when the advertising line will actually deliver right now."""
+    from django.utils import timezone
+
+    current = now or timezone.localtime()
+    return SEND_WINDOW_START_HOUR <= current.hour < SEND_WINDOW_END_HOUR
 
 
 def signed(body: str) -> str:
-    """Append the standard footer to a message body.
+    """Append the standard footer and the mandatory opt-out to a message body.
 
-    Every notification goes through here so the wording (and the domain, should
-    it ever change) lives in exactly one place.
+    Every notification goes through here so the wording lives in exactly one
+    place — and so no message can accidentally ship without لغو11.
     """
-    return f'{body}\n\n{SMS_FOOTER}'
+    return prepare_text(f'{body}\n\n{SMS_FOOTER}')
 
 
 def send_otp(phone: str) -> Optional[str]:  # به جای str | None
@@ -96,6 +138,21 @@ def send_sms(phone: str, message: str) -> tuple[bool, str]:
         # Fail before spending a credit on something the provider will reject.
         detail = f'شماره گیرنده معتبر نیست: {raw_phone!r}'
         logger.error("Refusing to send SMS: %s", detail)
+        return False, detail
+
+    # Belt and braces: apply the advertising-line rules here too, so a message
+    # assembled without signed() cannot ship missing لغو11 or carrying a dot.
+    message = prepare_text(message)
+
+    if not within_send_window():
+        # The line accepts these and returns «عملیات موفق» with a real recId,
+        # then never delivers them. Reporting failure keeps SmsLog honest and
+        # refunds the credit instead of recording a delivery that never happened.
+        detail = (
+            f'خارج از بازه مجاز ارسال ({SEND_WINDOW_START_HOUR}:00 تا '
+            f'{SEND_WINDOW_END_HOUR}:00) — پیامک ارسال نشد'
+        )
+        logger.warning("Refusing to send SMS to %s****: %s", phone[-4:], detail)
         return False, detail
 
     if _dev_mode():
