@@ -10,56 +10,98 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         plans = [
             {
-                'name': 'آزمایشی',
+                # 🐦 گنجشک — آزمایشی رایگان ۱۰ روزه
+                'name': '🐦 گنجشک',
                 'price': 0,
                 'discount_price': None,
                 'duration_value': 10,
                 'duration_unit': 'day',
                 'is_vip': False,
-                'description': ['سرویس ۱۰ روزه', 'پشتیبانی'],
+                'description': [
+                    'آزمایشی ۱۰ روزه',
+                    'تا ۳۰ نوبت',
+                    '۱۰ پیامک رایگان',
+                    'پشتیبانی پایه',
+                ],
                 'features': ent.BUNDLE_TRIAL,
             },
             {
-                'name': 'یک ماهه',
+                # 🦅 باز — ماهانه، breakeven-friendly
+                'name': '🦅 باز',
                 'price': 120000,
-                'discount_price': 50000,
+                'discount_price': None,
                 'duration_value': 1,
                 'duration_unit': 'month',
-                'is_vip': True,
-                'description': ['۱ کسب‌وکار', 'تا ۱۵۰ نوبت در ماه', '۵۰ پیامک', 'پشتیبانی'],
+                'is_vip': False,
+                'description': [
+                    '۱ کسب‌وکار',
+                    'تا ۱۵۰ نوبت در ماه',
+                    '۵۰ پیامک در ماه',
+                    'پشتیبانی پایه',
+                ],
                 'features': ent.BUNDLE_1M,
             },
             {
-                'name': 'سه ماهه',
-                'price': 350000,
+                # 🦉 عقاب — سه ماهه حرفه‌ای با تخفیف
+                'name': '🦉 عقاب',
+                'price': 320000,
                 'discount_price': None,
                 'duration_value': 3,
                 'duration_unit': 'month',
                 'is_vip': True,
-                'description': ['تا ۲ کسب‌وکار', 'تا ۳۰۰ نوبت در ماه', 'درگاه آنلاین + بیعانه', 'گزارش پیشرفته', '۱۵۰ پیامک در ماه'],
+                'description': [
+                    'تا ۲ کسب‌وکار',
+                    'تا ۳۰۰ نوبت در ماه',
+                    '۱۵۰ پیامک در ماه',
+                    'درگاه آنلاین + بیعانه',
+                    'گزارش پیشرفته',
+                    'معادل ۱۰۶,۰۰۰ تومان/ماه',
+                ],
                 'features': ent.BUNDLE_3M,
             },
             {
-                'name': 'شش ماهه',
-                'price': 700000,
+                # 🔥 ققنوس — شش ماهه ویژه
+                'name': '🔥 ققنوس',
+                'price': 580000,
                 'discount_price': None,
                 'duration_value': 6,
                 'duration_unit': 'month',
                 'is_vip': True,
-                'description': ['تا ۳ کسب‌وکار', 'تا ۶۰۰ نوبت در ماه', 'واتساپ/تلگرام', '۳۰۰ پیامک در ماه', 'پشتیبانی ویژه'],
+                'description': [
+                    'تا ۳ کسب‌وکار',
+                    'تا ۶۰۰ نوبت در ماه',
+                    '۳۰۰ پیامک در ماه',
+                    'واتساپ / تلگرام',
+                    'پشتیبانی ویژه',
+                    'معادل ۹۶,۰۰۰ تومان/ماه',
+                ],
                 'features': ent.BUNDLE_6M,
             },
             {
-                'name': 'یک ساله',
-                'price': 1500000,
+                # 💎 سیمرغ — سالانه، بهترین ارزش
+                'name': '💎 سیمرغ',
+                'price': 990000,
                 'discount_price': None,
                 'duration_value': 12,
                 'duration_unit': 'month',
                 'is_vip': True,
-                'description': ['تا ۵ کسب‌وکار', 'تا ۱۰۰۰ نوبت در ماه', 'همه‌ی قابلیت‌ها', '۵۰۰ پیامک در ماه', 'پشتیبانی ویژه'],
+                'description': [
+                    'تا ۵ کسب‌وکار',
+                    'تا ۱۰۰۰ نوبت در ماه',
+                    '۵۰۰ پیامک در ماه',
+                    'همه‌ی قابلیت‌ها',
+                    'پشتیبانی ویژه اولویت‌دار',
+                    'معادل ۸۲,۵۰۰ تومان/ماه',
+                ],
                 'features': ent.BUNDLE_12M,
             },
         ]
+
+        old_names = ['آزمایشی', 'یک ماهه', 'سه ماهه', 'شش ماهه', 'یک ساله']
+        new_names = [p['name'] for p in plans]
+
+        # پلن‌های قدیمی که اسمشون تغییر کرده رو غیرفعال کن
+        Plan.objects.filter(name__in=old_names).update(is_active=False)
 
         for p in plans:
             plan, created = Plan.objects.get_or_create(name=p['name'], defaults=p)
@@ -71,13 +113,13 @@ class Command(BaseCommand):
                 plan.description = p['description']
                 plan.is_vip = p['is_vip']
                 plan.features = p['features']
+                plan.is_active = True
                 plan.save()
             self.stdout.write(f"✓ پلن {p['name']}")
 
         # ── Add-on packs ──────────────────────────────────────────────
-        # فقط دو نوع بسته وجود دارد: پیامک و نوبت.
-        #   • پیامک: هر عدد ۳۲۰ تومان (قیمت تمام‌شده ۱۶۰ × ۲)
-        #   • نوبت:  هر عدد ۵۰ تومان
+        # پیامک: هر عدد ۳۲۰ تومان (هزینه واقعی ۱۶۰ × ضریب ۲)
+        # نوبت: هر عدد ۵۰ تومان
         SMS_UNIT_PRICE = 320
         APPT_UNIT_PRICE = 50
         _fa = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
@@ -102,8 +144,6 @@ class Command(BaseCommand):
                 'is_active': True,
             })
 
-        # بسته‌های قدیمی (مثل درگاه آنلاین یا بسته‌های پیامکی قبلی) را غیرفعال کن تا
-        # فقط بسته‌های جدید در لیست نمایش داده شوند.
         AddOnPack.objects.exclude(name__in=[a['name'] for a in addons]).update(is_active=False)
 
         for a in addons:
