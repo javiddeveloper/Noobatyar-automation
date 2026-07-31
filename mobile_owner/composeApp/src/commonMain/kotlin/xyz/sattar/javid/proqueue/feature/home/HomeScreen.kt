@@ -338,125 +338,174 @@ fun PlanBannerItem(
     plan: PlanDto,
     onClick: () -> Unit
 ) {
-    // گرادینت برای جذابیت بصری
-    val gradient = if (plan.isVip) {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFFE65100), Color(0xFFFFB300))
+    // رنگ‌بندی متمایز برای هر پلن
+    val (gradientColors, badgeLabel) = when {
+        plan.name.contains("پرو پلاس") -> Pair(
+            listOf(Color(0xFF4A148C), Color(0xFF7B1FA2), Color(0xFFFF6F00)),
+            "💎 پرو پلاس"
         )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+        plan.name.contains("پرو") -> Pair(
+            listOf(Color(0xFF1A237E), Color(0xFF283593), Color(0xFF7C4DFF)),
+            "🚀 پرو"
+        )
+        plan.name.contains("اکو") -> Pair(
+            listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF00E676)),
+            "🌿 اکو"
+        )
+        plan.name.contains("پایه") -> Pair(
+            listOf(Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF29B6F6)),
+            "⚡ پایه"
+        )
+        else -> Pair(
+            listOf(Color(0xFF37474F), Color(0xFF455A64), Color(0xFF90A4AE)),
+            "🌱 آزمایشی"
         )
     }
+
+    val gradient = Brush.linearGradient(colors = gradientColors)
 
     Card(
         modifier = Modifier
             .fillMaxSize()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(gradient)
-                .padding(16.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
-            // آیکون پس‌زمینه بزرگ برای زیبایی
+            // آیکون تزئینی پس‌زمینه
             Icon(
                 imageVector = if (plan.isVip) Icons.Rounded.WorkspacePremium else Icons.Rounded.Stars,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(100.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 20.dp, y = 20.dp),
-                tint = Color.White.copy(alpha = 0.15f)
+                    .size(110.dp)
+                    .align(Alignment.CenterEnd)
+                    .offset(x = 30.dp, y = 10.dp),
+                tint = Color.White.copy(alpha = 0.1f)
             )
 
+            // سمت چپ: نام و توضیحات
             Column(
-                modifier = Modifier.align(Alignment.CenterStart).fillMaxHeight(),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.62f),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = plan.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
+                // Badge اسم پلن
+                Surface(
+                    color = Color.White.copy(alpha = 0.18f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = badgeLabel,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Rounded.Timer,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.size(14.dp)
+                        tint = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(13.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = plan.durationDisplay,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.9f)
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f)
                     )
                 }
 
                 if (plan.description.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     plan.description.take(2).forEach { desc ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Rounded.Check,
                                 contentDescription = null,
                                 tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = desc,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.8f)
+                                color = Color.White.copy(alpha = 0.8f),
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
             }
 
+            // سمت راست: قیمت
             Column(
-                modifier = Modifier.align(Alignment.CenterEnd),
-                horizontalAlignment = Alignment.End
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center
             ) {
-                if (plan.discountPrice != null && plan.discountPrice < plan.price) {
-                    // نمایش قیمت اصلی (بدون تخفیف) به صورت خط خورده
-                    Text(
-                        text = "${plan.price.toString().reversed().chunked(3).joinToString(",").reversed()} تومان",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                        ),
-                        color = Color.White.copy(alpha = 0.6f)
-                    )
-                }
-                
-                // نمایش قیمت نهایی (فیلد price_display سرور) به صورت برجسته
-                Text(
-                    text = plan.priceDisplay,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.Black
-                )
-                
-                if (plan.isVip) {
+                if (plan.price == 0L) {
                     Surface(
-                        color = Color.White.copy(alpha = 0.25f),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(top = 4.dp)
+                        color = Color.White.copy(alpha = 0.22f),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "VIP",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            text = "رایگان",
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                } else {
+                    if (plan.discountPrice != null && plan.discountPrice < plan.price) {
+                        Text(
+                            text = plan.priceDisplay,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                            ),
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+                    // قیمت اصلی
+                    val displayPrice = if (plan.discountPrice != null && plan.discountPrice < plan.price) {
+                        val dp = plan.discountPrice.toString().reversed().chunked(3).joinToString(",").reversed()
+                        "$dp تومان"
+                    } else {
+                        plan.priceDisplay
+                    }
+                    Text(
+                        text = displayPrice,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "خرید اشتراک",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }

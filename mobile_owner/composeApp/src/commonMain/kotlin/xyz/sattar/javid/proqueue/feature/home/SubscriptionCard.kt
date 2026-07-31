@@ -1,15 +1,18 @@
 package xyz.sattar.javid.proqueue.feature.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,80 +29,244 @@ import kotlin.time.ExperimentalTime
 fun SubscriptionCard(subscription: SubscriptionDto?) {
     val isValid = subscription?.isValid ?: false
     val plan = subscription?.plan
-    val isVip = plan?.isVip ?: false
-    val isTrial = plan?.name?.contains("آزمایشی") == true
-    val isDark = !MaterialTheme.colorScheme.surface.let { color ->
-        (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
+    val planName = plan?.name ?: ""
+    val isTrial = planName.contains("آزمایشی")
+
+    // رنگ‌بندی متناسب با نام پلن
+    val (gradientColors, icon, badgeText) = when {
+        !isValid -> Triple(
+            listOf(
+                MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.colorScheme.surfaceVariant
+            ),
+            Icons.Rounded.Info,
+            "بدون اشتراک"
+        )
+        planName.contains("پرو پلاس") -> Triple(
+            listOf(Color(0xFF4A148C), Color(0xFF7B1FA2)),
+            Icons.Rounded.WorkspacePremium,
+            "💎 پرو پلاس"
+        )
+        planName.contains("پرو") -> Triple(
+            listOf(Color(0xFF1A237E), Color(0xFF283593)),
+            Icons.Rounded.AutoAwesome,
+            "🚀 پرو"
+        )
+        planName.contains("اکو") -> Triple(
+            listOf(Color(0xFF1B5E20), Color(0xFF2E7D32)),
+            Icons.Rounded.Spa,
+            "🌿 اکو"
+        )
+        planName.contains("پایه") -> Triple(
+            listOf(Color(0xFF0D47A1), Color(0xFF1565C0)),
+            Icons.Rounded.FlashOn,
+            "⚡ پایه"
+        )
+        isTrial -> Triple(
+            listOf(Color(0xFF37474F), Color(0xFF546E7A)),
+            Icons.Rounded.Stars,
+            "🌱 آزمایشی"
+        )
+        else -> Triple(
+            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary),
+            Icons.Rounded.Star,
+            planName
+        )
     }
 
-    val cardColor = when {
-        !isValid -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        isVip -> if (isDark) Color(0xFF3E2723) else Color(0xFFFFF8E1)
-        isTrial -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-    }
-    val starColor = when {
-        !isValid -> MaterialTheme.colorScheme.onSurfaceVariant
-        isVip -> Color(0xFFFFA000)
-        isTrial -> Color.Gray
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val borderColor = when {
-        !isValid -> null
-        isVip -> Color(0xFFFFA000).copy(alpha = 0.5f)
-        isTrial -> Color.Gray.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-    }
-    val contentColor = when {
-        !isValid -> MaterialTheme.colorScheme.onSurfaceVariant
-        isVip -> if (isDark) Color(0xFFFFE082) else Color(0xFF5D4037)
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+    val daysRemaining = calculateDaysRemaining(subscription?.endsAt)
+    val isExpiringSoon = daysRemaining in 1..7
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = cardColor, contentColor = contentColor),
-        shape = RoundedCornerShape(16.dp),
-        border = borderColor?.let { CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(it)) }
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+    if (isValid) {
+        // کارت اشتراک فعال — گرادینت رنگی
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.linearGradient(gradientColors))
+                    .padding(16.dp)
+            ) {
+                // آیکون تزئینی پس‌زمینه
                 Icon(
-                    imageVector = if (isValid) Icons.Rounded.Star else Icons.Rounded.Info,
+                    imageVector = icon,
                     contentDescription = null,
-                    tint = starColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(90.dp)
+                        .align(Alignment.CenterEnd)
+                        .offset(x = 20.dp),
+                    tint = Color.White.copy(alpha = 0.08f)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = if (isValid) "اشتراک فعال: ${plan?.name ?: ""}" else "فاقد اشتراک فعال",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            if (subscription != null) {
-                SubscriptionInfoRow("تاریخ شروع:", formatIsoDate(subscription.startedAt))
-                SubscriptionInfoRow("تاریخ انقضا:", formatIsoDate(subscription.endsAt))
-            }
-            val daysRemaining = calculateDaysRemaining(subscription?.endsAt)
-            SubscriptionInfoRow(
-                label = "اعتبار باقی‌مانده:",
-                value = "$daysRemaining روز",
-                valueColor = if (daysRemaining < 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            )
+                Column {
+                    // Badge نام پلن
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Surface(
+                            color = Color.White.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
 
-            if (!isValid) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "برای استفاده از تمامی امکانات نوبت یار، نسبت به تهیه اشتراک اقدام کنید.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
-                )
+                        // نشانگر روز باقی‌مانده
+                        Surface(
+                            color = if (isExpiringSoon)
+                                Color(0xFFFF6F00).copy(alpha = 0.85f)
+                            else
+                                Color.White.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Timer,
+                                    null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "$daysRemaining روز",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        SubscriptionInfoItem(
+                            label = "شروع",
+                            value = formatIsoDate(subscription?.startedAt),
+                            textColor = Color.White
+                        )
+                        SubscriptionInfoItem(
+                            label = "پایان",
+                            value = formatIsoDate(subscription?.endsAt),
+                            textColor = if (isExpiringSoon) Color(0xFFFFCC80) else Color.White
+                        )
+                    }
+
+                    if (isExpiringSoon) {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(
+                            color = Color(0xFFFF6F00).copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Warning,
+                                    null,
+                                    tint = Color(0xFFFFCC80),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "اشتراک شما به زودی منقضی می‌شود",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFFFCC80)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
+    } else {
+        // کارت بدون اشتراک
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            shape = RoundedCornerShape(20.dp),
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.Info,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = "فاقد اشتراک فعال",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "برای استفاده از امکانات نوبت‌یار اشتراک تهیه کنید.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionInfoItem(label: String, value: String, textColor: Color) {
+    Column(horizontalAlignment = Alignment.Start) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = textColor.copy(alpha = 0.65f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = textColor
+        )
     }
 }
 
