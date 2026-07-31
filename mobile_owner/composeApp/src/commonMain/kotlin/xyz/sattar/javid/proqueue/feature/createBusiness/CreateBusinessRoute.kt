@@ -113,7 +113,12 @@ fun CreateBusinessRoute(
     var maxAppointmentsPerHour by remember { mutableStateOf("") }
     var depositMode by remember { mutableStateOf(DepositMode.NONE.value) }
     var depositAmount by remember { mutableStateOf("") }
-    var acceptedPaymentMethods by remember { mutableStateOf(setOf<String>()) }
+    // CASH ("پرداخت در محل") needs no card number or merchant id to work, so it
+    // is the one method every business can accept from the moment it's
+    // created. Starting from an empty set here sent accepted_payment_methods:
+    // [] on every create-business request, which overrode the backend's own
+    // default and left a brand-new business with zero working payment options.
+    var acceptedPaymentMethods by remember { mutableStateOf(setOf("CASH")) }
     var cardNumber by remember { mutableStateOf("") }
     var cardOwnerName by remember { mutableStateOf("") }
     var merchantId by remember { mutableStateOf("") }

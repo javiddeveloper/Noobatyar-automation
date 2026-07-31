@@ -79,8 +79,17 @@ class Business(models.Model):
         default='NONE',
         help_text="How clients are charged when booking (Legacy)"
     )
+    def _default_payment_methods():
+        # Pay-at-location costs the owner nothing to offer and needs no setup
+        # (no card number, no merchant id), so it is the one method every
+        # business can accept from the moment it exists. An empty default here
+        # left every business with zero working payment methods until the owner
+        # found the advanced-settings screen and turned one on by hand —
+        # checkout would offer nothing to a client at all.
+        return ['CASH']
+
     accepted_payment_methods = models.JSONField(
-        default=list,
+        default=_default_payment_methods,
         blank=True,
         help_text="List of accepted payment methods e.g. ['ONLINE', 'CARD', 'CASH']"
     )
