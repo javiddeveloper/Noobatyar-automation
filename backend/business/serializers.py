@@ -25,7 +25,7 @@ class BusinessSerializer(serializers.ModelSerializer):
             'payment_method', 'accepted_payment_methods', 'merchant_id',
             'payment_link', 'card_number', 'card_owner_name',
             # SMS preferences
-            'enable_reminder_sms', 'enable_promotional_sms',
+            'enable_reminder_sms', 'enable_promotional_sms', 'notify_owner_by_sms',
             # Misc
             'allow_anonymous_view', 'bio', 'created_at', 'updated_at',
             # Booking control
@@ -79,7 +79,7 @@ class BusinessSerializer(serializers.ModelSerializer):
         # Since the mobile app doesn't send some boolean fields during creation,
         # we remove them from validated data if they weren't explicitly provided,
         # so the model defaults (e.g. True) take effect.
-        for field in ['booking_enabled', 'enable_reminder_sms', 'enable_promotional_sms', 'allow_anonymous_view', 'notification_enabled']:
+        for field in ['booking_enabled', 'enable_reminder_sms', 'enable_promotional_sms', 'allow_anonymous_view', 'notification_enabled', 'notify_owner_by_sms']:
             if field not in data and field in ret:
                 ret.pop(field)
                 

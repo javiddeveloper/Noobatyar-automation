@@ -150,6 +150,14 @@ class Business(models.Model):
         default=False,
         help_text="Allow sending promotional/marketing SMS to clients"
     )
+    notify_owner_by_sms = models.BooleanField(
+        default=True,
+        help_text=(
+            "Text the owner when a client books. Billed to the owner's own SMS "
+            "quota, so it is switchable — an owner who watches the app does not "
+            "have to pay for a message telling them what the app already shows."
+        )
+    )
 
     class Meta:
         db_table = 'business'

@@ -31,8 +31,10 @@ class VisitorSerializer(serializers.ModelSerializer):
 
 
 class SmsLogSerializer(serializers.ModelSerializer):
-    visitor_name = serializers.CharField(source='visitor.full_name', read_only=True)
-    visitor_phone = serializers.CharField(source='visitor.phone_number', read_only=True)
+    # default=None: an owner-directed message (e.g. "new booking") has no
+    # visitor, and without a default DRF raises walking the null relation.
+    visitor_name = serializers.CharField(source='visitor.full_name', read_only=True, default=None)
+    visitor_phone = serializers.CharField(source='visitor.phone_number', read_only=True, default=None)
 
     class Meta:
         model = SmsLog

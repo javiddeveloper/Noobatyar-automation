@@ -54,7 +54,14 @@ class SmsLog(models.Model):
     ]
     
     business = models.ForeignKey('business.Business', on_delete=models.CASCADE, related_name='sms_logs')
-    visitor = models.ForeignKey(Visitor, on_delete=models.CASCADE, related_name='sms_logs')
+    # Null when the recipient is the owner rather than a client (e.g. the
+    # "new booking" notification). Those are billed to the owner's quota too, so
+    # they belong in this log — leaving them out made the SMS report undercount
+    # every booking by one and never reconcile against what was charged.
+    visitor = models.ForeignKey(
+        Visitor, on_delete=models.CASCADE, related_name='sms_logs',
+        null=True, blank=True,
+    )
     message_text = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SENT')
     error_detail = models.TextField(blank=True, null=True)
@@ -65,7 +72,8 @@ class SmsLog(models.Model):
         ordering = ['-sent_at']
 
     def __str__(self):
-        return f"SMS to {self.visitor.phone_number} at {self.sent_at}"
+        recipient = self.visitor.phone_number if self.visitor_id else "owner"
+        return f"SMS to {recipient} at {self.sent_at}"
 
 
 class VisitorArchive(models.Model):

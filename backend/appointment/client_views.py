@@ -612,9 +612,10 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
     # owner notifications go to the phone their account was registered with.
     owner_id = None
     owner_phone = None
+    notify_owner = True
     try:
-        owner_id, owner_phone = Business.objects.values_list(
-            'user_id', 'user__phone'
+        owner_id, owner_phone, notify_owner = Business.objects.values_list(
+            'user_id', 'user__phone', 'notify_owner_by_sms'
         ).get(id=business_id)
     except Business.DoesNotExist:
         pass
@@ -646,10 +647,14 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
 
-    # Send to business owner (also consumes one credit)
+    # Send to business owner. Also billed to the owner's own quota, so it is
+    # opt-out via Business.notify_owner_by_sms — an owner watching the app
+    # should not have to pay for a message repeating what the app already shows.
     try:
         if not owner_phone or not owner_msg:
             pass
+        elif not notify_owner:
+            logger.info(f"SMS→owner disabled for business {business_id}")
         else:
             receipt = usage.consume_sms(owner_id) if owner_id is not None else None
             if owner_id is not None and not receipt:
@@ -658,6 +663,17 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
                 owner_ok, owner_err = send_sms(owner_phone, owner_msg)
                 if not owner_ok:
                     usage.refund_sms(receipt)
+                # Logged like the client message: this one is billed too, so
+                # leaving it out made the SMS report undercount every booking by
+                # one and never reconcile against the quota the owner was charged.
+                # visitor is null — the recipient is the owner, not a client.
+                SmsLog.objects.create(
+                    business_id=business_id,
+                    visitor_id=None,
+                    message_text=owner_msg,
+                    status='SENT' if owner_ok else 'FAILED',
+                    error_detail=owner_err if not owner_ok else ""
+                )
                 logger.info(f"SMS→owner {owner_phone}: {'✓' if owner_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→owner error: {e}")
