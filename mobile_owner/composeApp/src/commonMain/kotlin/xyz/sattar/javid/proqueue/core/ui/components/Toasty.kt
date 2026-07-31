@@ -41,57 +41,69 @@ fun ToastyHost(
     modifier: Modifier = Modifier,
     defaultType: ToastyType = ToastyType.Error
 ) {
-    SnackbarHost(
-        hostState = hostState,
-        modifier = modifier.fillMaxWidth()
-    ) { data ->
-        val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(defaultType)
-        
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = backgroundColor.copy(alpha = 0.98f),
-                contentColor = contentColor
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-            border = BorderStroke(1.dp, contentColor.copy(alpha = 0.15f)),
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .fillMaxWidth(),
-            onClick = { data.dismiss() }
+    if (hostState.currentSnackbarData != null) {
+        Popup(
+            alignment = Alignment.TopCenter,
+            properties = PopupProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            color = contentColor.copy(alpha = 0.15f),
-                            shape = CircleShape
+            Box(modifier = Modifier.padding(top = 16.dp)) {
+                SnackbarHost(
+                    hostState = hostState,
+                    modifier = modifier.fillMaxWidth()
+                ) { data ->
+                    val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(defaultType)
+                    
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = backgroundColor.copy(alpha = 0.98f),
+                            contentColor = contentColor
                         ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier = Modifier.size(20.dp)
-                    )
+                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.15f)),
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .fillMaxWidth(),
+                        onClick = { data.dismiss() }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        color = contentColor.copy(alpha = 0.15f),
+                                        shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = contentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Text(
+                                text = data.visuals.message,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    lineHeight = 20.sp
+                                ),
+                                fontWeight = FontWeight.SemiBold,
+                                color = contentColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
-                Text(
-                    text = data.visuals.message,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = 20.sp
-                    ),
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor,
-                    modifier = Modifier.weight(1f)
-                )
             }
         }
     }

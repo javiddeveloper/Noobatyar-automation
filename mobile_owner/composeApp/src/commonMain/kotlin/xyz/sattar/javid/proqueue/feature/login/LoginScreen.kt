@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.rounded.Lock
@@ -93,7 +95,36 @@ fun LoginScreenContent(
                 )
             )
         },
-        snackbarHost = { ToastyHost(hostState = snackbarHostState) }
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        bottomBar = {
+            if (!uiState.isLoading) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .navigationBarsPadding(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AppButton(
+                            text = "ورود",
+                            onClick = { onIntent(LoginIntent.Submit) },
+                            isLoading = uiState.isLoading
+                        )
+                        AppButton(
+                            text = "ثبت نام",
+                            onClick = { onIntent(LoginIntent.Register) },
+                            isOutlined = true,
+                            enabled = !uiState.isLoading
+                        )
+                    }
+                }
+            }
+        }
     ) { paddingValues ->
         Box(
             modifier = modifier
@@ -184,26 +215,7 @@ fun LoginScreenContent(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    AppButton(
-                        text = "ورود",
-                        onClick = { onIntent(LoginIntent.Submit) },
-                        enabled = !uiState.isLoading
-                    )
-                    AppButton(
-                        text = "ثبت نام",
-                        onClick = { onIntent(LoginIntent.Register) },
-                        isOutlined = true,
-                        enabled = !uiState.isLoading
-                    )
-                }
+                // Buttons moved to bottomBar
             }
         }
     }

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
@@ -181,6 +183,33 @@ fun CreateVisitorScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background,
+                shadowElevation = 8.dp
+            ) {
+                AppButton(
+                    text = if (isEditing) stringResource(Res.string.edit) else stringResource(Res.string.register_visitor),
+                    onClick = {
+                        val name = fullName.trim()
+                        val phone = phoneNumber.trim()
+                        val nameInvalid = name.length < 3
+                        val phoneInvalid = phone.length < 7
+                        onNameErrorUpdate(if (nameInvalid) "نام صحیح نیست" else null)
+                        onPhoneErrorUpdate(if (phoneInvalid) "شماره تلفن صحیح نیست" else null)
+                        if (!nameInvalid && !phoneInvalid) {
+                            onIntent(CreateVisitorIntent.CreateVisitor(name, phone))
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .navigationBarsPadding(),
+                    isLoading = uiState.isLoading
+                )
+            }
         }
     ) { paddingValues ->
         Column(
@@ -237,32 +266,7 @@ fun CreateVisitorScreen(
                 keyboardType = KeyboardType.Phone
             )
 
-            Spacer(modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AppButton(
-                    text = if (isEditing) stringResource(Res.string.edit) else stringResource(Res.string.register_visitor),
-                    onClick = {
-                        val name = fullName.trim()
-                        val phone = phoneNumber.trim()
-                        val nameInvalid = name.length < 3
-                        val phoneInvalid = phone.length < 7
-                        onNameErrorUpdate(if (nameInvalid) "نام صحیح نیست" else null)
-                        onPhoneErrorUpdate(if (phoneInvalid) "شماره تلفن صحیح نیست" else null)
-                        if (!nameInvalid && !phoneInvalid) {
-                            onIntent(CreateVisitorIntent.CreateVisitor(name, phone))
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = !uiState.isLoading
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            // Spacer replaced by bottomBar button
 
             
         }

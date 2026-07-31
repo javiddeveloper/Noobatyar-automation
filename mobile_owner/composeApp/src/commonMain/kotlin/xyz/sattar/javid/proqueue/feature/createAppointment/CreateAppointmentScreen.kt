@@ -189,8 +189,43 @@ fun CreateAppointmentScreenContent(
                 )
             )
         },
-
-        ) { paddingValues ->
+        bottomBar = {
+            if (!uiState.isLoading && !uiState.appointmentCreated) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    val serviceDurationErrorMsg = stringResource(Res.string.service_duration_error)
+                    AppButton(
+                        text = if (uiState.editingAppointmentId != null) stringResource(Res.string.edit_appointment) else stringResource(Res.string.appointment_create_action),
+                        onClick = {
+                            selectedVisitorId?.let { visitorId ->
+                                val duration = serviceDuration.trim().toIntOrNull()
+                                serviceDurationError = if (duration == null) serviceDurationErrorMsg else null
+                                onIntent(
+                                    CreateAppointmentIntent.CreateAppointment(
+                                        visitorId = visitorId,
+                                        appointmentDate = DateTimeUtils.combineDateAndTime(
+                                            selectedDate,
+                                            selectedTime
+                                        ),
+                                        serviceDuration = duration,
+                                        description = description.ifEmpty { null }
+                                    )
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .navigationBarsPadding(),
+                        isLoading = uiState.isLoading
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
 
         Box(
             modifier = modifier
@@ -436,34 +471,7 @@ fun CreateAppointmentScreenContent(
                         },
                         enabled = !uiState.isLoading,
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Create/Update Button
-                    val serviceDurationErrorMsg = stringResource(Res.string.service_duration_error)
-                    AppButton(
-                        text = if (uiState.editingAppointmentId != null) stringResource(Res.string.edit_appointment) else stringResource(Res.string.appointment_create_action),
-                        onClick = {
-                            selectedVisitorId?.let { visitorId ->
-                                val duration = serviceDuration.trim().toIntOrNull()
-                                serviceDurationError = if (duration == null) serviceDurationErrorMsg else null
-                                onIntent(
-                                    CreateAppointmentIntent.CreateAppointment(
-                                        visitorId = visitorId,
-                                        appointmentDate = DateTimeUtils.combineDateAndTime(
-                                            selectedDate,
-                                            selectedTime
-                                        ),
-                                        serviceDuration = duration,
-                                        description = description.ifEmpty { null }
-                                    )
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = selectedVisitorId != null
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // Button moved to bottomBar
                 }
             }
 

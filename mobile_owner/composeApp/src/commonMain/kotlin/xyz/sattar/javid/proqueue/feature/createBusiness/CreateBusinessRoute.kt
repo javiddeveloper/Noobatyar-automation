@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Factory
@@ -338,6 +340,72 @@ fun CreateBusinessScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+            if (!uiState.isLoading) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    AppButton(
+                        text = stringResource(Res.string.accept),
+                        onClick = {
+                            val t = title.trim()
+                            val p = phone.trim()
+                            val a = address.trim()
+                            val d = defaultProgress.trim()
+                            val ws = workStartHour.trim()
+                            val we = workEndHour.trim()
+
+                            val titleInvalid = t.length < 3 || t.length > 50
+                            val phoneInvalid = p.length < 7
+                            val defaultInvalid = d.isNotEmpty() && d.toIntOrNull() == null
+                            val wsInt = ws.toIntOrNull()
+                            val weInt = we.toIntOrNull()
+                            val hoursInvalid =
+                                wsInt == null || weInt == null || wsInt < 0 || wsInt > 23 || weInt < 0 || weInt > 23 || wsInt >= weInt
+                            val addressInvalid = a.isEmpty() || a.length > 300
+
+                            onTitleErrorUpdate(if (titleInvalid) "نام باید بین ۳ تا ۵۰ کاراکتر باشد" else null)
+                            onPhoneErrorUpdate(if (phoneInvalid) "شماره تلفن صحیح نیست" else null)
+                            onAddressErrorUpdate(if (a.isEmpty()) "آدرس الزامی است" else if (a.length > 300) "آدرس نباید بیشتر از ۳۰۰ کاراکتر باشد" else null)
+                            onDefaultProgressErrorUpdate(if (defaultInvalid) "مدت زمان سرویس باید عدد باشد" else null)
+                            onWorkHoursErrorUpdate(if (hoursInvalid) "ساعات کاری معتبر نیستند" else null)
+
+                            if (!titleInvalid && !phoneInvalid && !defaultInvalid && !hoursInvalid && !addressInvalid) {
+                                onIntent(
+                                    CreateBusinessIntent.CreateBusiness(
+                                        title = t,
+                                        category = category,
+                                        phone = p,
+                                        address = a,
+                                        defaultProgress = d,
+                                        workStartHour = wsInt!!,
+                                        workEndHour = weInt!!,
+                                        allowAnonymousView = allowAnonymousView,
+                                        bio = bio.trim(),
+                                        logoBytes = logoBytes,
+                                        maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
+                                        depositMode = depositMode,
+                                        depositAmount = depositAmount.toIntOrNull() ?: 0,
+                                        acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
+                                        cardNumber = cardNumber,
+                                        cardOwnerName = cardOwnerName,
+                                        merchantId = merchantId,
+                                        paymentLink = paymentLink
+                                    )
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .navigationBarsPadding(),
+                        isLoading = uiState.isLoading
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         if (uiState.isLoading) {
@@ -628,71 +696,7 @@ fun CreateBusinessScreen(
             // separate screen, reachable from the profile. The values are still
             // loaded and saved here so editing the business doesn't drop them.
 
-            Spacer(modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AppButton(
-                    text = stringResource(Res.string.accept),
-                    onClick = {
-                        val t = title.trim()
-                        val p = phone.trim()
-                        val a = address.trim()
-                        val d = defaultProgress.trim()
-                        val ws = workStartHour.trim()
-                        val we = workEndHour.trim()
-
-                        val titleInvalid = t.length < 3 || t.length > 50
-                        val phoneInvalid = p.length < 7
-                        val defaultInvalid = d.isNotEmpty() && d.toIntOrNull() == null
-                        val wsInt = ws.toIntOrNull()
-                        val weInt = we.toIntOrNull()
-                        val hoursInvalid =
-                            wsInt == null || weInt == null || wsInt < 0 || wsInt > 23 || weInt < 0 || weInt > 23 || wsInt >= weInt
-                        val addressInvalid = a.isEmpty() || a.length > 300
-
-                        onTitleErrorUpdate(if (titleInvalid) "نام باید بین ۳ تا ۵۰ کاراکتر باشد" else null)
-                        onPhoneErrorUpdate(if (phoneInvalid) "شماره تلفن صحیح نیست" else null)
-                        onAddressErrorUpdate(if (a.isEmpty()) "آدرس الزامی است" else if (a.length > 300) "آدرس نباید بیشتر از ۳۰۰ کاراکتر باشد" else null)
-                        onDefaultProgressErrorUpdate(if (defaultInvalid) "مدت زمان سرویس باید عدد باشد" else null)
-                        onWorkHoursErrorUpdate(if (hoursInvalid) "ساعات کاری معتبر نیستند" else null)
-
-                        if (!titleInvalid && !phoneInvalid && !defaultInvalid && !hoursInvalid && !addressInvalid) {
-                            onIntent(
-                                CreateBusinessIntent.CreateBusiness(
-                                    title = t,
-                                    category = category,
-                                    phone = p,
-                                    address = a,
-                                    defaultProgress = d,
-                                    workStartHour = wsInt!!,
-                                    workEndHour = weInt!!,
-                                    allowAnonymousView = allowAnonymousView,
-                                    bio = bio.trim(),
-                                    logoBytes = logoBytes,
-                                    maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
-                                    depositMode = depositMode,
-                                    // Always send an amount alongside a deposit mode
-                                    // so the server can reject "deposit on, amount 0".
-                                    depositAmount = depositAmount.toIntOrNull() ?: 0,
-                                    acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
-                                    cardNumber = cardNumber,
-                                    cardOwnerName = cardOwnerName,
-                                    merchantId = merchantId,
-                                    paymentLink = paymentLink
-                                )
-                            )
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = !uiState.isLoading
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            // Spacer replaced by bottomBar button
 
 
             if (uiState.business != null) {

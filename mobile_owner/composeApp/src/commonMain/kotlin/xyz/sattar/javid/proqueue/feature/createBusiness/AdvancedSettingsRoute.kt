@@ -101,6 +101,49 @@ fun AdvancedSettingsRoute(
                 )
             )
         },
+        bottomBar = {
+            val business = uiState.business
+            if (business != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    AppButton(
+                        text = stringResource(Res.string.accept),
+                        onClick = {
+                            viewModel.sendIntent(
+                                CreateBusinessIntent.CreateBusiness(
+                                    title = business.title,
+                                    category = business.category,
+                                    phone = business.phone,
+                                    address = business.address,
+                                    defaultProgress = business.defaultServiceDuration.toString(),
+                                    workStartHour = business.workStartHour,
+                                    workEndHour = business.workEndHour,
+                                    allowAnonymousView = business.allowAnonymousView,
+                                    bio = business.bio,
+                                    logoBytes = business.logoBytes,
+                                    maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
+                                    depositMode = depositMode,
+                                    depositAmount = depositAmount.toIntOrNull() ?: 0,
+                                    acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
+                                    cardNumber = cardNumber,
+                                    cardOwnerName = cardOwnerName,
+                                    merchantId = merchantId,
+                                    paymentLink = paymentLink
+                                )
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .navigationBarsPadding(),
+                        isLoading = uiState.isLoading
+                    )
+                }
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         val business = uiState.business
@@ -148,41 +191,6 @@ fun AdvancedSettingsRoute(
                     onPaymentLink = { paymentLink = it }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                AppButton(
-                    text = stringResource(Res.string.accept),
-                    onClick = {
-                        viewModel.sendIntent(
-                            CreateBusinessIntent.CreateBusiness(
-                                title = business.title,
-                                category = business.category,
-                                phone = business.phone,
-                                address = business.address,
-                                defaultProgress = business.defaultServiceDuration.toString(),
-                                workStartHour = business.workStartHour,
-                                workEndHour = business.workEndHour,
-                                allowAnonymousView = business.allowAnonymousView,
-                                bio = business.bio,
-                                logoBytes = business.logoBytes,
-                                maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
-                                depositMode = depositMode,
-                                // Always send an amount alongside a deposit mode
-                                // so the server can reject "deposit on, amount 0".
-                                depositAmount = depositAmount.toIntOrNull() ?: 0,
-                                acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
-                                cardNumber = cardNumber,
-                                cardOwnerName = cardOwnerName,
-                                merchantId = merchantId,
-                                paymentLink = paymentLink
-                            )
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -106,7 +109,26 @@ fun ResetPasswordScreenContent(
                 },
             )
         },
-        snackbarHost = { ToastyHost(hostState = snackbarHostState) }
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        bottomBar = {
+            if (!uiState.isLoading) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    AppButton(
+                        text = "تغییر رمز عبور",
+                        onClick = { onIntent(ResetPasswordIntent.Submit) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .navigationBarsPadding(),
+                        isLoading = uiState.isLoading
+                    )
+                }
+            }
+        }
     ) { paddingValues ->
         Box(
             modifier = modifier
@@ -184,19 +206,7 @@ fun ResetPasswordScreenContent(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    AppButton(
-                        text = "تغییر رمز عبور",
-                        onClick = { onIntent(ResetPasswordIntent.Submit) }
-                    )
-                }
+                // Button moved to bottomBar
             }
         }
     }
