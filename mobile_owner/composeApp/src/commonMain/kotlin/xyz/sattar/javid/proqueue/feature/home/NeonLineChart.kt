@@ -103,15 +103,10 @@ fun NeonLineChart(
                         Offset(x, y)
                     }
 
-                    val line = Path().apply {
-                        moveTo(pts[0].x, pts[0].y)
-                        for (i in 1 until n) lineTo(pts[i].x, pts[i].y)
-                    }
+                    val line = smoothPath(pts)
 
-                    // Soft gradient fill under the line
-                    val fill = Path().apply {
-                        moveTo(pts[0].x, pts[0].y)
-                        for (i in 1 until n) lineTo(pts[i].x, pts[i].y)
+                    // Soft gradient fill under the smooth line
+                    val fill = smoothPath(pts).apply {
                         lineTo(pts.last().x, h - padBottom)
                         lineTo(pts.first().x, h - padBottom)
                         close()
@@ -149,5 +144,26 @@ fun NeonLineChart(
                 }
             }
         }
+    }
+}
+
+/**
+ * Builds a smooth cubic-bezier path through the given points.
+ * Control points are placed at 1/3 distance between consecutive points,
+ * which gives a natural curve without overshooting.
+ */
+private fun smoothPath(pts: List<Offset>): Path = Path().apply {
+    if (pts.isEmpty()) return@apply
+    moveTo(pts[0].x, pts[0].y)
+    if (pts.size == 1) return@apply
+    for (i in 0 until pts.size - 1) {
+        val p0 = pts[i]
+        val p1 = pts[i + 1]
+        val dx = (p1.x - p0.x) / 3f
+        cubicTo(
+            p0.x + dx, p0.y,
+            p1.x - dx, p1.y,
+            p1.x, p1.y
+        )
     }
 }
