@@ -121,10 +121,10 @@ fun BottomNavigationBar(
                 .fillMaxWidth()
                 .height(72.dp)
                 .clip(barShape)
-                .hazeEffect(state = hazeState, style = HazeMaterials.thin(MaterialTheme.colorScheme.surfaceContainer)),
-            color = Color.Transparent,
+                .hazeEffect(state = hazeState, style = HazeMaterials.ultraThin(MaterialTheme.colorScheme.surfaceContainer)),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
             shape = barShape,
-            shadowElevation = 12.dp
+            shadowElevation = 4.dp
         ) {
             Row(
                 modifier = Modifier

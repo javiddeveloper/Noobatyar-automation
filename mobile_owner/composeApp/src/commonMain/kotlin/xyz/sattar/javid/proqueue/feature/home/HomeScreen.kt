@@ -1,10 +1,8 @@
 package xyz.sattar.javid.proqueue.feature.home
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -123,10 +121,19 @@ fun HomeScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    // دکمه بروزرسانی سبک (فقط صف + آمار)
-                    IconButton(
-                        onClick = { onIntent(HomeIntent.RefreshQueue) },
-                        enabled = !uiState.isLoading
+                    // دکمه بروزرسانی — طرح کاردی مثل دکمه تقویم
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (uiState.isLoading)
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.primaryContainer
+                            )
+                            .clickable(enabled = !uiState.isLoading) { onIntent(HomeIntent.RefreshQueue) },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
@@ -134,28 +141,27 @@ fun HomeScreenContent(
                             tint = if (uiState.isLoading)
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             else
-                                MaterialTheme.colorScheme.primary
+                                MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
+                    Spacer(Modifier.width(8.dp))
                     // دکمه تقویم
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable { onNavigateToCalendar() },
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(
-                            modifier = Modifier.size(20.dp),
-                            onClick = onNavigateToCalendar
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Event,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                contentDescription = "Calendar"
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Event,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            contentDescription = "Calendar",
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             )
@@ -730,14 +736,81 @@ fun BookingLinkButton(business: Business) {
     val uniqueCode = business.uniqueCode ?: return
     val clipboard = LocalClipboardManager.current
     val link = "${xyz.sattar.javid.proqueue.BuildKonfig.BOOKING_BASE_URL}/b/$uniqueCode"
-    OutlinedButton(
-        onClick = { clipboard.setText(buildAnnotatedString { append(link) }) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+
+    var copied by remember { mutableStateOf(false) }
+
+    // بعد ۲ ثانیه برگردد
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(2000)
+            copied = false
+        }
+    }
+
+    val containerColor by animateColorAsState(
+        targetValue = if (copied) Color(0xFF1B5E20) else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(400)
+    )
+    val contentColor = Color.White
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                clipboard.setText(buildAnnotatedString { append(link) })
+                copied = true
+            },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("کپی لینک دریافت نوبت")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (copied) "کپی شد! برای مشتریان بفرستید 🎉" else "لینک نوبت‌گیری آنلاین",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = if (copied) link else "مشتریان با یک کلیک نوبت می‌گیرن",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            AnimatedContent(
+                targetState = copied,
+                transitionSpec = {
+                    (fadeIn(tween(300)) + scaleIn(tween(300))) togetherWith
+                    (fadeOut(tween(200)) + scaleOut(tween(200)))
+                }
+            ) { isCopied ->
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isCopied) Icons.Rounded.Check else Icons.Rounded.Share,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

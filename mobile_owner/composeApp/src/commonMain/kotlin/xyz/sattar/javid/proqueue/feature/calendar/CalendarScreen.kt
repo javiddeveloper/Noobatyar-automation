@@ -83,9 +83,19 @@ fun CalendarScreenContent(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { onIntent(CalendarIntent.LoadData) },
-                        enabled = !uiState.isLoading
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (uiState.isLoading)
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.primaryContainer
+                            )
+                            .clickable(enabled = !uiState.isLoading) { onIntent(CalendarIntent.LoadData) },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
@@ -93,7 +103,8 @@ fun CalendarScreenContent(
                             tint = if (uiState.isLoading)
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             else
-                                MaterialTheme.colorScheme.primary
+                                MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 },
