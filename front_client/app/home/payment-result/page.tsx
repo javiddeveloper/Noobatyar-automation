@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { buildAppReturnLink, tryReturnToApp } from '@/lib/appReturn';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -18,6 +19,18 @@ function PaymentResultContent() {
 
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const appLink = buildAppReturnLink({
+    success: result?.success ?? false,
+    txn: trackId,
+  });
+
+  // Once the outcome is known, hand the user straight back to the app. The
+  // button below stays regardless: browsers often block a custom-scheme jump
+  // that no tap asked for.
+  useEffect(() => {
+    if (!loading && result) tryReturnToApp(appLink);
+  }, [loading, result, appLink]);
 
   useEffect(() => {
     if (!trackId) {
@@ -74,11 +87,9 @@ function PaymentResultContent() {
               {result?.success ? 'پرداخت موفق' : 'پرداخت ناموفق'}
             </h1>
             <p style={styles.message}>{result?.message}</p>
-            {result?.success && (
-              <p style={styles.sub}>اشتراک شما فعال شد. می‌توانید اپلیکیشن را باز کنید.</p>
-            )}
-            <a href="https://noobatyar.ir" style={styles.button}>
-              بازگشت به سایت
+            {result?.success && <p style={styles.sub}>اشتراک شما فعال شد</p>}
+            <a href={appLink} style={styles.button}>
+              بازگشت به اپلیکیشن
             </a>
           </>
         )}
