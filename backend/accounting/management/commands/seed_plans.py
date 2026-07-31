@@ -10,8 +10,8 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         plans = [
             {
-                # 🐦 گنجشک — آزمایشی رایگان ۱۰ روزه
-                'name': '🐦 گنجشک',
+                # آزمایشی — رایگان ۱۰ روزه
+                'name': 'آزمایشی',
                 'price': 0,
                 'discount_price': None,
                 'duration_value': 10,
@@ -26,8 +26,8 @@ class Command(BaseCommand):
                 'features': ent.BUNDLE_TRIAL,
             },
             {
-                # 🦅 باز — ماهانه، breakeven-friendly
-                'name': '🦅 باز',
+                # پایه — ماهانه
+                'name': 'پایه',
                 'price': 120000,
                 'discount_price': None,
                 'duration_value': 1,
@@ -42,8 +42,8 @@ class Command(BaseCommand):
                 'features': ent.BUNDLE_1M,
             },
             {
-                # 🦉 عقاب — سه ماهه حرفه‌ای با تخفیف
-                'name': '🦉 عقاب',
+                # اکو — سه ماهه
+                'name': 'اکو',
                 'price': 320000,
                 'discount_price': None,
                 'duration_value': 3,
@@ -60,8 +60,8 @@ class Command(BaseCommand):
                 'features': ent.BUNDLE_3M,
             },
             {
-                # 🔥 ققنوس — شش ماهه ویژه
-                'name': '🔥 ققنوس',
+                # پرو — شش ماهه
+                'name': 'پرو',
                 'price': 580000,
                 'discount_price': None,
                 'duration_value': 6,
@@ -78,8 +78,8 @@ class Command(BaseCommand):
                 'features': ent.BUNDLE_6M,
             },
             {
-                # 💎 سیمرغ — سالانه، بهترین ارزش
-                'name': '💎 سیمرغ',
+                # پرو پلاس — سالانه
+                'name': 'پرو پلاس',
                 'price': 990000,
                 'discount_price': None,
                 'duration_value': 12,
@@ -97,11 +97,8 @@ class Command(BaseCommand):
             },
         ]
 
-        old_names = ['آزمایشی', 'یک ماهه', 'سه ماهه', 'شش ماهه', 'یک ساله']
-        new_names = [p['name'] for p in plans]
-
         # پلن‌های قدیمی که اسمشون تغییر کرده رو غیرفعال کن
-        Plan.objects.filter(name__in=old_names).update(is_active=False)
+        Plan.objects.exclude(name__in=[p['name'] for p in plans]).update(is_active=False)
 
         for p in plans:
             plan, created = Plan.objects.get_or_create(name=p['name'], defaults=p)
