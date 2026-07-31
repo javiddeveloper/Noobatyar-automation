@@ -287,9 +287,7 @@ fun PlanBannerSection(
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(140.dp),
+            modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 4.dp),
             pageSpacing = 8.dp
         ) { page ->
@@ -338,10 +336,9 @@ fun PlanBannerItem(
     plan: PlanDto,
     onClick: () -> Unit
 ) {
-    // رنگ‌بندی متمایز برای هر پلن
     val (gradientColors, badgeLabel) = when {
         plan.name.contains("پرو پلاس") -> Pair(
-            listOf(Color(0xFF4A148C), Color(0xFF7B1FA2), Color(0xFFFF6F00)),
+            listOf(Color(0xFF4A148C), Color(0xFF6A1B9A), Color(0xFFE65100)),
             "💎 پرو پلاس"
         )
         plan.name.contains("پرو") -> Pair(
@@ -349,15 +346,15 @@ fun PlanBannerItem(
             "🚀 پرو"
         )
         plan.name.contains("اکو") -> Pair(
-            listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF00E676)),
+            listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)),
             "🌿 اکو"
         )
         plan.name.contains("پایه") -> Pair(
-            listOf(Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF29B6F6)),
+            listOf(Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF1976D2)),
             "⚡ پایه"
         )
         else -> Pair(
-            listOf(Color(0xFF37474F), Color(0xFF455A64), Color(0xFF90A4AE)),
+            listOf(Color(0xFF37474F), Color(0xFF455A64), Color(0xFF607D8B)),
             "🌱 آزمایشی"
         )
     }
@@ -366,60 +363,89 @@ fun PlanBannerItem(
 
     Card(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .background(gradient)
-                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
             // آیکون تزئینی پس‌زمینه
             Icon(
                 imageVector = if (plan.isVip) Icons.Rounded.WorkspacePremium else Icons.Rounded.Stars,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(110.dp)
-                    .align(Alignment.CenterEnd)
-                    .offset(x = 30.dp, y = 10.dp),
-                tint = Color.White.copy(alpha = 0.1f)
+                    .size(130.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 20.dp, y = 20.dp),
+                tint = Color.White.copy(alpha = 0.08f)
             )
 
-            // سمت چپ: نام و توضیحات
             Column(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .fillMaxWidth(0.62f),
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
-                // Badge اسم پلن
-                Surface(
-                    color = Color.White.copy(alpha = 0.18f),
-                    shape = RoundedCornerShape(8.dp)
+                // سطر اول: badge + قیمت
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = badgeLabel,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
+                    // Badge نام پلن
+                    Surface(
+                        color = Color.White.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = badgeLabel,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // قیمت
+                    Column(horizontalAlignment = Alignment.End) {
+                        if (plan.price == 0L) {
+                            Surface(
+                                color = Color.White.copy(alpha = 0.22f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(
+                                    text = "رایگان",
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = plan.priceDisplay,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Color.White,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(Modifier.height(12.dp))
 
+                // سطر دوم: مدت اشتراک
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Rounded.Timer,
-                        contentDescription = null,
+                        null,
                         tint = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(Modifier.width(5.dp))
                     Text(
                         text = plan.durationDisplay,
                         style = MaterialTheme.typography.bodySmall,
@@ -427,85 +453,93 @@ fun PlanBannerItem(
                     )
                 }
 
+                // سطر سوم: تمام آیتم‌های توضیح
                 if (plan.description.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    plan.description.take(2).forEach { desc ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Rounded.Check,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(11.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = desc,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.8f),
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
+                    Spacer(Modifier.height(10.dp))
+
+                    // خط جداکننده
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.15f))
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // نمایش همه آیتم‌ها در دو ستون
+                    val half = (plan.description.size + 1) / 2
+                    val col1 = plan.description.take(half)
+                    val col2 = plan.description.drop(half)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // ستون اول
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            col1.forEach { desc ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Rounded.Check,
+                                        null,
+                                        tint = Color.White.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(Modifier.width(5.dp))
+                                    Text(
+                                        text = desc,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                        // ستون دوم
+                        if (col2.isNotEmpty()) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                col2.forEach { desc ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Rounded.Check,
+                                            null,
+                                            tint = Color.White.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(
+                                            text = desc,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            // سمت راست: قیمت
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight(),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Center
-            ) {
-                if (plan.price == 0L) {
-                    Surface(
-                        color = Color.White.copy(alpha = 0.22f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "رایگان",
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                } else {
-                    if (plan.discountPrice != null && plan.discountPrice < plan.price) {
-                        Text(
-                            text = plan.priceDisplay,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                            ),
-                            color = Color.White.copy(alpha = 0.5f)
-                        )
-                    }
-                    // قیمت اصلی
-                    val displayPrice = if (plan.discountPrice != null && plan.discountPrice < plan.price) {
-                        val dp = plan.discountPrice.toString().reversed().chunked(3).joinToString(",").reversed()
-                        "$dp تومان"
-                    } else {
-                        plan.priceDisplay
-                    }
-                    Text(
-                        text = displayPrice,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                // دکمه خرید (فقط وقتی قیمت دارد)
+                if (plan.price > 0L) {
+                    Spacer(Modifier.height(14.dp))
                     Surface(
                         color = Color.White.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "خرید اشتراک",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            style = MaterialTheme.typography.labelLarge,
                             color = Color.White,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }
