@@ -232,7 +232,7 @@ fun SettingsContent(
 
                     SettingsItem(
                         icon = Icons.Rounded.Edit,
-                        title = "ویرایش کسب و کار",
+                        title = stringResource(Res.string.edit_business_title),
                         subtitle = null,
                         onClick = {
                             uiState.currentBusiness?.let { business ->
@@ -290,8 +290,8 @@ fun SettingsContent(
 
                     SettingsItem(
                         icon = Icons.Rounded.Info,
-                        title = "درباره ما",
-                        subtitle = "آشنایی با نوبت‌یار و ارتباط با ما",
+                        title = stringResource(Res.string.about_us_label),
+                        subtitle = stringResource(Res.string.about_us_subtitle),
                         onClick = { onIntent(SettingsIntent.OnAboutClick) }
                     )
                 }
@@ -302,7 +302,7 @@ fun SettingsContent(
             SettingsCard {
                 SettingsItem(
                     icon = Icons.Rounded.Logout,
-                    title = "خروج از حساب",
+                    title = stringResource(Res.string.logout_label),
                     subtitle = null,
                     onClick = onLogout,
                     tint = MaterialTheme.colorScheme.error,
@@ -429,7 +429,7 @@ private fun AdvancedSettingsPromoCard(onClick: () -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "تنظیمات پیشرفته",
+                            text = stringResource(Res.string.advanced_settings_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -444,7 +444,7 @@ private fun AdvancedSettingsPromoCard(onClick: () -> Unit) {
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "ظرفیت، بیعانه، پیامک و درگاه پرداخت",
+                        text = stringResource(Res.string.advanced_settings_promo),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.85f)
                     )
@@ -513,7 +513,7 @@ private fun ProfileHeaderCard(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = userName ?: "کاربر نوبت‌یار",
+                            text = userName ?: stringResource(Res.string.noobatyar_user),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
@@ -581,7 +581,7 @@ private fun ProfileHeaderCard(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "کسب‌وکار فعال",
+                                    text = stringResource(Res.string.active_business),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.7f)
                                 )
@@ -618,9 +618,9 @@ private fun SubscriptionBadge(subscription: SubscriptionDto?) {
     val isValid = subscription?.isValid == true
     val isVip = subscription?.plan?.isVip == true
     val label = when {
-        isVip -> "ویژه"
-        isValid -> "فعال"
-        else -> "بدون اشتراک"
+        isVip -> stringResource(Res.string.subscription_vip)
+        isValid -> stringResource(Res.string.subscription_active)
+        else -> stringResource(Res.string.subscription_none)
     }
     val icon = if (isValid) Icons.Rounded.Star else Icons.Rounded.Info
 

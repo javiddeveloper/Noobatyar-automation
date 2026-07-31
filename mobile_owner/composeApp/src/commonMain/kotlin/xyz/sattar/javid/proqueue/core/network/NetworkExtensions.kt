@@ -6,30 +6,44 @@ import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.network.UnresolvedAddressException
+import org.jetbrains.compose.resources.getString
+import proqueue.composeapp.generated.resources.*
+
+@PublishedApi
+internal suspend fun getStringInternal(resource: org.jetbrains.compose.resources.StringResource): String = getString(resource)
+
+@PublishedApi
+internal val genericErrorResource = Res.string.generic_error
+@PublishedApi
+internal val connectionTimeoutResource = Res.string.connection_timeout
+@PublishedApi
+internal val noInternetResource = Res.string.no_internet
+@PublishedApi
+internal val serverConnectionFailedResource = Res.string.server_connection_failed
+@PublishedApi
+internal val sslErrorResource = Res.string.ssl_error
 
 suspend inline fun <reified T> HttpResponse.toApiResponse(): ApiResponse<T> {
+    val response = this
     return try {
         // --- Handle error status codes BEFORE deserializing body ---
-        // Ktor may or may not throw ClientRequestException depending on expectSuccess config.
-        // We handle it here explicitly so error bodies (which may have field types that don't
-        // match the success schema, e.g. data.phone_number = ["error msg"] instead of a String)
-        // are never deserialized into NetworkResponse<T>.
-        if (this.status.value >= 400) {
-            val rawBody = try { this.body<String>() } catch (ex: Exception) { "" }
+        if (response.status.value >= 400) {
+            val rawBody = try { response.body<String>() } catch (ex: Exception) { "" }
             return ApiResponse.Error(
-                message = extractErrorMessage(rawBody, this.status.value),
-                code = this.status.value
+                message = extractErrorMessage(rawBody, response.status.value),
+                code = response.status.value
             )
         }
 
-        val networkResponse = this.body<NetworkResponse<T>>()
+        val networkResponse = response.body<NetworkResponse<T>>()
         if (networkResponse.status == "success" && networkResponse.data != null) {
             ApiResponse.Success(networkResponse.data)
         } else if (networkResponse.status == "success" && T::class == Unit::class) {
+            @Suppress("UNCHECKED_CAST")
             ApiResponse.Success(Unit as T)
         } else {
             ApiResponse.Error(
-                message = networkResponse.message ?: httpStatusMessage(0),
+                message = networkResponse.message ?: getStringInternal(genericErrorResource),
                 code = networkResponse.code
             )
         }
@@ -40,47 +54,48 @@ suspend inline fun <reified T> HttpResponse.toApiResponse(): ApiResponse<T> {
             code = e.response.status.value
         )
     } catch (e: HttpRequestTimeoutException) {
-        ApiResponse.Error(message = "اتصال به سرور قطع شد. لطفاً دوباره تلاش کنید.", code = 408)
+        ApiResponse.Error(message = getStringInternal(connectionTimeoutResource), code = 408)
     } catch (e: UnresolvedAddressException) {
-        ApiResponse.Error(message = "به اینترنت متصل نیستید.", code = 0)
+        ApiResponse.Error(message = getStringInternal(noInternetResource), code = 0)
     } catch (e: Exception) {
         val msg = e.message ?: ""
         val friendlyMessage = when {
             msg.contains("UnresolvedAddressException", ignoreCase = true) ||
             msg.contains("Unable to resolve host", ignoreCase = true) ->
-                "به اینترنت متصل نیستید."
+                getStringInternal(noInternetResource)
             msg.contains("ConnectException", ignoreCase = true) ||
             msg.contains("Connection refused", ignoreCase = true) ->
-                "اتصال به سرور برقرار نشد."
+                getStringInternal(serverConnectionFailedResource)
             msg.contains("SocketTimeoutException", ignoreCase = true) ||
             msg.contains("timed out", ignoreCase = true) ->
-                "اتصال به سرور قطع شد. لطفاً دوباره تلاش کنید."
+                getStringInternal(connectionTimeoutResource)
             msg.contains("SSLException", ignoreCase = true) ->
-                "خطا در اتصال امن. لطفاً دوباره تلاش کنید."
-            else -> "خطایی رخ داده است."
+                getStringInternal(sslErrorResource)
+            else -> getStringInternal(genericErrorResource)
         }
         ApiResponse.Error(message = friendlyMessage, code = 500)
     }
 }
 
 suspend inline fun <reified T> HttpResponse.toDirectApiResponse(): ApiResponse<T> {
+    val response = this
     return try {
-        if (this.status.value in 200..299) {
-            val responseData = this.body<T>()
+        if (response.status.value in 200..299) {
+            val responseData = response.body<T>()
             ApiResponse.Success(responseData)
         } else {
-            val rawBody = try { this.body<String>() } catch (ex: Exception) { "" }
+            val rawBody = try { response.body<String>() } catch (ex: Exception) { "" }
             ApiResponse.Error(
-                message = extractErrorMessage(rawBody, this.status.value),
-                code = this.status.value
+                message = extractErrorMessage(rawBody, response.status.value),
+                code = response.status.value
             )
         }
     } catch (e: HttpRequestTimeoutException) {
-        ApiResponse.Error(message = "اتصال به سرور قطع شد. لطفاً دوباره تلاش کنید.", code = 408)
+        ApiResponse.Error(message = getStringInternal(connectionTimeoutResource), code = 408)
     } catch (e: UnresolvedAddressException) {
-        ApiResponse.Error(message = "به اینترنت متصل نیستید.", code = 0)
+        ApiResponse.Error(message = getStringInternal(noInternetResource), code = 0)
     } catch (e: Exception) {
-        ApiResponse.Error(message = "خطایی رخ داده است.", code = 500)
+        ApiResponse.Error(message = getStringInternal(genericErrorResource), code = 500)
     }
 }
 
@@ -92,7 +107,7 @@ suspend inline fun <reified T> HttpResponse.toDirectApiResponse(): ApiResponse<T
  * 2. Top-level "message" field from the response body
  * 3. Generic Farsi message derived from the HTTP status code
  */
-fun extractErrorMessage(rawBody: String, statusCode: Int = 0): String {
+suspend fun extractErrorMessage(rawBody: String, statusCode: Int = 0): String {
     if (rawBody.isNotBlank()) {
         try {
             val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
@@ -148,19 +163,19 @@ fun extractErrorMessage(rawBody: String, statusCode: Int = 0): String {
     }
 
     // 3. Fallback to HTTP status code message
-    return httpStatusMessage(statusCode)
+    return getString(httpStatusResource(statusCode))
 }
 
-fun httpStatusMessage(code: Int): String = when (code) {
-    400 -> "اطلاعات وارد شده معتبر نیست."
-    401 -> "لطفاً دوباره وارد حساب کاربری خود شوید."
-    403 -> "شما دسترسی به این بخش را ندارید."
-    404 -> "اطلاعات مورد نظر یافت نشد."
-    408 -> "اتصال به سرور قطع شد. لطفاً دوباره تلاش کنید."
-    409 -> "تعارض داده: این اطلاعات از قبل وجود دارد."
-    422 -> "اطلاعات ارسالی ناقص یا نامعتبر است."
-    429 -> "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً کمی صبر کنید."
-    in 500..599 -> "خطای سرور. لطفاً دوباره تلاش کنید."
-    0   -> "به اینترنت متصل نیستید."
-    else -> "خطایی رخ داده است."
+fun httpStatusResource(code: Int): org.jetbrains.compose.resources.StringResource = when (code) {
+    400 -> Res.string.invalid_input
+    401 -> Res.string.unauthorized
+    403 -> Res.string.forbidden
+    404 -> Res.string.not_found
+    408 -> Res.string.connection_timeout
+    409 -> Res.string.conflict_error
+    422 -> Res.string.unprocessable_entity
+    429 -> Res.string.too_many_requests
+    in 500..599 -> Res.string.server_error
+    0   -> Res.string.no_internet
+    else -> Res.string.generic_error
 }

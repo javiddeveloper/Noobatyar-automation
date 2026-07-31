@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +78,6 @@ fun ResetPasswordScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResetPasswordScreenContent(
     modifier: Modifier = Modifier,

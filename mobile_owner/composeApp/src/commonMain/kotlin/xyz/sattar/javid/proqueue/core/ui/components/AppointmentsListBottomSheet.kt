@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -21,10 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppointmentsListBottomSheet(
     appointments: List<AppointmentWithDetails>,
@@ -41,7 +41,7 @@ fun AppointmentsListBottomSheet(
                 .padding(16.dp)
         ) {
             Text(
-                text = "نوبت‌های ثبت شده در این روز",
+                text = stringResource(Res.string.appointments_recorded_today),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -53,7 +53,7 @@ fun AppointmentsListBottomSheet(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "هیچ نوبتی برای این روز ثبت نشده است.",
+                        text = stringResource(Res.string.no_appointments_recorded_today),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -109,7 +109,7 @@ fun AppointmentItemRow(item: AppointmentWithDetails) {
             )
             val duration = item.appointment.serviceDuration ?: item.business.defaultServiceDuration
             Text(
-                text = "$duration دقیقه",
+                text = stringResource(Res.string.minutes_label, duration),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

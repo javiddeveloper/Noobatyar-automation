@@ -59,7 +59,6 @@ fun CalendarScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreenContent(
     uiState: CalendarState,

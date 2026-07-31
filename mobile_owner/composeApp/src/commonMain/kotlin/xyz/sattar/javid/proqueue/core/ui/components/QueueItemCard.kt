@@ -48,14 +48,19 @@ import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.approve_action
+import proqueue.composeapp.generated.resources.click_to_view_full
 import proqueue.composeapp.generated.resources.complete_action
 import proqueue.composeapp.generated.resources.contact_options
 import proqueue.composeapp.generated.resources.delete_appointment
 import proqueue.composeapp.generated.resources.no_show_action
+import proqueue.composeapp.generated.resources.payment_receipt
 import proqueue.composeapp.generated.resources.phone_call
+import proqueue.composeapp.generated.resources.reject_action
 import proqueue.composeapp.generated.resources.sms
 import proqueue.composeapp.generated.resources.telegram
 import proqueue.composeapp.generated.resources.to_label
+import proqueue.composeapp.generated.resources.verify_receipt
 import proqueue.composeapp.generated.resources.whatsapp
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
@@ -185,14 +190,14 @@ fun QueueItemCard(
                 else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$receipt"
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "فیش پرداخت",
+                    text = stringResource(Res.string.payment_receipt),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 AsyncImage(
                     model = receiptUrl,
-                    contentDescription = "فیش پرداخت",
+                    contentDescription = stringResource(Res.string.payment_receipt),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
@@ -201,7 +206,7 @@ fun QueueItemCard(
                     contentScale = ContentScale.Crop
                 )
                 Text(
-                    text = "برای مشاهده کامل، روی تصویر بزنید",
+                    text = stringResource(Res.string.click_to_view_full),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -269,7 +274,7 @@ fun QueueItemCard(
                         HorizontalDivider()
                         if (isPending) {
                             DropdownMenuItem(
-                                text = { Text("رد کردن", color = MaterialTheme.colorScheme.error) },
+                                text = { Text(stringResource(Res.string.reject_action), color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = { Icon(Icons.Rounded.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     showMenu = false
@@ -311,8 +316,8 @@ fun QueueItemCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = when {
-                            isPendingVerification -> "تأیید فیش"
-                            isPending -> "تایید"
+                            isPendingVerification -> stringResource(Res.string.verify_receipt)
+                            isPending -> stringResource(Res.string.approve_action)
                             else -> stringResource(Res.string.complete_action)
                         },
                         style = MaterialTheme.typography.labelLarge,

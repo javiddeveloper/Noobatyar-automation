@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
+import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.unknown_error
 
 abstract class BaseViewModel<STATE, PARTIAL_STATE, EVENT, INTENT>(
     initialState: STATE
@@ -35,7 +38,7 @@ abstract class BaseViewModel<STATE, PARTIAL_STATE, EVENT, INTENT>(
                 .flatMapMerge { intent ->
                     handleIntent(intent)
                         .catch { error ->
-                            emit(createErrorState(error.message ?: "خطای نامشخص"))
+                            emit(createErrorState(error.message ?: getString(Res.string.unknown_error)))
                         }
                 }
                 .scan(uiState.value) { currentState, partialState ->

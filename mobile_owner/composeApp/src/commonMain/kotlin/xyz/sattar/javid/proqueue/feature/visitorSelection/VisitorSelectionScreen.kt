@@ -66,7 +66,6 @@ fun VisitorSelectionScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VisitorSelectionScreenContent(
     modifier: Modifier = Modifier,

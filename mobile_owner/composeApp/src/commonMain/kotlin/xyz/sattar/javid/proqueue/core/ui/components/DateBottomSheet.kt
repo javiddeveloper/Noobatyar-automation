@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -25,11 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import proqueue.composeapp.generated.resources.Res
-import proqueue.composeapp.generated.resources.confirm
+import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateBottomSheet(
     initialDate: Long, // Epoch Millis
@@ -46,11 +43,27 @@ fun DateBottomSheet(
     var month by remember { mutableStateOf(initialPersian.month) }
     var day by remember { mutableStateOf(initialPersian.dayOfMonth) }
 
-    val persianMonths = remember {
+    val month_1 = stringResource(Res.string.month_1)
+    val month_2 = stringResource(Res.string.month_2)
+    val month_3 = stringResource(Res.string.month_3)
+    val month_4 = stringResource(Res.string.month_4)
+    val month_5 = stringResource(Res.string.month_5)
+    val month_6 = stringResource(Res.string.month_6)
+    val month_7 = stringResource(Res.string.month_7)
+    val month_8 = stringResource(Res.string.month_8)
+    val month_9 = stringResource(Res.string.month_9)
+    val month_10 = stringResource(Res.string.month_10)
+    val month_11 = stringResource(Res.string.month_11)
+    val month_12 = stringResource(Res.string.month_12)
+
+    val persianMonths = remember(
+        month_1, month_2, month_3, month_4, month_5, month_6,
+        month_7, month_8, month_9, month_10, month_11, month_12
+    ) {
         listOf(
-            "فروردین /01", "اردیبهشت /02", "خرداد /03", "تیر /04",
-            "مرداد /05", "شهریور /06", "مهر /07", "آبان /08",
-            "آذر /09", "دی /10", "بهمن /11", "اسفند /12"
+            month_1, month_2, month_3, month_4,
+            month_5, month_6, month_7, month_8,
+            month_9, month_10, month_11, month_12
         )
     }
 

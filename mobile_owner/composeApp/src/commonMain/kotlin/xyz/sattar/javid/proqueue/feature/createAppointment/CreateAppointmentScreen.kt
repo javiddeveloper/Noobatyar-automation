@@ -91,7 +91,7 @@ fun CreateAppointmentScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
+@OptIn(ExperimentalTime::class)
 @Composable
 fun CreateAppointmentScreenContent(
     modifier: Modifier = Modifier,

@@ -31,7 +31,6 @@ import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
  * the business is loaded fully, only the advanced fields are edited here, and on
  * save the basic fields are passed through unchanged from the loaded business.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdvancedSettingsRoute(
     businessId: Long,

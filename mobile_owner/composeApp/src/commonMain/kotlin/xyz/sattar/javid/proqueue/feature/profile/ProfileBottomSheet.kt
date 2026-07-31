@@ -20,7 +20,6 @@ import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
 import xyz.sattar.javid.proqueue.feature.home.SubscriptionCard
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileBottomSheet(
     userName: String?,

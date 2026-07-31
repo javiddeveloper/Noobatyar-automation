@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -92,7 +91,6 @@ import coil3.compose.AsyncImage
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateBusinessRoute(
     viewModel: CreateBusinessViewModel = koinViewModel<CreateBusinessViewModel>(),
@@ -239,7 +237,6 @@ fun CreateBusinessRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateBusinessScreen(
     modifier: Modifier = Modifier,

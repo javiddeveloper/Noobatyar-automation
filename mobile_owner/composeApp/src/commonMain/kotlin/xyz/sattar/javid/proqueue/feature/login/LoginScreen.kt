@@ -20,7 +20,6 @@ import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -73,7 +72,6 @@ fun LoginScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreenContent(
     modifier: Modifier = Modifier,

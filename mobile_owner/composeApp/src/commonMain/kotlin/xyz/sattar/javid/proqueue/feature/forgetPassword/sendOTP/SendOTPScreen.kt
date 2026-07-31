@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,7 +82,6 @@ fun SendOTPScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SendOTPScreenContent(
     modifier: Modifier = Modifier,

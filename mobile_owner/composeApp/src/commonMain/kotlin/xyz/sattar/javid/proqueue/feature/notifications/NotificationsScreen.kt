@@ -31,7 +31,6 @@ import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
     viewModel: NotificationsViewModel = koinViewModel(),
@@ -66,7 +65,6 @@ fun NotificationsScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreenContent(
     uiState: NotificationsState,

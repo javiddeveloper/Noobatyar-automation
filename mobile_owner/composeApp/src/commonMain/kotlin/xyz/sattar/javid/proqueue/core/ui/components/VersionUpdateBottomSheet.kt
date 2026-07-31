@@ -13,9 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.domain.model.VersionInfo
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionUpdateBottomSheet(
     versionInfo: VersionInfo,
@@ -67,7 +68,7 @@ fun VersionUpdateBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "بروزرسانی جدید در دسترس است",
+                text = stringResource(Res.string.new_update_available),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -76,7 +77,7 @@ fun VersionUpdateBottomSheet(
             Spacer(modifier = Modifier.height(4.dp))
             
             Text(
-                text = "نسخه ${versionInfo.latestVersion.versionName}",
+                text = stringResource(Res.string.version_label, versionInfo.latestVersion.versionName),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -98,7 +99,7 @@ fun VersionUpdateBottomSheet(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "تغییرات این نسخه:",
+                        text = stringResource(Res.string.changelog_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -130,7 +131,7 @@ fun VersionUpdateBottomSheet(
             Spacer(modifier = Modifier.height(32.dp))
             
             AppButton(
-                text = "بروزرسانی نوبت یار",
+                text = stringResource(Res.string.update_app),
                 onClick = onUpdateClick,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -142,7 +143,7 @@ fun VersionUpdateBottomSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "بعداً یادآوری کن",
+                        text = stringResource(Res.string.remind_later),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -3,7 +3,6 @@ package xyz.sattar.javid.proqueue.core.ui.components
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -24,7 +23,7 @@ import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.LocalHazeState
 import xyz.sattar.javid.proqueue.feature.profile.ProfileAvatar
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun MainTopAppBar(
     title: String? = null,

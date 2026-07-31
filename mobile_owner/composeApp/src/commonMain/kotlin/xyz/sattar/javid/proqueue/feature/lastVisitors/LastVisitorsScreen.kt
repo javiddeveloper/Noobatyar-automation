@@ -70,7 +70,6 @@ fun LastVisitorsScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LastVisitorsScreenContent(
     modifier: Modifier = Modifier,
@@ -316,7 +315,7 @@ fun LastVisitorsScreenContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilterBottomSheet(
     filter: AppointmentFilter,

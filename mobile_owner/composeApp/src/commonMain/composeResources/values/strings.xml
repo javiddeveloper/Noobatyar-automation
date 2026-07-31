@@ -138,7 +138,86 @@
     <string name="error_saving_appointment">خطا در ذخیره نوبت</string>
     <string name="operation_error">خطا در عملیات</string>
     <string name="error_loading_visitors">خطا در بارگذاری لیست مراجعین</string>
-    
+    <string name="unknown_error">خطای نامشخص</string>
+    <string name="connection_timeout">اتصال به سرور قطع شد. لطفاً دوباره تلاش کنید.</string>
+    <string name="no_internet">به اینترنت متصل نیستید.</string>
+    <string name="server_connection_failed">اتصال به سرور برقرار نشد.</string>
+    <string name="ssl_error">خطا در اتصال امن. لطفاً دوباره تلاش کنید.</string>
+    <string name="generic_error">خطایی رخ داده است.</string>
+    <string name="invalid_input">اطلاعات وارد شده معتبر نیست.</string>
+    <string name="unauthorized">لطفاً دوباره وارد حساب کاربری خود شوید.</string>
+    <string name="forbidden">شما دسترسی به این بخش را ندارید.</string>
+    <string name="not_found">اطلاعات مورد نظر یافت نشد.</string>
+    <string name="conflict_error">تعارض داده: این اطلاعات از قبل وجود دارد.</string>
+    <string name="unprocessable_entity">اطلاعات ارسالی ناقص یا نامعتبر است.</string>
+    <string name="too_many_requests">تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً کمی صبر کنید.</string>
+    <string name="server_error">خطای سرور. لطفاً دوباره تلاش کنید.</string>
+    <string name="waiting_time_arrived">زمان نوبت فرا رسیده</string>
+    <string name="waiting_time_less_than_minute">کمتر از یک دقیقه تا نوبت</string>
+    <string name="hours_label">%d ساعت</string>
+    <string name="and_label"> و </string>
+    <string name="waiting_time_suffix"> زمان انتظار</string>
+    <string name="edit_business_title">ویرایش کسب و کار</string>
+
+    <!-- Days of Week -->
+    <string name="monday">دوشنبه</string>
+    <string name="tuesday">سه‌شنبه</string>
+    <string name="wednesday">چهارشنبه</string>
+    <string name="thursday">پنج‌شنبه</string>
+    <string name="friday">جمعه</string>
+    <string name="saturday">شنبه</string>
+    <string name="sunday">یکشنبه</string>
+
+    <!-- Settings Extra -->
+    <string name="advanced_settings_title">تنظیمات پیشرفته</string>
+    <string name="advanced_settings_promo">ظرفیت، بیعانه، پیامک و درگاه پرداخت</string>
+    <string name="about_us_label">درباره ما</string>
+    <string name="about_us_subtitle">آشنایی با نوبت‌یار و ارتباط با ما</string>
+    <string name="logout_label">خروج از حساب</string>
+    <string name="active_business">کسب‌وکار فعال</string>
+    <string name="noobatyar_user">کاربر نوبت‌یار</string>
+    <string name="subscription_vip">ویژه</string>
+    <string name="subscription_active">فعال</string>
+    <string name="subscription_none">بدون اشتراک</string>
+
+    <!-- Version Update -->
+    <string name="new_update_available">بروزرسانی جدید در دسترس است</string>
+    <string name="version_label">نسخه %s</string>
+    <string name="changelog_title">تغییرات این نسخه:</string>
+    <string name="update_app">بروزرسانی نوبت یار</string>
+    <string name="remind_later">بعداً یادآوری کن</string>
+
+    <!-- Appointments List -->
+    <string name="appointments_recorded_today">نوبت‌های ثبت شده در این روز</string>
+    <string name="no_appointments_recorded_today">هیچ نوبتی برای این روز ثبت نشده است.</string>
+    <string name="minutes_label">%d دقیقه</string>
+
+    <!-- Queue Item -->
+    <string name="payment_receipt">فیش پرداخت</string>
+    <string name="click_to_view_full">برای مشاهده کامل، روی تصویر بزنید</string>
+    <string name="reject_action">رد کردن</string>
+    <string name="verify_receipt">تأیید فیش</string>
+    <string name="approve_action">تایید</string>
+
+    <!-- No Internet -->
+    <string name="no_internet_title">عدم اتصال به اینترنت</string>
+    <string name="no_internet_message">برای استفاده از نوبت یار و بررسی اطلاعات، اتصال اینترنت خود را چک کنید و دوباره تلاش کنید.</string>
+    <string name="retry_action">تلاش مجدد</string>
+
+    <!-- Months -->
+    <string name="month_1">فروردین /01</string>
+    <string name="month_2">اردیبهشت /02</string>
+    <string name="month_3">خرداد /03</string>
+    <string name="month_4">تیر /04</string>
+    <string name="month_5">مرداد /05</string>
+    <string name="month_6">شهریور /06</string>
+    <string name="month_7">مهر /07</string>
+    <string name="month_8">آبان /08</string>
+    <string name="month_9">آذر /09</string>
+    <string name="month_10">دی /10</string>
+    <string name="month_11">بهمن /11</string>
+    <string name="month_12">اسفند /12</string>
+
     <!-- Messages Feature -->
     <string name="messages_menu_item">پیام‌ها</string>
     <string name="messages_ready_subtitle">پیام‌های آماده</string>

@@ -13,7 +13,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
 object DateTimeUtils {
 
     @OptIn(ExperimentalTime::class)
