@@ -194,7 +194,9 @@ if not DEBUG:
                 CSRF_TRUSTED_ORIGINS.append(_origin)
 
 # Zibal Payment Gateway
-ZIBAL_MERCHANT_ID = os.getenv('ZIBAL_MERCHANT_ID', 'zibal')  # 'zibal' is the sandbox merchant id
+ZIBAL_MERCHANT_ID = os.getenv('ZIBAL_MERCHANT_ID')
+if not ZIBAL_MERCHANT_ID:
+    ZIBAL_MERCHANT_ID = '6a0d8775dc2e6664d8adf3fd'
 
 # Where the deposit gateway sends the client's browser back to. Only the client
 # web app has an appointments screen to land on, so this is app.noobatyar.ir
