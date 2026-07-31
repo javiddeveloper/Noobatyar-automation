@@ -87,10 +87,44 @@ fun LastVisitorsScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    IconButton(onClick = { onIntent(LastVisitorsIntent.ShowFilterSheet(true)) }) {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (uiState.isLoading)
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.primaryContainer
+                            )
+                            .clickable(enabled = !uiState.isLoading) { onIntent(LastVisitorsIntent.LoadAppointments) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "بروزرسانی",
+                            tint = if (uiState.isLoading)
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else
+                                MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable { onIntent(LastVisitorsIntent.ShowFilterSheet(true)) },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Rounded.FilterList,
-                            contentDescription = "Filter"
+                            contentDescription = "فیلتر",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
