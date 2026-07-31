@@ -16,6 +16,7 @@ data class CreateBusinessRequestDto(
     @SerialName("notification_types") val notificationTypes: String ="SMS,WHATSAPP,TELEGRAM",
     @SerialName("notification_minutes_before") val notificationMinutesBefore: Int,
     @SerialName("allow_anonymous_view") val allowAnonymousView: Boolean = false,
+    @SerialName("notify_owner_by_sms") val notifyOwnerBySms: Boolean = true,
     @SerialName("payment_method") val paymentMethod: String? = null,
     @SerialName("accepted_payment_methods") val acceptedPaymentMethods: List<String>? = null,
     @SerialName("max_appointments_per_hour") val maxAppointmentsPerHour: Int? = null,

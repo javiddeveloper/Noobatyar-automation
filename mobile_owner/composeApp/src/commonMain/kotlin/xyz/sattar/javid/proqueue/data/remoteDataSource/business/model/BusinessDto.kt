@@ -21,6 +21,10 @@ data class BusinessDto(
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("allow_anonymous_view") val allowAnonymousView: Boolean = false,
+    // Defaults to true to match the server: an older backend that doesn't send
+    // this field yet still notifies the owner, so assuming false here would
+    // silently show the switch as off while SMS kept arriving.
+    @SerialName("notify_owner_by_sms") val notifyOwnerBySms: Boolean = true,
     @SerialName("payment_method") val paymentMethod: String? = null,
     @SerialName("accepted_payment_methods") val acceptedPaymentMethods: List<String>? = null,
     @SerialName("max_appointments_per_hour") val maxAppointmentsPerHour: Int? = null,

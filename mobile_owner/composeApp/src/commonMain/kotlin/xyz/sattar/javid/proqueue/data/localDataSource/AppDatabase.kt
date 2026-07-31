@@ -26,7 +26,9 @@ internal const val dbFileName = "proQueue.db"
         UserEntity::class,
         SubscriptionEntity::class
     ],
-    version = 8
+    // 9: BusinessEntity.notifyOwnerBySms. Both platforms build with
+    // fallbackToDestructiveMigration, so this drops the local cache and refetches.
+    version = 9
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

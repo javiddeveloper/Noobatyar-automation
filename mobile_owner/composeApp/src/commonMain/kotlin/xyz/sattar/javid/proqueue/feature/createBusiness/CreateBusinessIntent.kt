@@ -12,6 +12,7 @@ sealed class CreateBusinessIntent {
         val workStartHour: Int,
         val workEndHour: Int,
         val allowAnonymousView: Boolean,
+        val notifyOwnerBySms: Boolean,
         val bio: String,
         val logoBytes: ByteArray? = null,
         val maxAppointmentsPerHour: Int? = null,

@@ -53,6 +53,7 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 append("notification_types", business.notificationTypes)
                 append("notification_minutes_before", business.notificationMinutesBefore.toString())
                 append("allow_anonymous_view", business.allowAnonymousView.toString())
+                append("notify_owner_by_sms", business.notifyOwnerBySms.toString())
                 if (business.paymentMethod != null) append("payment_method", business.paymentMethod)
                 if (business.acceptedPaymentMethods != null) {
                     val jsonArrayStr = if (business.acceptedPaymentMethods.isEmpty()) "[]" 

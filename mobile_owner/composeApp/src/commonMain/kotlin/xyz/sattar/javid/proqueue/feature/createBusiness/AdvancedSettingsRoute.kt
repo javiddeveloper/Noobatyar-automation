@@ -124,6 +124,7 @@ fun AdvancedSettingsRoute(
                                     workStartHour = business.workStartHour,
                                     workEndHour = business.workEndHour,
                                     allowAnonymousView = business.allowAnonymousView,
+                                    notifyOwnerBySms = business.notifyOwnerBySms,
                                     bio = business.bio,
                                     logoBytes = business.logoBytes,
                                     maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),

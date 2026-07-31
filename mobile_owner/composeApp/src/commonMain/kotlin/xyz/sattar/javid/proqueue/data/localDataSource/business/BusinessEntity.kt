@@ -21,6 +21,7 @@ data class BusinessEntity(
     val notificationMinutesBefore: Int = 30,
     val createdAt: Long,
     val allowAnonymousView: Boolean = false,
+    val notifyOwnerBySms: Boolean = true,
     val paymentMethod: String? = null,
     val acceptedPaymentMethods: String = "",
     val maxAppointmentsPerHour: Int? = null,

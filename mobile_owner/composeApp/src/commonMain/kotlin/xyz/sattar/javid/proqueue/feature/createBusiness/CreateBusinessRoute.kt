@@ -109,6 +109,7 @@ fun CreateBusinessRoute(
     var workStartHour by remember { mutableStateOf("9") }
     var workEndHour by remember { mutableStateOf("21") }
     var allowAnonymousView by remember { mutableStateOf(false) }
+    var notifyOwnerBySms by remember { mutableStateOf(true) }
     var bio by remember { mutableStateOf("") }
     var logoBytes by remember { mutableStateOf<ByteArray?>(null) }
     var maxAppointmentsPerHour by remember { mutableStateOf("") }
@@ -151,6 +152,7 @@ fun CreateBusinessRoute(
             workStartHour = it.workStartHour.toString()
             workEndHour = it.workEndHour.toString()
             allowAnonymousView = it.allowAnonymousView
+            notifyOwnerBySms = it.notifyOwnerBySms
             maxAppointmentsPerHour = it.maxAppointmentsPerHour?.toString() ?: ""
             depositMode = it.depositMode ?: DepositMode.NONE.value
             depositAmount = it.depositAmount?.toString() ?: ""
@@ -181,6 +183,7 @@ fun CreateBusinessRoute(
         workStartHour = workStartHour,
         workEndHour = workEndHour,
         allowAnonymousView = allowAnonymousView,
+        notifyOwnerBySms = notifyOwnerBySms,
         bio = bio,
         logoBytes = logoBytes,
         maxAppointmentsPerHour = maxAppointmentsPerHour,
@@ -228,6 +231,7 @@ fun CreateBusinessRoute(
             workHoursError = null
         },
         onAllowAnonymousView = { allowAnonymousView = it },
+        onNotifyOwnerBySms = { notifyOwnerBySms = it },
         onBio = { bio = it },
         onLogoBytes = { logoBytes = it },
         titleError = titleError,
@@ -263,7 +267,9 @@ fun CreateBusinessScreen(
     onWorkStartHour: (String) -> Unit,
     onWorkEndHour: (String) -> Unit,
     allowAnonymousView: Boolean,
+    notifyOwnerBySms: Boolean,
     onAllowAnonymousView: (Boolean) -> Unit,
+    onNotifyOwnerBySms: (Boolean) -> Unit,
     bio: String,
     logoBytes: ByteArray?,
     onBio: (String) -> Unit,
@@ -420,6 +426,7 @@ fun CreateBusinessScreen(
                                         workStartHour = wsInt!!,
                                         workEndHour = weInt!!,
                                         allowAnonymousView = allowAnonymousView,
+                                        notifyOwnerBySms = notifyOwnerBySms,
                                         bio = bio.trim(),
                                         logoBytes = logoBytes,
                                         maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
@@ -728,6 +735,33 @@ fun CreateBusinessScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { onNotifyOwnerBySms(!notifyOwnerBySms) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "اطلاع‌رسانی پیامکی نوبت جدید به خودم",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    androidx.compose.material3.Switch(
+                        checked = notifyOwnerBySms,
+                        onCheckedChange = { onNotifyOwnerBySms(it) }
+                    )
+                }
+                Text(
+                    text = "این پیامک از سهمیه‌ی پیامک شما کم می‌شود. اگر نوبت‌های " +
+                            "جدید را در همین اپ دنبال می‌کنید، خاموش کردنش هزینه‌ی هر " +
+                            "نوبت را یک پیامک کمتر می‌کند.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             // Advanced settings (payment / capacity / reminders) now live on a
             // separate screen, reachable from the profile. The values are still
             // loaded and saved here so editing the business doesn't drop them.
@@ -852,7 +886,9 @@ fun PreviewDashboardScreen() {
             onWorkStartHour = {},
             onWorkEndHour = {},
             allowAnonymousView = false,
+            notifyOwnerBySms = true,
             onAllowAnonymousView = {},
+            onNotifyOwnerBySms = {},
             bio = "",
             logoBytes = null,
             onBio = {},
