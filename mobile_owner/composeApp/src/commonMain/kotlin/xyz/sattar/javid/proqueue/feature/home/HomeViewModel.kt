@@ -54,6 +54,7 @@ class HomeViewModel(
     override fun handleIntent(intent: HomeIntent): Flow<HomeState.PartialState> {
         return when (intent) {
             HomeIntent.LoadData -> loadData()
+            HomeIntent.RefreshQueue -> refreshQueueAndStats()
             is HomeIntent.RemoveAppointment -> removeAppointment(intent.appointmentId)
             is HomeIntent.MarkAppointmentCompleted -> markCompleted(intent.appointmentId)
             is HomeIntent.MarkAppointmentNoShow -> markNoShow(intent.appointmentId)
@@ -103,13 +104,17 @@ class HomeViewModel(
     override fun createErrorState(message: String): HomeState.PartialState =
         HomeState.PartialState.ShowMessage(message)
 
+    /**
+     * بار گذاری کامل: پلن‌ها + اشتراک + entitlements + queue + stats + chart
+     * فقط هنگام تغییر business یا اولین بار ورود فراخوانی می‌شود
+     */
     private fun loadData(): Flow<HomeState.PartialState> = flow {
         emit(HomeState.PartialState.ResetSectionLoaders)
         emit(HomeState.PartialState.IsLoading(true))
         val business = BusinessStateHolder.selectedBusiness.value
         emit(HomeState.PartialState.LoadBusinessName(business))
 
-        // Load Plans
+        // پلن‌ها — فقط اگر قبلاً نگرفتیم یا لیست خالی بود
         try {
             when (val plansResponse = getPlansUseCase()) {
                 is ApiResponse.Success -> emit(HomeState.PartialState.LoadPlans(plansResponse.data))
@@ -119,7 +124,7 @@ class HomeViewModel(
             emit(HomeState.PartialState.LoadPlans(emptyList()))
         }
 
-        // Load Subscription (for the home subscription card)
+        // اشتراک کاربر
         try {
             when (val subResponse = getMySubscriptionUseCase()) {
                 is ApiResponse.Success -> emit(HomeState.PartialState.LoadSubscription(subResponse.data))
@@ -127,7 +132,7 @@ class HomeViewModel(
             }
         } catch (e: Exception) {}
 
-        // Load Entitlements + usage (for the usage meter)
+        // Entitlements
         try {
             when (val entResponse = getMyEntitlementsUseCase()) {
                 is ApiResponse.Success -> emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
@@ -137,29 +142,35 @@ class HomeViewModel(
             emit(HomeState.PartialState.LoadEntitlements(null))
         }
 
+        // Queue + Stats + Chart
+        emitAll(refreshQueueAndStats())
+    }
+
+    /**
+     * به‌روز‌رسانی سبک: فقط صف نوبت + آمار + نمودار
+     * بعد از هر تغییری در نوبت‌ها (حذف/تکمیل/غیب) یا دکمه Refresh فراخوانی می‌شود
+     */
+    private fun refreshQueueAndStats(): Flow<HomeState.PartialState> = flow {
+        emit(HomeState.PartialState.IsLoading(true))
+        val business = BusinessStateHolder.selectedBusiness.value
         if (business != null) {
             try {
-                // Sync Data
                 @OptIn(ExperimentalTime::class)
                 val today = Clock.System.now().toEpochMilliseconds()
                 syncAppointmentsUseCase(business.id, date = today)
 
-                // Load Queue
                 val queue = getWaitingQueueUseCase(business.id, today)
-                val queueItems = calculateQueueTimes(queue)
-                emit(HomeState.PartialState.LoadQueue(queueItems))
+                emit(HomeState.PartialState.LoadQueue(calculateQueueTimes(queue)))
 
-                // Load Stats
                 val stats = getTodayStatsUseCase(business.id)
                 emit(HomeState.PartialState.LoadStats(stats))
 
-                // Load 7-day appointment counts for the neon chart
                 val daily = getDailyCountsUseCase(business.id, 7)
                 emit(HomeState.PartialState.LoadDailyCounts(daily))
             } catch (e: Exception) {
                 emit(HomeState.PartialState.LoadStats(DashboardStats()))
                 emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
-                emit(HomeState.PartialState.ShowMessage(e.message ?: "Error loading data"))
+                emit(HomeState.PartialState.ShowMessage(e.message ?: "خطا در بارگذاری"))
             }
         } else {
             emit(HomeState.PartialState.LoadStats(DashboardStats()))
@@ -215,21 +226,21 @@ class HomeViewModel(
 
     private fun removeAppointment(appointmentId: Long): Flow<HomeState.PartialState> = flow {
         removeAppointmentUseCase(appointmentId)
-        emitAll(loadData())
+        emitAll(refreshQueueAndStats())
     }
 
     private fun markCompleted(appointmentId: Long): Flow<HomeState.PartialState> = flow {
         markAppointmentCompletedUseCase(appointmentId)
-        emitAll(loadData())
+        emitAll(refreshQueueAndStats())
     }
 
     private fun markNoShow(appointmentId: Long): Flow<HomeState.PartialState> = flow {
         markAppointmentNoShowUseCase(appointmentId)
-        emitAll(loadData())
+        emitAll(refreshQueueAndStats())
     }
 
     private fun sendMessage(appointmentId: Long, type: String, content: String, businessTitle: String): Flow<HomeState.PartialState> = flow {
         sendMessageUseCase(appointmentId, type, content, businessTitle)
-        emitAll(loadData())
+        emitAll(refreshQueueAndStats())
     }
 }

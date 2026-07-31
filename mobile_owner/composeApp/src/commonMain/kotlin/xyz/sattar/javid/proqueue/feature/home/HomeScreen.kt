@@ -123,6 +123,21 @@ fun HomeScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
+                    // دکمه بروزرسانی سبک (فقط صف + آمار)
+                    IconButton(
+                        onClick = { onIntent(HomeIntent.RefreshQueue) },
+                        enabled = !uiState.isLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "بروزرسانی",
+                            tint = if (uiState.isLoading)
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else
+                                MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    // دکمه تقویم
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)

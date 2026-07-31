@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,9 +41,7 @@ fun CalendarScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.sendIntent(CalendarIntent.LoadData)
-    }
+    // حذف LaunchedEffect تکراری — ViewModel.init با BusinessStateHolder بار اول را مدیریت می‌کند
 
     viewModel.events.collectWithLifecycleAware { event ->
         when (event) {
@@ -71,16 +70,31 @@ fun CalendarScreenContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = "تقویم نوبت‌دهی",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = { onIntent(CalendarIntent.BackPress) }) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(Res.string.back))
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { onIntent(CalendarIntent.LoadData) },
+                        enabled = !uiState.isLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "بروزرسانی",
+                            tint = if (uiState.isLoading)
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else
+                                MaterialTheme.colorScheme.primary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
