@@ -28,7 +28,7 @@ class Command(BaseCommand):
             {
                 # پایه — ماهانه
                 'name': 'پایه',
-                'price': 120000,
+                'price': 199000,
                 'discount_price': None,
                 'duration_value': 1,
                 'duration_unit': 'month',
@@ -44,7 +44,7 @@ class Command(BaseCommand):
             {
                 # اکو — سه ماهه
                 'name': 'اکو',
-                'price': 320000,
+                'price': 499000,
                 'discount_price': None,
                 'duration_value': 3,
                 'duration_unit': 'month',
@@ -55,14 +55,14 @@ class Command(BaseCommand):
                     '۱۵۰ پیامک در ماه',
                     'درگاه آنلاین + بیعانه',
                     'گزارش پیشرفته',
-                    'معادل ۱۰۶,۰۰۰ تومان/ماه',
+                    'معادل ۱۶۶,۰۰۰ تومان/ماه',
                 ],
                 'features': ent.BUNDLE_3M,
             },
             {
                 # پرو — شش ماهه
                 'name': 'پرو',
-                'price': 580000,
+                'price': 899000,
                 'discount_price': None,
                 'duration_value': 6,
                 'duration_unit': 'month',
@@ -73,14 +73,14 @@ class Command(BaseCommand):
                     '۳۰۰ پیامک در ماه',
                     'واتساپ / تلگرام',
                     'پشتیبانی ویژه',
-                    'معادل ۹۶,۰۰۰ تومان/ماه',
+                    'معادل ۱۴۹,۸۰۰ تومان/ماه',
                 ],
                 'features': ent.BUNDLE_6M,
             },
             {
                 # پرو پلاس — سالانه
                 'name': 'پرو پلاس',
-                'price': 990000,
+                'price': 1599000,
                 'discount_price': None,
                 'duration_value': 12,
                 'duration_unit': 'month',
@@ -91,7 +91,7 @@ class Command(BaseCommand):
                     '۵۰۰ پیامک در ماه',
                     'همه‌ی قابلیت‌ها',
                     'پشتیبانی ویژه اولویت‌دار',
-                    'معادل ۸۲,۵۰۰ تومان/ماه',
+                    'معادل ۱۳۳,۰۰۰ تومان/ماه',
                 ],
                 'features': ent.BUNDLE_12M,
             },
