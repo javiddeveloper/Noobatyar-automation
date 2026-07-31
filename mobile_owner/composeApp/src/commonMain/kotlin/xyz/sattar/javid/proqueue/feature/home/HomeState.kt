@@ -1,6 +1,7 @@
 package xyz.sattar.javid.proqueue.feature.home
 
 import androidx.compose.runtime.Immutable
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto
@@ -14,7 +15,7 @@ import xyz.sattar.javid.proqueue.domain.model.message.Message
 data class HomeState(
     val isLoading: Boolean = false,
     val business: Business? = null,
-    val message: String? = null,
+    val message: UiMessage? = null,
     val queue: List<QueueItem> = emptyList(),
     val stats: DashboardStats = DashboardStats(),
     val statsLoaded: Boolean = false,
@@ -31,7 +32,8 @@ data class HomeState(
         data class IsLoading(val isLoading: Boolean) : PartialState()
         /** Clears section-ready flags so shimmer placeholders show again. */
         data object ResetSectionLoaders : PartialState()
-        data class ShowMessage(val message: String) : PartialState()
+        data class ShowMessage(val message: UiMessage) : PartialState()
+        data object ClearMessage : PartialState()
         data class LoadBusinessName(val business: Business?) : PartialState()
         data class LoadQueue(val queue: List<QueueItem>) : PartialState()
         data class LoadStats(val stats: DashboardStats) : PartialState()

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import xyz.sattar.javid.proqueue.domain.usecase.DeleteBusinessUseCase
 
 class SettingsViewModel(
@@ -33,6 +34,7 @@ class SettingsViewModel(
             SettingsIntent.OnDeleteBusinessClick -> deleteBusiness()
             SettingsIntent.OnNotificationsClick -> sendEvent(SettingsEvent.NavigateToNotifications)
             SettingsIntent.OnMessagesClick -> sendEvent(SettingsEvent.NavigateToMessages)
+            SettingsIntent.ClearMessage -> flow { emit(SettingsState.PartialState.ClearMessage) }
         }
     }
 
@@ -44,7 +46,7 @@ class SettingsViewModel(
                 deleteBusinessUseCase(currentBusiness.id)
                 sendEvent(SettingsEvent.BusinessDeleted)
             } catch (e: Exception) {
-                emit(SettingsState.PartialState.ShowMessage(e.message ?: "Error deleting business"))
+                emit(SettingsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در حذف کسب‌وکار")))
             } finally {
                 emit(SettingsState.PartialState.IsLoading(false))
             }
@@ -66,11 +68,13 @@ class SettingsViewModel(
                     currentBusiness = partialState.business,
                     isLoading = false
                 )
+            SettingsState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
         }
     }
 
     override fun createErrorState(message: String): SettingsState.PartialState =
-        SettingsState.PartialState.ShowMessage(message)
+        SettingsState.PartialState.ShowMessage(UiMessage.error(message))
 
     private fun loadSettings(): Flow<SettingsState.PartialState> = flow {
         emit(SettingsState.PartialState.IsLoading(true))

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayStatsUseCase
@@ -60,6 +61,7 @@ class HomeViewModel(
             is HomeIntent.MarkAppointmentNoShow -> markNoShow(intent.appointmentId)
             is HomeIntent.SendMessage -> sendMessage(intent.appointmentId, intent.type, intent.content, intent.businessTitle)
             is HomeIntent.PurchasePlan -> purchasePlan(intent.planId)
+            HomeIntent.ClearMessage -> flow { emit(HomeState.PartialState.ClearMessage) }
         }
     }
 
@@ -98,11 +100,13 @@ class HomeViewModel(
                 )
             is HomeState.PartialState.LoadDailyCounts ->
                 currentState.copy(dailyCounts = partialState.counts, chartLoaded = true)
+            HomeState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
         }
     }
 
     override fun createErrorState(message: String): HomeState.PartialState =
-        HomeState.PartialState.ShowMessage(message)
+        HomeState.PartialState.ShowMessage(UiMessage.error(message))
 
     /**
      * بار گذاری کامل: پلن‌ها + اشتراک + entitlements + queue + stats + chart
@@ -170,7 +174,7 @@ class HomeViewModel(
             } catch (e: Exception) {
                 emit(HomeState.PartialState.LoadStats(DashboardStats()))
                 emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
-                emit(HomeState.PartialState.ShowMessage(e.message ?: "خطا در بارگذاری"))
+                emit(HomeState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در بارگذاری")))
             }
         } else {
             emit(HomeState.PartialState.LoadStats(DashboardStats()))

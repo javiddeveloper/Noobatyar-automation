@@ -1,5 +1,6 @@
 package xyz.sattar.javid.proqueue.feature.lastVisitors
 
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import androidx.lifecycle.viewModelScope
@@ -82,11 +83,18 @@ class LastVisitorsViewModel(
                         content = intent.content,
                         businessTitle = intent.businessTitle
                     )
-                    if (!success) emit(LastVisitorsState.PartialState.ShowMessage("خطا در ثبت پیام"))
+                    // Previously this had no success path at all — sending a
+                    // reminder either failed loudly or succeeded completely
+                    // silently, with nothing to tell them it actually went out.
+                    emit(
+                        if (success) LastVisitorsState.PartialState.ShowMessage(UiMessage.success("پیام ارسال شد"))
+                        else LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در ثبت پیام"))
+                    )
                 } catch (e: Exception) {
-                    emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در ثبت پیام"))
+                    emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در ثبت پیام")))
                 }
             }
+            LastVisitorsIntent.ClearMessage -> flow { emit(LastVisitorsState.PartialState.ClearMessage) }
         }
     }
 
@@ -116,11 +124,13 @@ class LastVisitorsViewModel(
                 currentState.copy(filter = partialState.filter)
             is LastVisitorsState.PartialState.ShowFilterSheet ->
                 currentState.copy(showFilterSheet = partialState.show)
+            LastVisitorsState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
         }
     }
 
     override fun createErrorState(message: String): LastVisitorsState.PartialState =
-        LastVisitorsState.PartialState.ShowMessage(message)
+        LastVisitorsState.PartialState.ShowMessage(UiMessage.error(message))
 
     fun generateReminderMessage(
         businessId: Long,
@@ -174,10 +184,10 @@ class LastVisitorsViewModel(
                     )
                 )
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("لطفاً ابتدا یک کسب‌وکار انتخاب کنید"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("لطفاً ابتدا یک کسب‌وکار انتخاب کنید")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در بارگذاری نوبت‌ها"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در بارگذاری نوبت‌ها")))
         } finally {
             emit(LastVisitorsState.PartialState.IsLoading(false))
         }
@@ -188,12 +198,13 @@ class LastVisitorsViewModel(
             val success = removeAppointmentUseCase(appointmentId)
             if (success) {
                 emit(LastVisitorsState.PartialState.ShowOptionsDialog(null))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success("نوبت حذف شد")))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در حذف نوبت"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در حذف نوبت")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در حذف نوبت"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در حذف نوبت")))
         }
     }
 
@@ -201,12 +212,13 @@ class LastVisitorsViewModel(
         try {
             val success = markAppointmentCompletedUseCase(appointmentId)
             if (success) {
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success("نوبت تکمیل شد")))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در تکمیل نوبت"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در تکمیل نوبت")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در تکمیل نوبت"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در تکمیل نوبت")))
         }
     }
 
@@ -214,12 +226,13 @@ class LastVisitorsViewModel(
         try {
             val success = markAppointmentNoShowUseCase(appointmentId)
             if (success) {
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success("عدم حضور ثبت شد")))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در ثبت عدم مراجعه"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در ثبت عدم مراجعه")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در ثبت عدم مراجعه"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در ثبت عدم مراجعه")))
         }
     }
 
@@ -227,12 +240,14 @@ class LastVisitorsViewModel(
         try {
             val success = appointmentRepository.updateAppointmentStatus(appointmentId, status)
             if (success) {
+                val confirmation = if (status == "CANCELLED") "درخواست رد شد" else "درخواست تأیید شد"
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success(confirmation)))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در تغییر وضعیت نوبت"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در تغییر وضعیت نوبت")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در تغییر وضعیت نوبت"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در تغییر وضعیت نوبت")))
         }
     }
 }

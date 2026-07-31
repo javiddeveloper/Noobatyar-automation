@@ -33,6 +33,8 @@ import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
 import xyz.sattar.javid.proqueue.core.ui.components.LastVisitorsListShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.QueueItemCard
 import xyz.sattar.javid.proqueue.core.ui.components.SectionTabs
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+import xyz.sattar.javid.proqueue.core.ui.components.showToasty
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
@@ -80,8 +82,20 @@ fun LastVisitorsScreenContent(
     onChangeBusiness: () -> Unit = {},
     onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String
 ) {
+    // This screen previously had no toast host at all, so every error and
+    // (once added) success confirmation from LastVisitorsState.message — delete,
+    // complete, no-show, approve/reject, send-message — vanished silently.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let {
+            snackbarHostState.showToasty(it)
+            onIntent(LastVisitorsIntent.ClearMessage)
+        }
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0),
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
             MainTopAppBar(
                 onNavigateToLogin = onNavigateToLogin,

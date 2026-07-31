@@ -48,6 +48,8 @@ import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomePlanBannerShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeUsageShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyType
+import xyz.sattar.javid.proqueue.core.ui.components.showToasty
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
@@ -107,7 +109,8 @@ fun HomeScreenContent(
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showToasty(it)
+            onIntent(HomeIntent.ClearMessage)
         }
     }
 
@@ -963,7 +966,7 @@ fun HandleEvents(
                 uriHandler.openUri(event.url)
             }
             is HomeEvent.ShowError -> {
-                snackbarHostState.showSnackbar(event.message)
+                snackbarHostState.showToasty(event.message, ToastyType.Error)
             }
         }
     }

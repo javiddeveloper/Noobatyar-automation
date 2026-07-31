@@ -10,4 +10,6 @@ sealed interface SettingsIntent {
     data object OnDeleteBusinessClick : SettingsIntent
     data object OnNotificationsClick : SettingsIntent
     data object OnMessagesClick : SettingsIntent
+    /** Dispatched right after a toast is shown so it can't be re-shown/deduped. */
+    data object ClearMessage : SettingsIntent
 }

@@ -14,4 +14,6 @@ sealed interface HomeIntent {
         val businessTitle: String
     ) : HomeIntent
     data class PurchasePlan(val planId: Int) : HomeIntent
+    /** Dispatched right after a toast is shown so it can't be re-shown/deduped. */
+    data object ClearMessage : HomeIntent
 }
