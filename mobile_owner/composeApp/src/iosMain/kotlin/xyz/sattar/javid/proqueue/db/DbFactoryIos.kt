@@ -21,6 +21,7 @@ object DbFactoryIos: RoomDatabaseConstructor<AppDatabase> {
         )
             .setDriver(androidx.sqlite.driver.bundled.BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 
