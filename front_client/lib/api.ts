@@ -21,6 +21,13 @@ export interface Business {
   work_start_hour: number;
   work_end_hour: number;
   allow_anonymous_view: boolean;
+  /** Owner-posted advisory (closure, emergency, running late) is live.
+   *  Independent of `booking_enabled`: a business can post a notice and still
+   *  take bookings. */
+  notice_enabled: boolean;
+  /** The advisory text, max 300 chars. The backend sends an empty string
+   *  whenever `notice_enabled` is false, so stale text never reaches us.
+   *  Still nullable here to tolerate older payloads. */
   notice_message: string | null;
   booking_enabled: boolean;
   deposit_mode?: string;

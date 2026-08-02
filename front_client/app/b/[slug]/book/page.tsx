@@ -10,6 +10,7 @@ import {
   type Business,
   type TimeSlot,
 } from '@/lib/api';
+import BusinessNotice from '@/app/components/BusinessNotice';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -259,11 +260,8 @@ export default function BookingPage({ params }: Props) {
           <h2 style={{ fontSize: 16, color: 'var(--color-text)', fontWeight: 700, marginBottom: 8 }}>
             ثبت نوبت غیرفعال است
           </h2>
-          {business.notice_message && (
-            <div className="notice-banner" style={{ marginTop: 16, textAlign: 'center' }}>
-              {business.notice_message}
-            </div>
-          )}
+          {/* The owner's own words on why, under the generic "it's off" heading. */}
+          <BusinessNotice business={business} style={{ padding: '16px 0 0' }} />
           <button className="btn-primary" style={{ marginTop: 32, width: 'auto', padding: '0 32px' }}
             onClick={() => router.back()}>
             بازگشت
@@ -301,11 +299,15 @@ export default function BookingPage({ params }: Props) {
         </div>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>{business.title}</h2>
-          {business.notice_message && (
-            <p style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 0 0' }}>{business.notice_message}</p>
-          )}
         </div>
       </div>
+
+      {/* ── Owner notice ──
+          Above the date picker so a deep link straight into booking still
+          surfaces it before any time is picked. The muted one-liner that used
+          to sit under the business title is gone: it was the same text, in a
+          colour that read as a subtitle rather than a notice. */}
+      <BusinessNotice business={business} style={{ paddingTop: 16, paddingBottom: 0 }} />
 
       {/* ── Date Picker ── */}
       <div className="section" style={{ paddingBottom: 8 }}>
