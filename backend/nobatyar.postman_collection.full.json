@@ -396,6 +396,89 @@
       ]
     },
     {
+      "name": "Business",
+      "item": [
+        {
+          "name": "SMS Logs (paginated)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/business/{{businessId}}/sms-logs/?page=1&page_size=20&status=SENT",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "business",
+                "{{businessId}}",
+                "sms-logs",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "SENT",
+                  "description": "SENT | FAILED"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SMS Logs Summary",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/business/{{businessId}}/sms-logs/summary/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "business",
+                "{{businessId}}",
+                "sms-logs",
+                "summary",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Accounting (API)",
       "item": [
         {
@@ -867,6 +950,11 @@
     {
       "key": "refreshToken",
       "value": "your_refresh_token_here",
+      "type": "string"
+    },
+    {
+      "key": "businessId",
+      "value": "1",
       "type": "string"
     }
   ]

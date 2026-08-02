@@ -141,11 +141,19 @@ def my_subscription(request):  # ✅ sync
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_entitlements(request):
-    """قابلیت‌ها و سقف‌های پلن فعلی کاربر + میزان مصرف این ماه."""
+    """قابلیت‌ها و سقف‌های پلن فعلی کاربر + میزان مصرف این ماه.
+
+    ``coming_soon`` lists feature keys that a plan may well resolve to ``True``
+    but that nothing in this backend implements yet. It is sent as a separate
+    list rather than by forcing those keys to ``False``, because the entitlement
+    genuinely was sold with the plan — the client's job is to render the row
+    disabled with a «به‌زودی» badge, not to pretend the user did not buy it.
+    """
     user = request.user
     ent = entitlements.get_entitlements(user)
     return APIResponse.success(data={
         'entitlements': ent,
+        'coming_soon': list(entitlements.COMING_SOON_FEATURES),
         'usage': {
             'appointments': usage.appointment_balance(user),
             'sms': usage.sms_balance(user),

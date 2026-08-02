@@ -1,9 +1,16 @@
 from django.urls import path
 
+from .sms_views import SmsLogListView, SmsLogSummaryView
 from .views import BusinessView
 
 urlpatterns = [
     # ... existing routes
     path('', BusinessView.as_view(), name='business-list-create'),
+    # Declared before the '<int:business_id>/' detail route: Django resolves in
+    # order, and while the detail pattern ends at its own trailing slash and so
+    # would not swallow these anyway, keeping the more specific paths first makes
+    # that independent of how the detail route is written later.
+    path('<int:business_id>/sms-logs/', SmsLogListView.as_view(), name='business-sms-logs'),
+    path('<int:business_id>/sms-logs/summary/', SmsLogSummaryView.as_view(), name='business-sms-logs-summary'),
     path('<int:business_id>/', BusinessView.as_view(), name='business-detail'),
 ]

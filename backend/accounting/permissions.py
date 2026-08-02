@@ -115,6 +115,17 @@ def validate_business_settings(user, data):
         if not entitlements.has_feature(user, entitlements.FEATURE_PROMOTIONAL_SMS):
             return need(entitlements.FEATURE_PROMOTIONAL_SMS)
 
+    # Automatic reminder delivery from the SMS panel.
+    # MANUAL costs nothing (the message leaves the owner's own SIM from the
+    # owner app), PANEL bills every reminder to the owner's plan quota — so
+    # only the tier that pays for panel sending may switch it on. Switching
+    # back to MANUAL is always allowed, including for a user whose plan just
+    # expired, otherwise a downgrade would strand them on a paid setting they
+    # can no longer turn off.
+    if "reminder_delivery" in data and data.get("reminder_delivery") == "PANEL":
+        if not entitlements.has_feature(user, entitlements.FEATURE_AUTO_REMINDER_SMS):
+            return need(entitlements.FEATURE_AUTO_REMINDER_SMS)
+
     # Hourly capacity control
     if "max_appointments_per_hour" in data:
         value = data.get("max_appointments_per_hour")
