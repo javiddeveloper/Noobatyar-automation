@@ -42,7 +42,10 @@ class CreateBusinessViewModel(
                     intent.merchantId,
                     intent.paymentLink,
                     intent.bio,
-                    intent.logoBytes
+                    intent.logoBytes,
+                    intent.noticeEnabled,
+                    intent.noticeMessage,
+                    intent.reminderDelivery
                 )
             }
 
@@ -152,7 +155,10 @@ class CreateBusinessViewModel(
         merchantId: String,
         paymentLink: String,
         bio: String,
-        logoBytes: ByteArray?
+        logoBytes: ByteArray?,
+        noticeEnabled: Boolean,
+        noticeMessage: String,
+        reminderDelivery: String
     ): Flow<CreateBusinessState.PartialState> = flow {
         emit(CreateBusinessState.PartialState.IsLoading(true))
         val updatedBusiness = businessUpsertUseCase.invoke(
@@ -179,7 +185,10 @@ class CreateBusinessViewModel(
                 merchantId = merchantId,
                 paymentLink = paymentLink,
                 bio = bio,
-                logoBytes = logoBytes
+                logoBytes = logoBytes,
+                noticeEnabled = noticeEnabled,
+                noticeMessage = noticeMessage,
+                reminderDelivery = reminderDelivery
             )
         )
         if (updatedBusiness != null) {

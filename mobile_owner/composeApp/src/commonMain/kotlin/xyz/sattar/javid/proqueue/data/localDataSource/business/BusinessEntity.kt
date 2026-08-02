@@ -31,5 +31,8 @@ data class BusinessEntity(
     val paymentLink: String = "",
     val cardNumber: String = "",
     val cardOwnerName: String = "",
-    val bio: String = ""
+    val bio: String = "",
+    val noticeEnabled: Boolean = false,
+    val noticeMessage: String = "",
+    val reminderDelivery: String = "MANUAL"
 )

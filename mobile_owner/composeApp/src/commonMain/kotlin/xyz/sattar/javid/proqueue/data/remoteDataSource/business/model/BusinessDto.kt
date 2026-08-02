@@ -34,5 +34,11 @@ data class BusinessDto(
     @SerialName("payment_link") val paymentLink: String? = null,
     @SerialName("card_number") val cardNumber: String? = null,
     @SerialName("card_owner_name") val cardOwnerName: String? = null,
-    @SerialName("bio") val bio: String? = null
+    @SerialName("bio") val bio: String? = null,
+    // Emergency notice shown on the public booking page. Public clients only see
+    // the message while the switch is on, so both fields travel together.
+    @SerialName("notice_enabled") val noticeEnabled: Boolean = false,
+    @SerialName("notice_message") val noticeMessage: String? = null,
+    // "MANUAL" (owner texts from their own SIM) or "PANEL" (server sends).
+    @SerialName("reminder_delivery") val reminderDelivery: String? = null
 )

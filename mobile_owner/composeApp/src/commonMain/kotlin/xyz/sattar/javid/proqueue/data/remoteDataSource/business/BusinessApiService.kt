@@ -15,6 +15,8 @@ import xyz.sattar.javid.proqueue.core.network.toApiResponse
 import xyz.sattar.javid.proqueue.core.network.toDirectApiResponse
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 
 class BusinessApiService(private val httpClient: HttpClient) {
@@ -68,7 +70,11 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 append("card_number", business.cardNumber)
                 append("card_owner_name", business.cardOwnerName)
                 append("bio", business.bio)
-                
+                append("notice_enabled", business.noticeEnabled.toString())
+                append("notice_message", business.noticeMessage)
+                append("reminder_delivery", business.reminderDelivery)
+
+
                 if (business.logoBytes != null) {
                     append("logo", business.logoBytes, io.ktor.http.Headers.build {
                         append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
@@ -77,6 +83,31 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 }
             }
         )
+    }
+
+    // These two endpoints deliberately return DRF's bare pagination shape
+    // ({count, next, previous, results}), not the app-wide {status, code,
+    // message, data} envelope — so they go through toDirectApiResponse(),
+    // not toApiResponse(). Using the wrapped parser here fails on the
+    // missing "status" field and the report can never load.
+    suspend fun getSmsLogs(
+        businessId: Long,
+        page: Int,
+        pageSize: Int,
+        status: String? = null
+    ): ApiResponse<SmsLogPageDto> {
+        return httpClient.get("business/$businessId/sms-logs/") {
+            contentType(ContentType.Application.Json)
+            parameter("page", page)
+            parameter("page_size", pageSize)
+            if (status != null) parameter("status", status)
+        }.toDirectApiResponse()
+    }
+
+    suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto> {
+        return httpClient.get("business/$businessId/sms-logs/summary/") {
+            contentType(ContentType.Application.Json)
+        }.toDirectApiResponse()
     }
 
     suspend fun deleteBusiness(id: Long): ApiResponse<Unit> {

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -67,6 +68,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import kotlinx.coroutines.flow.Flow
@@ -94,7 +96,6 @@ import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
 import xyz.sattar.javid.proqueue.core.ui.components.SectionTabs
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
-import xyz.sattar.javid.proqueue.core.utils.buildReminderMessage
 import xyz.sattar.javid.proqueue.core.utils.formatPhoneNumberForAction
 import xyz.sattar.javid.proqueue.core.utils.openPhoneDial
 import xyz.sattar.javid.proqueue.core.utils.openSms
@@ -190,42 +191,56 @@ fun VisitorDetailsScreenContent(
             var currentChannel by remember { mutableStateOf("SMS") }
             var currentAppointmentId by remember { mutableStateOf(0L) }
 
-            val prepareMessageSheet: (String) -> Unit = { channel ->
+            /**
+             * Opens the compose sheet for [channel].
+             *
+             * [useTemplate] decides whether the body arrives pre-filled. The
+             * reminder template is only meaningful when we already know *which*
+             * appointment is being reminded about — that is the case when the
+             * screen was opened from a reminder notification, and it is not the
+             * case when the owner simply taps an icon on the profile. There,
+             * [pickTargetAppointment] falls back to the most recent appointment,
+             * which is routinely one that already happened, so the owner ends up
+             * about to send a reminder for a past slot. The profile entry point
+             * therefore starts from a blank body.
+             */
+            val prepareMessageSheet: (String, Boolean) -> Unit = { channel, useTemplate ->
                 val business = BusinessStateHolder.selectedBusiness.value
-                val businessTitle = business?.title ?: "--"
-                val businessAddress = business?.address ?: "--"
                 val targetAppointment =
-                    pickTargetAppointment(uiState.appointments)
+                    if (useTemplate) pickTargetAppointment(uiState.appointments) else null
                 currentAppointmentId = targetAppointment?.appointment?.id ?: 0L
                 currentChannel = channel
-                val appointmentMillis =
-                    targetAppointment?.appointment?.appointmentDate
-                        ?: DateTimeUtils.systemCurrentMilliseconds()
-                val serviceDurationMinutes =
-                    targetAppointment?.appointment?.serviceDuration
-                        ?: targetAppointment?.business?.defaultServiceDuration
-                        ?: 15
-                val status = targetAppointment?.appointment?.status ?: "WAITING"
-                val waitingText = DateTimeUtils.calculateWaitingOrOverdueText(
-                    appointmentMillis,
-                    serviceDurationMinutes,
-                    status
-                )
-                messageBody = onGenerateMessage(
-                    /* businessId = */ business?.id ?: 0L,
-                    /* businessTitle = */ businessTitle,
-                    /* businessAddress = */ businessAddress,
-                    /* visitorName = */ uiState.visitor.fullName,
-                    /* appointmentMillis = */ appointmentMillis,
-                    /* reminderMinutes = */ waitingText,
-                    /* serviceDuration = */ targetAppointment?.appointment?.serviceDuration
-                )
+                messageBody = if (targetAppointment == null) {
+                    ""
+                } else {
+                    val appointmentMillis = targetAppointment.appointment.appointmentDate
+                    val serviceDurationMinutes =
+                        targetAppointment.appointment.serviceDuration
+                            ?: targetAppointment.business?.defaultServiceDuration
+                            ?: 15
+                    val waitingText = DateTimeUtils.calculateWaitingOrOverdueText(
+                        appointmentMillis,
+                        serviceDurationMinutes,
+                        targetAppointment.appointment.status
+                    )
+                    onGenerateMessage(
+                        /* businessId = */ business?.id ?: 0L,
+                        /* businessTitle = */ business?.title ?: "--",
+                        /* businessAddress = */ business?.address ?: "--",
+                        /* visitorName = */ uiState.visitor.fullName,
+                        /* appointmentMillis = */ appointmentMillis,
+                        /* reminderMinutes = */ waitingText,
+                        /* serviceDuration = */ targetAppointment.appointment.serviceDuration
+                    )
+                }
                 showMessageSheet = true
             }
 
             LaunchedEffect(openMessageDialog, uiState.visitor) {
                 if (openMessageDialog && uiState.visitor != null) {
-                    prepareMessageSheet("SMS")
+                    // Arrived from a reminder notification: the template is the
+                    // whole point of the deep link, so keep it.
+                    prepareMessageSheet("SMS", true)
                 }
             }
 
@@ -365,7 +380,10 @@ fun VisitorDetailsScreenContent(
                                         )
                                     )
                                 },
-                                onComposeMessage = prepareMessageSheet
+                                // Profile entry point: blank body, no template.
+                                onComposeMessage = { channel ->
+                                    prepareMessageSheet(channel, false)
+                                }
                             )
                         }
                     }
@@ -475,6 +493,11 @@ fun VisitorInfoHeader(visitor: Visitor) {
     }
 }
 
+/**
+ * The contact row at the top of the profile. Each icon only chooses a *channel*
+ * — the message itself is composed in the sheet, which opens empty from here (see
+ * `prepareMessageSheet`), so nothing in this row builds message text.
+ */
 @Composable
 fun CommunicationSection(
     visitor: Visitor,
@@ -492,7 +515,8 @@ fun CommunicationSection(
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top
         ) {
             CommunicationButton(
                 icon = Icons.Rounded.Call,
@@ -502,98 +526,17 @@ fun CommunicationSection(
             CommunicationButton(
                 icon = Icons.Rounded.Message,
                 label = stringResource(Res.string.sms),
-                onClick = {
-                    val business = BusinessStateHolder.selectedBusiness.value
-                    val businessTitle = business?.title ?: "--"
-                    val businessAddress = business?.address ?: "--"
-                    val targetAppointment = pickTargetAppointment(appointments)
-                    val appointmentId = targetAppointment?.appointment?.id ?: 0L
-                    val appointmentMillis = targetAppointment?.appointment?.appointmentDate
-                        ?: DateTimeUtils.systemCurrentMilliseconds()
-                    val serviceDurationMinutes = targetAppointment?.appointment?.serviceDuration
-                        ?: targetAppointment?.business?.defaultServiceDuration
-                        ?: 15
-                    val status = targetAppointment?.appointment?.status ?: "WAITING"
-                    val waitingText = DateTimeUtils.calculateWaitingOrOverdueText(
-                        appointmentMillis,
-                        serviceDurationMinutes,
-                        status
-                    )
-                    val content = buildReminderMessage(
-                        businessId = business?.id ?: 0L,
-                        businessTitle = businessTitle,
-                        businessAddress = businessAddress,
-                        visitorName = visitor.fullName,
-                        appointmentMillis = appointmentMillis,
-                        reminderMinutes = waitingText,
-                        serviceDuration = targetAppointment?.appointment?.serviceDuration,
-                    )
-                    onComposeMessage("SMS")
-                }
+                onClick = { onComposeMessage("SMS") }
             )
             CommunicationButton(
                 icon = Res.drawable.whatsapp,
                 label = stringResource(Res.string.whatsapp),
-                onClick = {
-                    val business = BusinessStateHolder.selectedBusiness.value
-                    val businessTitle = business?.title ?: "--"
-                    val businessAddress = business?.address ?: "--"
-                    val targetAppointment = pickTargetAppointment(appointments)
-                    val appointmentId = targetAppointment?.appointment?.id ?: 0L
-                    val appointmentMillis = targetAppointment?.appointment?.appointmentDate
-                        ?: DateTimeUtils.systemCurrentMilliseconds()
-                    val serviceDurationMinutes = targetAppointment?.appointment?.serviceDuration
-                        ?: targetAppointment?.business?.defaultServiceDuration
-                        ?: 15
-                    val status = targetAppointment?.appointment?.status ?: "WAITING"
-                    val waitingText = DateTimeUtils.calculateWaitingOrOverdueText(
-                        appointmentMillis,
-                        serviceDurationMinutes,
-                        status
-                    )
-                    val content = buildReminderMessage(
-                        businessId = business?.id ?: 0L,
-                        businessTitle = businessTitle,
-                        businessAddress = businessAddress,
-                        visitorName = visitor.fullName,
-                        appointmentMillis = appointmentMillis,
-                        reminderMinutes = waitingText,
-                        serviceDuration = targetAppointment?.appointment?.serviceDuration,
-                    )
-                    onComposeMessage("WHATSAPP")
-                }
+                onClick = { onComposeMessage("WHATSAPP") }
             )
             CommunicationButton(
                 icon = Icons.Rounded.Send,
                 label = stringResource(Res.string.telegram),
-                onClick = {
-                    val business = BusinessStateHolder.selectedBusiness.value
-                    val businessTitle = business?.title ?: "--"
-                    val businessAddress = business?.address ?: "--"
-                    val targetAppointment = pickTargetAppointment(appointments)
-                    val appointmentId = targetAppointment?.appointment?.id ?: 0L
-                    val appointmentMillis = targetAppointment?.appointment?.appointmentDate
-                        ?: DateTimeUtils.systemCurrentMilliseconds()
-                    val serviceDurationMinutes = targetAppointment?.appointment?.serviceDuration
-                        ?: targetAppointment?.business?.defaultServiceDuration
-                        ?: 15
-                    val status = targetAppointment?.appointment?.status ?: "WAITING"
-                    val waitingText = DateTimeUtils.calculateWaitingOrOverdueText(
-                        appointmentMillis,
-                        serviceDurationMinutes,
-                        status
-                    )
-                    val content = buildReminderMessage(
-                        businessId = business?.id ?: 0L,
-                        businessTitle = businessTitle,
-                        businessAddress = businessAddress,
-                        visitorName = visitor.fullName,
-                        appointmentMillis = appointmentMillis,
-                        reminderMinutes = waitingText,
-                        serviceDuration = targetAppointment?.appointment?.serviceDuration,
-                    )
-                    onComposeMessage("TELEGRAM")
-                }
+                onClick = { onComposeMessage("TELEGRAM") }
             )
         }
     }
@@ -609,6 +552,14 @@ private fun pickTargetAppointment(appointments: List<AppointmentWithDetails>): A
     return appointments.maxByOrNull { it.appointment.appointmentDate }
 }
 
+/**
+ * One circular action in the contact row.
+ *
+ * Every branch pins the glyph to the same 24.dp box and the whole button to a
+ * fixed width: without those, a vector resource fell back to its intrinsic size
+ * while the Material icons used the 24.dp default, and the labels (which differ
+ * in length) pushed the circles out of line with each other.
+ */
 @Composable
 fun CommunicationButton(
     icon: Any,
@@ -617,7 +568,11 @@ fun CommunicationButton(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier
+            .width(72.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp)
     ) {
         Box(
             modifier = Modifier
@@ -630,7 +585,8 @@ fun CommunicationButton(
                 is ImageVector -> Icon(
                     icon,
                     contentDescription = label,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
                 )
 
                 is org.jetbrains.compose.resources.DrawableResource -> Icon(
@@ -640,11 +596,21 @@ fun CommunicationButton(
                     modifier = Modifier.size(24.dp)
                 )
 
-                else -> Icon(Icons.Rounded.Send, contentDescription = label) // Fallback
+                else -> Icon(
+                    Icons.Rounded.Send,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                ) // Fallback
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = label, style = MaterialTheme.typography.labelSmall)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

@@ -10,7 +10,10 @@ import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.BusinessApiService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import xyz.sattar.javid.proqueue.core.network.ApiException
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 
 class BusinessRepositoryImpl(
     private val businessDao: BusinessDao,
@@ -72,7 +75,10 @@ class BusinessRepositoryImpl(
                     businessDao.deleteBusiness(businessId)
                     true
                 }
-                is ApiResponse.Error -> throw Exception(response.message)
+                // ApiException, not a bare Exception: callers need the status
+                // code to tell "your plan doesn't include this" (403) apart from
+                // a generic failure.
+                is ApiResponse.Error -> throw ApiException(response.message, response.code)
             }
         } catch (e: Exception) {
             throw e
@@ -87,7 +93,10 @@ class BusinessRepositoryImpl(
                     businessDao.upsertBusiness(entity)
                     entity.toDomain()
                 }
-                is ApiResponse.Error -> throw Exception(response.message)
+                // ApiException, not a bare Exception: callers need the status
+                // code to tell "your plan doesn't include this" (403) apart from
+                // a generic failure.
+                is ApiResponse.Error -> throw ApiException(response.message, response.code)
             }
         } catch (e: Exception) {
             throw e
@@ -102,10 +111,26 @@ class BusinessRepositoryImpl(
                     businessDao.upsertBusiness(entity)
                     entity.toDomain()
                 }
-                is ApiResponse.Error -> throw Exception(response.message)
+                // ApiException, not a bare Exception: callers need the status
+                // code to tell "your plan doesn't include this" (403) apart from
+                // a generic failure.
+                is ApiResponse.Error -> throw ApiException(response.message, response.code)
             }
         } catch (e: Exception) {
             throw e
         }
     }
+
+    // The SMS log is server-owned history — there is nothing sensible to cache
+    // locally, so these pass straight through to the API.
+    override suspend fun getSmsLogs(
+        businessId: Long,
+        page: Int,
+        pageSize: Int,
+        status: String?
+    ): ApiResponse<SmsLogPageDto> =
+        businessApiService.getSmsLogs(businessId, page, pageSize, status)
+
+    override suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto> =
+        businessApiService.getSmsLogSummary(businessId)
 }

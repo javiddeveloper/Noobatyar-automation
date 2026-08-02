@@ -68,6 +68,12 @@ sealed class AppScreens {
     ) : AppScreens()
     @Serializable
     object Messages : AppScreens()
+    /** Server-side SMS log for the selected business. */
+    @Serializable
+    object SmsReport : AppScreens()
+    /** Public emergency notice banner shown on the booking page. */
+    @Serializable
+    object EmergencyNotice : AppScreens()
     @Serializable
     data class Calendar(val isPicker: Boolean = false) : AppScreens()
     @Serializable

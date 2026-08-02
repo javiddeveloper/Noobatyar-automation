@@ -10,4 +10,11 @@ sealed interface SettingsIntent {
     data object OnDeleteBusinessClick : SettingsIntent
     data object OnNotificationsClick : SettingsIntent
     data object OnMessagesClick : SettingsIntent
+    data object OnSmsReportClick : SettingsIntent
+    data object OnEmergencyNoticeClick : SettingsIntent
+
+    // --- Emergency notice (public banner on the booking page) ---
+    data class UpdateNoticeEnabled(val enabled: Boolean) : SettingsIntent
+    data class UpdateNoticeMessage(val message: String) : SettingsIntent
+    data object SaveNotice : SettingsIntent
 }

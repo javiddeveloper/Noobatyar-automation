@@ -15,3 +15,12 @@ fun String.toEnglishDigits(): String {
     }
     return result
 }
+
+/**
+ * Converts English digits to Persian ones. For display only — never feed the
+ * result back into anything that parses numbers.
+ */
+fun String.toPersianDigits(): String {
+    val persianDigits = charArrayOf('۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹')
+    return map { ch -> if (ch in '0'..'9') persianDigits[ch - '0'] else ch }.joinToString("")
+}

@@ -1,6 +1,7 @@
 package xyz.sattar.javid.proqueue.feature.createBusiness
 
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 
 sealed class CreateBusinessIntent {
     data class CreateBusiness(
@@ -22,7 +23,10 @@ sealed class CreateBusinessIntent {
         val cardNumber: String,
         val cardOwnerName: String,
         val merchantId: String,
-        val paymentLink: String
+        val paymentLink: String,
+        val noticeEnabled: Boolean = false,
+        val noticeMessage: String = "",
+        val reminderDelivery: String = ReminderDelivery.MANUAL.value
     ) : CreateBusinessIntent()
     object BackPress : CreateBusinessIntent()
     object ClearMessage : CreateBusinessIntent()

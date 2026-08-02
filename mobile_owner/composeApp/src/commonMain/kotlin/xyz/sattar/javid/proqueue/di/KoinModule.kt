@@ -27,6 +27,8 @@ import xyz.sattar.javid.proqueue.domain.usecase.GetAllVisitorsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentByIdUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentsForDateUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayAppointmentsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogSummaryUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayStatsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetVisitorByIdUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetWaitingQueueUseCase
@@ -71,6 +73,7 @@ import xyz.sattar.javid.proqueue.feature.profile.UserViewModel
 import xyz.sattar.javid.proqueue.feature.addons.AddonsViewModel
 import xyz.sattar.javid.proqueue.feature.register.RegisterViewModel
 import xyz.sattar.javid.proqueue.feature.settings.SettingsViewModel
+import xyz.sattar.javid.proqueue.feature.smsReport.SmsReportViewModel
 import xyz.sattar.javid.proqueue.feature.version.VersionViewModel
 import xyz.sattar.javid.proqueue.feature.visitorDetails.VisitorDetailsViewModel
 import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionViewModel
@@ -122,6 +125,8 @@ val appModule: Module = module {
     factory { xyz.sattar.javid.proqueue.domain.usecase.FetchBusinessesUseCase(get()) }
     factory { DeleteBusinessUseCase(get()) }
     factory { BusinessUpsertUseCase(get()) }
+    factory { GetSmsLogsUseCase(get()) }
+    factory { GetSmsLogSummaryUseCase(get()) }
 
     // --- Appointment UseCases ---
     factory { GetWaitingQueueUseCase(get()) }
@@ -185,12 +190,13 @@ val appModule: Module = module {
         )
     }
     viewModel { VisitorSelectionViewModel(get(), get()) }
-    viewModel { SettingsViewModel(get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { VersionViewModel(get()) }
     viewModel { NotificationsViewModel(get(), get()) }
     viewModel { BusinessListViewModel(get(), get(), get()) }
     viewModel { VisitorDetailsViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { MessagesViewModel(get()) }
+    viewModel { MessagesViewModel(get(), get(), get()) }
+    viewModel { SmsReportViewModel(get(), get()) }
     viewModel { CalendarViewModel(get(), get()) }
     viewModel { RegisterViewModel(get()) }
     viewModel { SendOTPViewModel(get(), get()) }
