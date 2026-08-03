@@ -121,8 +121,6 @@ fun HomeScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    // دکمه بروزرسانی حذف شد — جایش pull-to-refresh آمده است.
-                    // دکمه تقویم
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
@@ -651,6 +649,20 @@ fun DashboardStatsSection(stats: DashboardStats) {
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 icon = Icons.Rounded.People
             )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "لغو شده",
+                value = stats.cancelledAppointments.toString(),
+                containerColor = if (isDark) Color(0xFF4A148C).copy(alpha = 0.4f) else Color(0xFFF3E5F5),
+                contentColor = if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A),
+                icon = Icons.Rounded.EventBusy
+            )
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }

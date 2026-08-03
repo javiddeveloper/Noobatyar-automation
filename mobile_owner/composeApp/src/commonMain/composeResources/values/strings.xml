@@ -9,6 +9,11 @@
     <string name="address">آدرس</string>
     <string name="default_time_service">زمان پیشقرض سرویس دهی (10 دقیقه)</string>
     <string name="accept">ثبت</string>
+    <string name="refresh">بروزرسانی</string>
+    <string name="sort_date_nearest_first">نزدیک‌ترین نوبت</string>
+    <string name="sort_date_farthest_first">دورترین نوبت</string>
+    <string name="sort_created_newest_first">جدیدترین ثبت</string>
+    <string name="sort_created_oldest_first">قدیمی‌ترین ثبت</string>
     <string name="create_business">ایجاد کسب‌وکار</string>
     <string name="visitor_name">نام و نام خانوادگی</string>
     <string name="create_visitor">افزودن مراجع</string>
@@ -194,6 +199,10 @@
 
     <!-- Queue Item -->
     <string name="payment_receipt">فیش پرداخت</string>
+    <string name="deposit_paid_label">بیعانه پرداخت شده</string>
+    <string name="deposit_method_card">کارت به کارت</string>
+    <string name="deposit_method_gateway">پرداخت آنلاین (درگاه)</string>
+    <string name="tracking_number_label">شماره پیگیری</string>
     <string name="click_to_view_full">برای مشاهده کامل، روی تصویر بزنید</string>
     <string name="reject_action">رد کردن</string>
     <string name="verify_receipt">تأیید فیش</string>

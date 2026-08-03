@@ -256,6 +256,7 @@ class ClientAppointmentPaymentView(APIView):
                     code=400,
                 )
             appointment.status = 'PENDING_APPROVAL'
+            appointment.deposit_payment_method = 'NONE'
             success_message = "نوبت شما ثبت شد و در انتظار تایید کسب‌وکار است"
         else:
             # Card / online transfers must come with proof, otherwise the owner
@@ -267,6 +268,7 @@ class ClientAppointmentPaymentView(APIView):
                 )
             appointment.status = 'PENDING_VERIFICATION'
             appointment.payment_reference = payment_reference
+            appointment.deposit_payment_method = 'CARD'
             if payment_receipt:
                 appointment.payment_receipt = payment_receipt
             success_message = "پرداخت با موفقیت ثبت شد و نوبت در انتظار تایید است"
@@ -410,8 +412,12 @@ class ClientDepositCallbackView(APIView):
         appointment.status = 'WAITING'
         appointment.locked_at = None
         appointment.expires_at = None
+        appointment.deposit_payment_method = 'GATEWAY'
         await appointment.asave(
-            update_fields=['status', 'locked_at', 'expires_at', 'updated_at']
+            update_fields=[
+                'status', 'locked_at', 'expires_at',
+                'deposit_payment_method', 'updated_at',
+            ]
         )
         await sync_to_async(invalidate_slots_cache)(
             appointment.business_id, appointment.appointment_date

@@ -29,7 +29,7 @@ internal const val dbFileName = "proQueue.db"
     // 10: BusinessEntity.noticeEnabled / noticeMessage / reminderDelivery. Both
     // platforms build with fallbackToDestructiveMigration, so this drops the
     // local cache and refetches.
-    version = 10
+    version = 11
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

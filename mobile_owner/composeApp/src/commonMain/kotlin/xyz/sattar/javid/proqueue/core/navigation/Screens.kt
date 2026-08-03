@@ -75,7 +75,12 @@ sealed class AppScreens {
     @Serializable
     object EmergencyNotice : AppScreens()
     @Serializable
-    data class Calendar(val isPicker: Boolean = false) : AppScreens()
+    data class Calendar(
+        val isPicker: Boolean = false,
+        // When picking a new date/time for an appointment that already occupies
+        // a slot, that appointment must not count as "occupied" against itself.
+        val excludeAppointmentId: Long? = null
+    ) : AppScreens()
     @Serializable
     data class PaymentResult(
         val success: Int,

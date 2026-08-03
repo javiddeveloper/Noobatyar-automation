@@ -328,6 +328,7 @@ fun MainNavHost(
                 val args = backStackEntry.toRoute<AppScreens.Calendar>()
                 CalendarScreen(
                     isPicker = args.isPicker,
+                    excludeAppointmentId = args.excludeAppointmentId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToCreateAppointment = { date, time ->
                         navController.navigate(AppScreens.CreateAppointment(date = date, time = time))
@@ -358,7 +359,9 @@ fun MainNavHost(
                         navController.popBackStack()
                     },
                     onNavigateToCalendar = {
-                        navController.navigate(AppScreens.Calendar(isPicker = true))
+                        navController.navigate(
+                            AppScreens.Calendar(isPicker = true, excludeAppointmentId = args.appointmentId)
+                        )
                     },
                     onNavigateToVisitorSelection = {
                         navController.navigate(AppScreens.VisitorSelection(returnResult = true))

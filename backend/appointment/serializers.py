@@ -120,6 +120,9 @@ class AppointmentQuerySerializer(serializers.ModelSerializer):
             'service_duration',
             'status',
             'description',
+            'tracking_code',
+            'payment_reference',
+            'deposit_payment_method',
             'payment_receipt',
             'created_at',
             'updated_at'
