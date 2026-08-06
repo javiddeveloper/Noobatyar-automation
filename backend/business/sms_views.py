@@ -4,6 +4,7 @@ business/sms_views.py
 Owner-facing SMS report for a single business:
 
     GET /api/business/<business_id>/sms-logs/?page=1&page_size=20&status=SENT
+        &search=<name or phone>&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
     GET /api/business/<business_id>/sms-logs/summary/
 
 Every SMS this platform sends on an owner's behalf is billed to that owner's
@@ -24,6 +25,8 @@ the id is real).
 
 from datetime import datetime, timezone as dt_timezone
 
+from django.db.models import Q
+from django.utils.dateparse import parse_date
 from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -86,6 +89,28 @@ class SmsLogListView(APIView):
         status_filter = (request.query_params.get('status') or '').upper()
         if status_filter in ('SENT', 'FAILED'):
             queryset = queryset.filter(status=status_filter)
+
+        # Customer filter: match either identifying field SmsLog actually has
+        # access to (through visitor). An owner-notification row (visitor=None)
+        # never matches a search, which is correct — there is no customer to
+        # search by on those rows.
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(visitor__full_name__icontains=search) |
+                Q(visitor__phone_number__icontains=search)
+            )
+
+        # Date range on sent_at. Bad/unparseable values are ignored rather than
+        # raising 400s — a malformed date shouldn't blank the whole report, and
+        # the summary card already prevents the quota numbers from claiming to
+        # match a filtered slice.
+        date_from = parse_date(request.query_params.get('date_from') or '')
+        if date_from:
+            queryset = queryset.filter(sent_at__date__gte=date_from)
+        date_to = parse_date(request.query_params.get('date_to') or '')
+        if date_to:
+            queryset = queryset.filter(sent_at__date__lte=date_to)
 
         # Model Meta already orders by -sent_at (newest first); not re-stating it
         # here keeps a single definition of "newest first".

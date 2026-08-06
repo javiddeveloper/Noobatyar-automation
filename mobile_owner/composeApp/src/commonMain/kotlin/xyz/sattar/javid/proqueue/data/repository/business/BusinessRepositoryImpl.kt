@@ -127,9 +127,12 @@ class BusinessRepositoryImpl(
         businessId: Long,
         page: Int,
         pageSize: Int,
-        status: String?
+        status: String?,
+        search: String?,
+        dateFrom: String?,
+        dateTo: String?
     ): ApiResponse<SmsLogPageDto> =
-        businessApiService.getSmsLogs(businessId, page, pageSize, status)
+        businessApiService.getSmsLogs(businessId, page, pageSize, status, search, dateFrom, dateTo)
 
     override suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto> =
         businessApiService.getSmsLogSummary(businessId)

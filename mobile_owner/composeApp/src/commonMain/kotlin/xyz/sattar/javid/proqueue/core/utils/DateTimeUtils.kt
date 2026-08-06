@@ -4,6 +4,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
 import kotlinx.datetime.number
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
@@ -319,6 +320,18 @@ object DateTimeUtils {
         } catch (e: Exception) {
             0L
         }
+    }
+
+    /** "YYYY-MM-DD" (Gregorian) for `today - daysAgo`, matching what the backend's
+     *  `date_from`/`date_to` filters expect (they compare against `sent_at__date`,
+     *  which is stored in Gregorian regardless of what the UI displays). */
+    @OptIn(ExperimentalTime::class)
+    fun isoDateDaysAgo(daysAgo: Int, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+        val today = Clock.System.now().toLocalDateTime(timeZone).date
+        val date = if (daysAgo <= 0) today else today.minus(daysAgo, DateTimeUnit.DAY)
+        return "${date.year}-${date.monthNumber.toString().padStart(2, '0')}-${
+            date.dayOfMonth.toString().padStart(2, '0')
+        }"
     }
 
     fun isSameDay(millis1: Long, millis2: Long): Boolean {

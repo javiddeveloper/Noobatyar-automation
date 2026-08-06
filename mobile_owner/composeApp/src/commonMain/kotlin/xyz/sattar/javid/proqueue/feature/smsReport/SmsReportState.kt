@@ -10,6 +10,8 @@ data class SmsReportState(
     val logs: List<SmsLogDto> = emptyList(),
     val summary: SmsLogSummaryDto? = null,
     val statusFilter: String? = null,
+    val searchQuery: String = "",
+    val dateRangeFilter: SmsReportDateRange = SmsReportDateRange.ALL,
     val currentPage: Int = 0,
     val canLoadMore: Boolean = true,
     /** Blocking error — shown instead of the list when nothing has loaded. */
@@ -33,6 +35,9 @@ data class SmsReportState(
 
         data class LoadSummary(val summary: SmsLogSummaryDto) : PartialState
         data class SetStatusFilter(val status: String?) : PartialState
+        /** Updates the query text immediately; the reload itself is debounced by the viewmodel. */
+        data class SetSearchQuery(val query: String) : PartialState
+        data class SetDateRangeFilter(val range: SmsReportDateRange) : PartialState
         data class ShowError(val message: String) : PartialState
         data class ShowMessage(val message: String?) : PartialState
     }

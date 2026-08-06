@@ -94,13 +94,19 @@ class BusinessApiService(private val httpClient: HttpClient) {
         businessId: Long,
         page: Int,
         pageSize: Int,
-        status: String? = null
+        status: String? = null,
+        search: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
     ): ApiResponse<SmsLogPageDto> {
         return httpClient.get("business/$businessId/sms-logs/") {
             contentType(ContentType.Application.Json)
             parameter("page", page)
             parameter("page_size", pageSize)
             if (status != null) parameter("status", status)
+            if (!search.isNullOrBlank()) parameter("search", search)
+            if (dateFrom != null) parameter("date_from", dateFrom)
+            if (dateTo != null) parameter("date_to", dateTo)
         }.toDirectApiResponse()
     }
 

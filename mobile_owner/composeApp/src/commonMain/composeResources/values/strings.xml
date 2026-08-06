@@ -303,4 +303,10 @@
     <string name="sms_report_empty_subtitle">هر پیامکی که از پنل برای این کسب‌وکار فرستاده شود، اینجا ثبت می‌شود.</string>
     <string name="sms_report_error_title">گزارش پیامک‌ها بارگذاری نشد</string>
     <string name="sms_report_retry">تلاش مجدد</string>
+    <string name="sms_report_search_placeholder">جستجو بر اساس نام یا شماره مراجع</string>
+    <string name="sms_report_search_clear">پاک کردن جستجو</string>
+    <string name="sms_report_date_filter_all">کل زمان</string>
+    <string name="sms_report_date_filter_today">امروز</string>
+    <string name="sms_report_date_filter_week">۷ روز اخیر</string>
+    <string name="sms_report_date_filter_month">۳۰ روز اخیر</string>
 </resources>
