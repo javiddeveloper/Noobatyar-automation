@@ -8,5 +8,6 @@ data class UpdateAppointmentRequestDto(
     val status: String? = null,
     @SerialName("appointment_date") val appointmentDate: Long? = null,
     @SerialName("service_duration") val serviceDuration: Int? = null,
-    val description: String? = null
+    val description: String? = null,
+    @SerialName("selected_services") val selectedServices: String? = null
 )

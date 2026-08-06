@@ -75,7 +75,6 @@ import proqueue.composeapp.generated.resources.work_start_hour
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
-import xyz.sattar.javid.proqueue.core.ui.components.EmergencyNoticeSection
 import xyz.sattar.javid.proqueue.core.ui.components.ImageCropperDialog
 import xyz.sattar.javid.proqueue.core.ui.components.ServiceDurationBottomSheet
 import xyz.sattar.javid.proqueue.core.ui.components.formatServiceDuration
@@ -129,8 +128,6 @@ fun CreateBusinessRoute(
     var cardOwnerName by remember { mutableStateOf("") }
     var merchantId by remember { mutableStateOf("") }
     var paymentLink by remember { mutableStateOf("") }
-    var noticeEnabled by remember { mutableStateOf(false) }
-    var noticeMessage by remember { mutableStateOf("") }
 
     var titleError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
@@ -169,8 +166,6 @@ fun CreateBusinessRoute(
             paymentLink = it.paymentLink
             bio = it.bio
             logoBytes = it.logoBytes
-            noticeEnabled = it.noticeEnabled
-            noticeMessage = it.noticeMessage
         }
     }
 
@@ -202,10 +197,6 @@ fun CreateBusinessRoute(
         cardOwnerName = cardOwnerName,
         merchantId = merchantId,
         paymentLink = paymentLink,
-        noticeEnabled = noticeEnabled,
-        noticeMessage = noticeMessage,
-        onNoticeEnabled = { noticeEnabled = it },
-        onNoticeMessage = { noticeMessage = it },
         onMaxAppointmentsPerHour = { maxAppointmentsPerHour = it },
         onDepositMode = { depositMode = it },
         onDepositAmount = { depositAmount = it },
@@ -294,10 +285,6 @@ fun CreateBusinessScreen(
     cardOwnerName: String,
     merchantId: String,
     paymentLink: String,
-    noticeEnabled: Boolean,
-    noticeMessage: String,
-    onNoticeEnabled: (Boolean) -> Unit,
-    onNoticeMessage: (String) -> Unit,
     onMaxAppointmentsPerHour: (String) -> Unit,
     onDepositMode: (String) -> Unit,
     onDepositAmount: (String) -> Unit,
@@ -456,8 +443,12 @@ fun CreateBusinessScreen(
                                         cardOwnerName = cardOwnerName,
                                         merchantId = merchantId,
                                         paymentLink = paymentLink,
-                                        noticeEnabled = noticeEnabled,
-                                        noticeMessage = noticeMessage.trim(),
+                                        // Owned by the dedicated emergency-notice
+                                        // screen (Settings); pass the loaded
+                                        // value straight through so editing the
+                                        // business never resets it.
+                                        noticeEnabled = uiState.business?.noticeEnabled ?: false,
+                                        noticeMessage = uiState.business?.noticeMessage ?: "",
                                         // Owned by the reminder-messages screen;
                                         // pass the loaded value straight through
                                         // so editing the business never resets it.
@@ -799,15 +790,10 @@ fun CreateBusinessScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            EmergencyNoticeSection(
-                enabled = noticeEnabled,
-                message = noticeMessage,
-                onEnabledChange = onNoticeEnabled,
-                onMessageChange = onNoticeMessage,
-                isEditable = !uiState.isLoading
-            )
+            // Emergency notice is configured on its own screen, reachable from
+            // Settings (feature/settings/EmergencyNoticeScreen.kt) — not shown
+            // here anymore. Its value is still loaded and saved above so
+            // editing the business from this screen doesn't drop it.
 
             // Advanced settings (payment / capacity / reminders) now live on a
             // separate screen, reachable from the profile. The values are still
@@ -979,10 +965,6 @@ fun PreviewDashboardScreen() {
             onMerchantId = {},
             onPaymentLink = {},
             onUpgrade = {},
-            noticeEnabled = false,
-            noticeMessage = "",
-            onNoticeEnabled = {},
-            onNoticeMessage = {},
         )
     }
 }

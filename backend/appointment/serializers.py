@@ -30,6 +30,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'service_duration',
             'status',
             'description',
+            'selected_services',
             'payment_receipt',
             'created_at',
             'updated_at',
@@ -81,6 +82,7 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
             'appointment_date',
             'service_duration',
             'description',
+            'selected_services',
         ]
 
     def validate_service_duration(self, value):
@@ -120,6 +122,7 @@ class AppointmentQuerySerializer(serializers.ModelSerializer):
             'service_duration',
             'status',
             'description',
+            'selected_services',
             'tracking_code',
             'payment_reference',
             'deposit_payment_method',

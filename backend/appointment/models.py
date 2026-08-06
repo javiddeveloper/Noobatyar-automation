@@ -70,6 +70,11 @@ class Appointment(models.Model):
         db_index=True
     )
     description = models.TextField(blank=True, null=True)
+    # Comma-separated names picked from the business-category's service
+    # catalog (business.models.ServiceCatalogItem) — additive to
+    # `description`, not a replacement: description stays free text, this is
+    # the structured "what did they actually get" chips the owner tapped.
+    selected_services = models.CharField(max_length=500, blank=True, default='')
 
     # ── Slot-lock fields (Red Line #2) ────────────────────────────────────
     locked_at = models.DateTimeField(

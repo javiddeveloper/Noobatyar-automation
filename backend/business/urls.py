@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .sms_views import SmsLogListView, SmsLogSummaryView
-from .views import BusinessView
+from .views import BusinessView, ServiceCatalogView
 
 urlpatterns = [
     # ... existing routes
@@ -12,5 +12,9 @@ urlpatterns = [
     # that independent of how the detail route is written later.
     path('<int:business_id>/sms-logs/', SmsLogListView.as_view(), name='business-sms-logs'),
     path('<int:business_id>/sms-logs/summary/', SmsLogSummaryView.as_view(), name='business-sms-logs-summary'),
+    # Category-scoped, not business-scoped — deliberately not nested under
+    # '<int:business_id>/' since a catalog item is shared across every
+    # business in the category, not owned by one.
+    path('service-catalog/', ServiceCatalogView.as_view(), name='service-catalog'),
     path('<int:business_id>/', BusinessView.as_view(), name='business-detail'),
 ]

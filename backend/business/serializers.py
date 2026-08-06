@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 from api.phone import is_iran_phone, normalize_phone
 from visitor.models import SmsLog
 
-from .models import Business
+from .models import Business, ServiceCatalogItem
 
 # Shown to clients when the owner still has booking_enabled=True but their plan
 # quota / subscription can no longer pay for a new appointment.
@@ -176,6 +176,14 @@ class BusinessSerializer(serializers.ModelSerializer):
         if value.size > 500 * 1024:  # 500KB
             raise ValidationError("حجم عکس نباید بیشتر از 500 کیلوبایت باشد.")
         return value
+
+
+class ServiceCatalogItemSerializer(serializers.ModelSerializer):
+    """A single pickable service-name chip, shared across a category."""
+    class Meta:
+        model = ServiceCatalogItem
+        fields = ['id', 'category', 'name']
+        read_only_fields = ['id']
 
 
 class SmsLogVisitorSerializer(serializers.Serializer):

@@ -15,6 +15,8 @@ import xyz.sattar.javid.proqueue.core.network.toApiResponse
 import xyz.sattar.javid.proqueue.core.network.toDirectApiResponse
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.AddServiceCatalogItemRequestDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.ServiceCatalogItemDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
@@ -113,6 +115,22 @@ class BusinessApiService(private val httpClient: HttpClient) {
     suspend fun deleteBusiness(id: Long): ApiResponse<Unit> {
         return httpClient.delete("business/$id/") {
             contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
+    // Category-scoped, not business-scoped: every business sharing a
+    // category sees and contributes to the same list of service chips.
+    suspend fun getServiceCatalog(category: String): ApiResponse<List<ServiceCatalogItemDto>> {
+        return httpClient.get("business/service-catalog/") {
+            contentType(ContentType.Application.Json)
+            parameter("category", category)
+        }.toApiResponse()
+    }
+
+    suspend fun addServiceCatalogItem(category: String, name: String): ApiResponse<ServiceCatalogItemDto> {
+        return httpClient.post("business/service-catalog/") {
+            contentType(ContentType.Application.Json)
+            setBody(AddServiceCatalogItemRequestDto(category = category, name = name))
         }.toApiResponse()
     }
 }

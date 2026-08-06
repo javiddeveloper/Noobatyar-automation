@@ -29,7 +29,9 @@ internal const val dbFileName = "proQueue.db"
     // 10: BusinessEntity.noticeEnabled / noticeMessage / reminderDelivery. Both
     // platforms build with fallbackToDestructiveMigration, so this drops the
     // local cache and refetches.
-    version = 11
+    // 12: AppointmentEntity.selectedServices (service-catalog chips picked
+    // when recording an appointment).
+    version = 12
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

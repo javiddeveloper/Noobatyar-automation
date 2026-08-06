@@ -11,7 +11,7 @@ interface AppointmentRepository {
     suspend fun getTodayAppointments(businessId: Long): List<AppointmentWithDetails>
     suspend fun getAllAppointmentsForBusiness(businessId: Long): List<AppointmentWithDetails>
     suspend fun updateAppointmentStatus(appointmentId: Long, status: String): Boolean
-    suspend fun updateAppointment(appointmentId: Long, date: Long, duration: Int?, description: String?): Boolean
+    suspend fun updateAppointment(appointmentId: Long, date: Long, duration: Int?, description: String?, selectedServices: String? = null): Boolean
     suspend fun removeAppointment(appointmentId: Long): Boolean
     suspend fun getVisitorHistory(visitorId: Long): List<AppointmentWithDetails>
     suspend fun getVisitorHistoryForBusiness(visitorId: Long, businessId: Long): List<AppointmentWithDetails>
