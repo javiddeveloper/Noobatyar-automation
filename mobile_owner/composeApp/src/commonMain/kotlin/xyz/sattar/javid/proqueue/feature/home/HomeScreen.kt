@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,10 +70,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -321,17 +324,54 @@ fun PlanBannerSection(
         // contentPadding عمداً بیشتر از 4dp است: هر صفحه کمی باریک‌تر از عرض
         // صفحه می‌شود تا لبه‌ی بنر بعدی/قبلی دیده شود و کاربر بفهمد می‌تواند
         // آن‌ها را دستی swipe کند (دیگر چرخش خودکار نداریم).
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 28.dp),
-            pageSpacing = 10.dp
-        ) { page ->
-            val plan = plans[page]
-            PlanBannerItem(
-                plan = plan,
-                onClick = { onPlanClick(plan) }
+        //
+        // ارتفاع همه‌ی صفحات باید یکسان باشد، حتی اگر محتوای پلن‌ها متفاوت
+        // باشد (مثلاً تعداد ویژگی‌ها یا فرمت قیمت). به همین دلیل ابتدا با
+        // SubcomposeLayout ارتفاع بلندترین کارت را در همان عرضی که واقعاً
+        // در Pager خواهد داشت اندازه می‌گیریم، سپس همان ارتفاع را روی
+        // HorizontalPager ثابت می‌کنیم؛ به این ترتیب مقداری ثابت و
+        // دلبخواهی (که ممکن است در دستگاه‌های کوچک‌تر یا فونت درشت‌تر
+        // محتوا را ببرد) هاردکد نمی‌شود.
+        val pagerContentPadding = 28.dp
+        SubcomposeLayout(
+            modifier = Modifier.fillMaxWidth()
+        ) { constraints ->
+            val horizontalPaddingPx = pagerContentPadding.roundToPx() * 2
+            val pageConstraints = Constraints(
+                minWidth = 0,
+                maxWidth = (constraints.maxWidth - horizontalPaddingPx).coerceAtLeast(0),
+                minHeight = 0,
+                maxHeight = Constraints.Infinity
             )
+
+            val maxCardHeightPx = plans.indices.maxOfOrNull { index ->
+                subcompose("measure-$index") {
+                    PlanBannerItem(plan = plans[index], onClick = {})
+                }.first().measure(pageConstraints).height
+            } ?: 0
+            val maxCardHeightDp = maxCardHeightPx.toDp()
+
+            val pagerPlaceable = subcompose("pager") {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(maxCardHeightDp),
+                    contentPadding = PaddingValues(horizontal = pagerContentPadding),
+                    pageSpacing = 10.dp
+                ) { page ->
+                    val plan = plans[page]
+                    PlanBannerItem(
+                        plan = plan,
+                        onClick = { onPlanClick(plan) },
+                        modifier = Modifier.fillMaxHeight()
+                    )
+                }
+            }.first().measure(constraints)
+
+            layout(pagerPlaceable.width, pagerPlaceable.height) {
+                pagerPlaceable.place(0, 0)
+            }
         }
 
         if (plans.size > 1) {
@@ -382,7 +422,8 @@ fun PlanBannerSection(
 @Composable
 fun PlanBannerItem(
     plan: PlanDto,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val (gradientColors, badgeLabel) = when {
         plan.name.contains("پرو پلاس") -> Pair(
@@ -410,7 +451,7 @@ fun PlanBannerItem(
     val gradient = Brush.linearGradient(colors = gradientColors)
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
@@ -418,7 +459,7 @@ fun PlanBannerItem(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(gradient)
         ) {
             // آیکون تزئینی پس‌زمینه
