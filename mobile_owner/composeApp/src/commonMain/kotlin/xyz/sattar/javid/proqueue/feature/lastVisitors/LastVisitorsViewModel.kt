@@ -11,6 +11,7 @@ import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.AppointmentRepository
+import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 import xyz.sattar.javid.proqueue.domain.usecase.GenerateReminderMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentCompletedUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentNoShowUseCase
@@ -168,19 +169,30 @@ class LastVisitorsViewModel(
                     ordering = filter.ordering
                 )
 
-                // Load from DB
+                // Load from DB. getAllAppointmentsForBusiness always returns rows
+                // ordered by appointmentDate DESC (its DAO query is hardcoded), so
+                // date-range and ordering can't be left to it — both are applied
+                // here, on top of the status/date filters that already worked.
                 val appointments = appointmentRepository.getAllAppointmentsForBusiness(business.id)
-                
-                // Locally apply filter
+
                 val filtered = appointments.filter { app ->
                     (filter.status == null || app.appointment.status == filter.status) &&
-                    (filter.date == null || DateTimeUtils.isSameDay(app.appointment.appointmentDate, filter.date))
+                    (filter.date == null || DateTimeUtils.isSameDay(app.appointment.appointmentDate, filter.date)) &&
+                    (filter.dateFrom == null || app.appointment.appointmentDate >= filter.dateFrom) &&
+                    (filter.dateTo == null || app.appointment.appointmentDate <= filter.dateTo)
+                }
+
+                val ordered = when (filter.ordering) {
+                    AppointmentOrdering.DATE_ASC -> filtered.sortedBy { it.appointment.appointmentDate }
+                    AppointmentOrdering.DATE_DESC -> filtered.sortedByDescending { it.appointment.appointmentDate }
+                    AppointmentOrdering.CREATED_AT_ASC -> filtered.sortedBy { it.appointment.createdAt }
+                    AppointmentOrdering.CREATED_AT_DESC -> filtered.sortedByDescending { it.appointment.createdAt }
                 }
 
                 emit(
                     LastVisitorsState.PartialState.LoadAppointments(
-                        appointments = filtered,
-                        totalCount = filtered.size
+                        appointments = ordered,
+                        totalCount = ordered.size
                     )
                 )
             } else {

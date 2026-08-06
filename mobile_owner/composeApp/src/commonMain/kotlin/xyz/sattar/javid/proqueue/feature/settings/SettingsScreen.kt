@@ -67,6 +67,8 @@ fun SettingsScreen(
     onNavigateToAdvancedSettings: (Long) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
+    onNavigateToSmsReport: () -> Unit = {},
+    onNavigateToEmergencyNotice: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -98,7 +100,9 @@ fun SettingsScreen(
         onChangeBusiness = onChangeBusiness,
         onNavigateToEditBusiness = onNavigateToEditBusiness,
         onNavigateToNotifications = onNavigateToNotifications,
-        onNavigateToMessages = onNavigateToMessages
+        onNavigateToMessages = onNavigateToMessages,
+        onNavigateToSmsReport = onNavigateToSmsReport,
+        onNavigateToEmergencyNotice = onNavigateToEmergencyNotice
     )
 
     userViewModel.events.collectWithLifecycleAware { event ->
@@ -287,11 +291,33 @@ fun SettingsContent(
             // Options Card
             SettingsCard {
                 Column {
+                    // Its own row rather than an inline switch+textfield card —
+                    // this is a nav list, and a form sitting between two other
+                    // rows broke the rhythm of it. The actual editor lives on
+                    // EmergencyNoticeScreen.
+                    SettingsItem(
+                        icon = Icons.Rounded.Campaign,
+                        title = stringResource(Res.string.notice_section_title),
+                        subtitle = stringResource(Res.string.notice_settings_subtitle),
+                        onClick = { onIntent(SettingsIntent.OnEmergencyNoticeClick) }
+                    )
+
+                    HorizontalDivider()
+
                     SettingsItem(
                         icon = Icons.Rounded.Message,
                         title = stringResource(Res.string.messages_auto_item),
                         subtitle = stringResource(Res.string.messages_auto_subtitle),
                         onClick = { onIntent(SettingsIntent.OnMessagesClick) }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsItem(
+                        icon = Icons.Rounded.Sms,
+                        title = stringResource(Res.string.sms_report_title),
+                        subtitle = stringResource(Res.string.sms_report_settings_subtitle),
+                        onClick = { onIntent(SettingsIntent.OnSmsReportClick) }
                     )
 
                     HorizontalDivider()
@@ -828,7 +854,9 @@ private fun HandleEvents(
     onChangeBusiness: () -> Unit,
     onNavigateToEditBusiness: (Long) -> Unit,
     onNavigateToNotifications: () -> Unit,
-    onNavigateToMessages: () -> Unit
+    onNavigateToMessages: () -> Unit,
+    onNavigateToSmsReport: () -> Unit,
+    onNavigateToEmergencyNotice: () -> Unit
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     events.collectWithLifecycleAware { event ->
@@ -855,6 +883,14 @@ private fun HandleEvents(
 
             SettingsEvent.NavigateToMessages -> {
                 scope.launch { onNavigateToMessages() }
+            }
+
+            SettingsEvent.NavigateToSmsReport -> {
+                scope.launch { onNavigateToSmsReport() }
+            }
+
+            SettingsEvent.NavigateToEmergencyNotice -> {
+                scope.launch { onNavigateToEmergencyNotice() }
             }
         }
     }

@@ -57,10 +57,24 @@ class Business(models.Model):
     )
 
     # ── Client-facing notice & booking control ────────────────────────────
-    notice_message = models.TextField(
+    # The notice ("پیام اضطراری") and the booking switch are deliberately
+    # independent: the common case is a shop that is still taking bookings but
+    # needs to warn today's clients about something ("آب قطع است، با تاخیر
+    # بیایید"). Tying the notice to booking_enabled would have forced the owner
+    # to close their calendar just to say a sentence.
+    notice_enabled = models.BooleanField(
+        default=False,
+        help_text="If True, notice_message is shown to clients on the booking page"
+    )
+    # CharField, not TextField: this is rendered inside a fixed banner on the
+    # booking page and an unbounded text field let an owner paste an essay that
+    # pushed the booking button off-screen. 300 chars is enforced here and again
+    # at the serializer layer so every write path (owner app, admin) is capped.
+    notice_message = models.CharField(
+        max_length=300,
         blank=True,
         default='',
-        help_text="A short notice shown to clients on the booking page (e.g. vacation, holiday)"
+        help_text="A short notice shown to clients on the booking page (max 300 chars)"
     )
     booking_enabled = models.BooleanField(
         default=True,
@@ -151,12 +165,33 @@ class Business(models.Model):
         help_text="Allow sending promotional/marketing SMS to clients"
     )
     notify_owner_by_sms = models.BooleanField(
-        default=True,
+        default=False,
         help_text=(
-            "Text the owner when a client books. Billed to the owner's own SMS "
-            "quota, so it is switchable — an owner who watches the app does not "
-            "have to pay for a message telling them what the app already shows."
+            "Text the owner when a client books. Off by default: the owner is "
+            "meant to learn about a booking from the app's own notification, "
+            "not from an SMS billed to their own quota. Left switchable for "
+            "owners who explicitly want to pay for it."
         )
+    )
+
+    # ── Reminder delivery channel ─────────────────────────────────────────
+    # Two very different cost models, so this is a server-side setting rather
+    # than a client preference: MANUAL costs nothing (the owner app opens the
+    # phone's own SMS composer and the message leaves the owner's SIM), while
+    # PANEL bills every reminder to the owner's plan quota through Melipayamak.
+    # PANEL is therefore gated behind FEATURE_AUTO_REMINDER_SMS
+    # (accounting/permissions.py) and MANUAL is the default so that nobody is
+    # silently charged. The reminder cron only ever looks at PANEL businesses;
+    # MANUAL ones are driven entirely from the owner app.
+    REMINDER_DELIVERY_CHOICES = [
+        ('MANUAL', 'ارسال دستی از سیم‌کارت اونر'),
+        ('PANEL', 'ارسال خودکار از پنل پیامکی'),
+    ]
+    reminder_delivery = models.CharField(
+        max_length=10,
+        choices=REMINDER_DELIVERY_CHOICES,
+        default='MANUAL',
+        help_text="How appointment reminders reach clients: owner's SIM (free) or SMS panel (paid)"
     )
 
     class Meta:

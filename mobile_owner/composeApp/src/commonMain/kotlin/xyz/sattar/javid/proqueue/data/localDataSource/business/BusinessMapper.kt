@@ -4,6 +4,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDt
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 
 fun BusinessEntity.toDomain() = Business(
     id = id,
@@ -30,7 +31,10 @@ fun BusinessEntity.toDomain() = Business(
     paymentLink = paymentLink,
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
-    bio = bio
+    bio = bio,
+    noticeEnabled = noticeEnabled,
+    noticeMessage = noticeMessage,
+    reminderDelivery = reminderDelivery
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -58,7 +62,10 @@ fun Business.toEntity() = BusinessEntity(
     paymentLink = paymentLink,
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
-    bio = bio
+    bio = bio,
+    noticeEnabled = noticeEnabled,
+    noticeMessage = noticeMessage,
+    reminderDelivery = reminderDelivery
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -82,7 +89,10 @@ fun Business.toRequestDto() = CreateBusinessRequestDto(
     paymentLink = paymentLink,
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
-    bio = bio
+    bio = bio,
+    noticeEnabled = noticeEnabled,
+    noticeMessage = noticeMessage,
+    reminderDelivery = reminderDelivery
 )
 
 fun BusinessDto.toEntity(): BusinessEntity {
@@ -113,6 +123,9 @@ fun BusinessDto.toEntity(): BusinessEntity {
         paymentLink = paymentLink ?: "",
         cardNumber = cardNumber ?: "",
         cardOwnerName = cardOwnerName ?: "",
-        bio = bio ?: ""
+        bio = bio ?: "",
+        noticeEnabled = noticeEnabled,
+        noticeMessage = noticeMessage ?: "",
+        reminderDelivery = reminderDelivery ?: ReminderDelivery.MANUAL.value
     )
 }

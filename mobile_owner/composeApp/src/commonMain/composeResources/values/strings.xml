@@ -9,6 +9,11 @@
     <string name="address">آدرس</string>
     <string name="default_time_service">زمان پیشقرض سرویس دهی (10 دقیقه)</string>
     <string name="accept">ثبت</string>
+    <string name="refresh">بروزرسانی</string>
+    <string name="sort_date_nearest_first">نزدیک‌ترین نوبت</string>
+    <string name="sort_date_farthest_first">دورترین نوبت</string>
+    <string name="sort_created_newest_first">جدیدترین ثبت</string>
+    <string name="sort_created_oldest_first">قدیمی‌ترین ثبت</string>
     <string name="create_business">ایجاد کسب‌وکار</string>
     <string name="visitor_name">نام و نام خانوادگی</string>
     <string name="create_visitor">افزودن مراجع</string>
@@ -194,6 +199,10 @@
 
     <!-- Queue Item -->
     <string name="payment_receipt">فیش پرداخت</string>
+    <string name="deposit_paid_label">بیعانه پرداخت شده</string>
+    <string name="deposit_method_card">کارت به کارت</string>
+    <string name="deposit_method_gateway">پرداخت آنلاین (درگاه)</string>
+    <string name="tracking_number_label">شماره پیگیری</string>
     <string name="click_to_view_full">برای مشاهده کامل، روی تصویر بزنید</string>
     <string name="reject_action">رد کردن</string>
     <string name="verify_receipt">تأیید فیش</string>
@@ -245,4 +254,53 @@
     <string name="social_eitaa">ایتا</string>
     <string name="social_rubika">روبیکا</string>
     <string name="social_website">سایت</string>
+
+    <!-- Coming-soon capabilities (server-driven `coming_soon` list) -->
+    <string name="coming_soon_badge">به‌زودی</string>
+    <string name="coming_soon_hint">این قابلیت هنوز آماده نیست و با ارتقای پلن هم فعال نمی‌شود.</string>
+
+    <!-- Service duration picker -->
+    <string name="service_duration_sheet_title">مدت زمان سرویس</string>
+    <string name="service_duration_sheet_hint">کوتاه‌ترین بازه‌ای که برای هر نوبت در نظر می‌گیرید.</string>
+
+    <!-- Emergency notice (public) -->
+    <string name="notice_section_title">پیام اضطراری</string>
+    <string name="notice_switch_label">نمایش پیام اضطراری</string>
+    <string name="notice_switch_description">اگر مشکلی پیش آمده (تعطیلی ناگهانی، قطعی برق، تأخیر)، پیام را روشن کنید تا مشتری‌ها بی‌دلیل نوبت نگیرند. با خاموش بودن این کلید، هیچ پیامی نمایش داده نمی‌شود.</string>
+    <string name="notice_message_label">متن پیام اضطراری</string>
+    <string name="notice_message_public_warning">این متن برای همه‌ی مراجعین در صفحه‌ی عمومی نوبت‌گیری نمایش داده می‌شود.</string>
+    <string name="notice_settings_subtitle">اطلاع‌رسانی تعطیلی یا مشکل موقت به مراجعین</string>
+
+    <!-- Reminder delivery (MANUAL / PANEL) -->
+    <string name="reminder_delivery_title">روش ارسال یادآوری</string>
+    <string name="reminder_delivery_subtitle">یادآوری برای مشتری فرستاده می‌شود؛ خودتان فقط اعلان درون‌برنامه‌ای می‌گیرید.</string>
+    <string name="reminder_delivery_manual_title">ارسال دستی از گوشی خودم</string>
+    <string name="reminder_delivery_manual_description">یادآوری‌ها را خودتان از سیم‌کارت خود می‌فرستید؛ رایگان است ولی باید دستی انجام شود.</string>
+    <string name="reminder_delivery_panel_title">ارسال خودکار از پنل</string>
+    <string name="reminder_delivery_panel_description">سرور در زمان تعیین‌شده پیامک یادآوری را خودکار می‌فرستد؛ از اعتبار پیامک اشتراک شما کسر می‌شود.</string>
+    <string name="reminder_delivery_panel_locked">ارسال خودکار در پلن فعلی شما نیست.</string>
+    <string name="reminder_delivery_panel_forbidden">پلن فعلی شما ارسال خودکار یادآوری را پوشش نمی‌دهد.</string>
+    <string name="reminder_lead_time_title">فاصله‌ی یادآوری تا نوبت</string>
+    <string name="reminder_lead_time_description">یادآوری چند دقیقه قبل از زمان نوبت فرستاده شود.</string>
+
+    <!-- SMS report -->
+    <string name="sms_report_title">گزارش پیامک‌ها</string>
+    <string name="sms_report_settings_subtitle">پیامک‌های ارسال‌شده و مانده‌ی سهمیه</string>
+    <string name="sms_report_filter_all">همه</string>
+    <string name="sms_report_filter_sent">ارسال‌شده</string>
+    <string name="sms_report_filter_failed">ناموفق</string>
+    <string name="sms_report_status_sent">ارسال شد</string>
+    <string name="sms_report_status_failed">ارسال نشد</string>
+    <string name="sms_report_owner_recipient">اونر</string>
+    <string name="sms_report_summary_title">سهمیه‌ی پیامک این ماه</string>
+    <string name="sms_report_summary_used">مصرف‌شده</string>
+    <string name="sms_report_summary_remaining">باقی‌مانده</string>
+    <string name="sms_report_summary_unlimited">نامحدود</string>
+    <string name="sms_report_summary_sent">ارسال موفق</string>
+    <string name="sms_report_summary_failed">ارسال ناموفق</string>
+    <string name="sms_report_summary_wallet">اعتبار کیف پول</string>
+    <string name="sms_report_empty_title">پیامکی ثبت نشده است</string>
+    <string name="sms_report_empty_subtitle">هر پیامکی که از پنل برای این کسب‌وکار فرستاده شود، اینجا ثبت می‌شود.</string>
+    <string name="sms_report_error_title">گزارش پیامک‌ها بارگذاری نشد</string>
+    <string name="sms_report_retry">تلاش مجدد</string>
 </resources>

@@ -15,9 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -26,7 +29,6 @@ import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarDefaults
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
-import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.EmptyState
@@ -101,7 +103,24 @@ fun LastVisitorsScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    // دکمه بروزرسانی حذف شد — جایش pull-to-refresh آمده است.
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable(enabled = !uiState.isLoading) {
+                                onIntent(LastVisitorsIntent.LoadAppointments)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = stringResource(Res.string.refresh),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
@@ -137,15 +156,12 @@ fun LastVisitorsScreenContent(
             }
         }
     ) { paddingValues ->
-        PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { onIntent(LastVisitorsIntent.LoadAppointments) },
+        Box(
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
-        Box(modifier = Modifier.fillMaxSize()) {
             when {
                 uiState.isLoading -> {
                     Column(
@@ -307,7 +323,6 @@ fun LastVisitorsScreenContent(
                 )
             }
         }
-        }
     }
 }
 
@@ -396,10 +411,10 @@ fun FilterBottomSheet(
                 ) {
                     AppointmentOrdering.entries.forEach { ordering ->
                         val label = when (ordering) {
-                            AppointmentOrdering.DATE_ASC -> "تاریخ (صعودی)"
-                            AppointmentOrdering.DATE_DESC -> "تاریخ (نزولی)"
-                            AppointmentOrdering.CREATED_AT_ASC -> "زمان ثبت (صعودی)"
-                            AppointmentOrdering.CREATED_AT_DESC -> "زمان ثبت (نزولی)"
+                            AppointmentOrdering.DATE_ASC -> stringResource(Res.string.sort_date_nearest_first)
+                            AppointmentOrdering.DATE_DESC -> stringResource(Res.string.sort_date_farthest_first)
+                            AppointmentOrdering.CREATED_AT_ASC -> stringResource(Res.string.sort_created_oldest_first)
+                            AppointmentOrdering.CREATED_AT_DESC -> stringResource(Res.string.sort_created_newest_first)
                         }
                         FilterChip(
                             selected = selectedOrdering == ordering,
@@ -503,6 +518,7 @@ fun AppointmentCard(
 ) {
     val appointment = appointmentWithDetails.appointment
     val visitor = appointmentWithDetails.visitor
+    val uriHandler = LocalUriHandler.current
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onItemClick() },
@@ -624,6 +640,87 @@ fun AppointmentCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+
+            // Deposit summary — a gateway payment has a tracking reference but no
+            // receipt image, so this has to stand on its own rather than being
+            // folded into the receipt block below. Purpose: an owner meeting the
+            // client in person to collect the remainder needs to see at a glance
+            // that a deposit was already taken, and through which channel.
+            if (appointment.depositPaymentMethod == "CARD" || appointment.depositPaymentMethod == "GATEWAY") {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (appointment.depositPaymentMethod == "GATEWAY")
+                                    Icons.Rounded.CreditCard else Icons.Rounded.Payments,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(Res.string.deposit_paid_label),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "— " + stringResource(
+                                    if (appointment.depositPaymentMethod == "GATEWAY")
+                                        Res.string.deposit_method_gateway
+                                    else Res.string.deposit_method_card
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        appointment.paymentReference?.takeIf { it.isNotBlank() }?.let { reference ->
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${stringResource(Res.string.tracking_number_label)}: $reference",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Payment receipt preview — same pattern as QueueItemCard, missing
+            // here meant a client's uploaded slip was invisible from this tab.
+            appointment.paymentReceipt?.let { receipt ->
+                val receiptUrl = if (receipt.startsWith("http")) receipt
+                else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$receipt"
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = stringResource(Res.string.payment_receipt),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                AsyncImage(
+                    model = receiptUrl,
+                    contentDescription = stringResource(Res.string.payment_receipt),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { uriHandler.openUri(receiptUrl) },
+                    contentScale = ContentScale.Crop
+                )
+                Text(
+                    text = stringResource(Res.string.click_to_view_full),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }

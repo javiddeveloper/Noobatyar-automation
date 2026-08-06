@@ -75,8 +75,12 @@ import proqueue.composeapp.generated.resources.work_start_hour
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
+import xyz.sattar.javid.proqueue.core.ui.components.EmergencyNoticeSection
 import xyz.sattar.javid.proqueue.core.ui.components.ImageCropperDialog
+import xyz.sattar.javid.proqueue.core.ui.components.ServiceDurationBottomSheet
+import xyz.sattar.javid.proqueue.core.ui.components.formatServiceDuration
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.String
@@ -125,6 +129,8 @@ fun CreateBusinessRoute(
     var cardOwnerName by remember { mutableStateOf("") }
     var merchantId by remember { mutableStateOf("") }
     var paymentLink by remember { mutableStateOf("") }
+    var noticeEnabled by remember { mutableStateOf(false) }
+    var noticeMessage by remember { mutableStateOf("") }
 
     var titleError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
@@ -163,6 +169,8 @@ fun CreateBusinessRoute(
             paymentLink = it.paymentLink
             bio = it.bio
             logoBytes = it.logoBytes
+            noticeEnabled = it.noticeEnabled
+            noticeMessage = it.noticeMessage
         }
     }
 
@@ -194,6 +202,10 @@ fun CreateBusinessRoute(
         cardOwnerName = cardOwnerName,
         merchantId = merchantId,
         paymentLink = paymentLink,
+        noticeEnabled = noticeEnabled,
+        noticeMessage = noticeMessage,
+        onNoticeEnabled = { noticeEnabled = it },
+        onNoticeMessage = { noticeMessage = it },
         onMaxAppointmentsPerHour = { maxAppointmentsPerHour = it },
         onDepositMode = { depositMode = it },
         onDepositAmount = { depositAmount = it },
@@ -282,6 +294,10 @@ fun CreateBusinessScreen(
     cardOwnerName: String,
     merchantId: String,
     paymentLink: String,
+    noticeEnabled: Boolean,
+    noticeMessage: String,
+    onNoticeEnabled: (Boolean) -> Unit,
+    onNoticeMessage: (String) -> Unit,
     onMaxAppointmentsPerHour: (String) -> Unit,
     onDepositMode: (String) -> Unit,
     onDepositAmount: (String) -> Unit,
@@ -304,6 +320,7 @@ fun CreateBusinessScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showCategorySheet by remember { mutableStateOf(false) }
+    var showDurationSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
     // Photo waiting to be cropped: the picker hands over the raw file, and the
@@ -402,7 +419,9 @@ fun CreateBusinessScreen(
 
                             val titleInvalid = t.length < 3 || t.length > 50
                             val phoneInvalid = p.length < 7
-                            val defaultInvalid = d.isNotEmpty() && d.toIntOrNull() == null
+                            // The duration now comes from a fixed list, so the
+                            // only way it can be wrong is not having been picked.
+                            val defaultInvalid = d.toIntOrNull() == null
                             val wsInt = ws.toIntOrNull()
                             val weInt = we.toIntOrNull()
                             val hoursInvalid =
@@ -412,7 +431,7 @@ fun CreateBusinessScreen(
                             onTitleErrorUpdate(if (titleInvalid) "نام باید بین ۳ تا ۵۰ کاراکتر باشد" else null)
                             onPhoneErrorUpdate(if (phoneInvalid) "شماره تلفن صحیح نیست" else null)
                             onAddressErrorUpdate(if (a.isEmpty()) "آدرس الزامی است" else if (a.length > 300) "آدرس نباید بیشتر از ۳۰۰ کاراکتر باشد" else null)
-                            onDefaultProgressErrorUpdate(if (defaultInvalid) "مدت زمان سرویس باید عدد باشد" else null)
+                            onDefaultProgressErrorUpdate(if (defaultInvalid) "مدت زمان سرویس را انتخاب کنید" else null)
                             onWorkHoursErrorUpdate(if (hoursInvalid) "ساعات کاری معتبر نیستند" else null)
 
                             if (!titleInvalid && !phoneInvalid && !defaultInvalid && !hoursInvalid && !addressInvalid) {
@@ -436,7 +455,14 @@ fun CreateBusinessScreen(
                                         cardNumber = cardNumber,
                                         cardOwnerName = cardOwnerName,
                                         merchantId = merchantId,
-                                        paymentLink = paymentLink
+                                        paymentLink = paymentLink,
+                                        noticeEnabled = noticeEnabled,
+                                        noticeMessage = noticeMessage.trim(),
+                                        // Owned by the reminder-messages screen;
+                                        // pass the loaded value straight through
+                                        // so editing the business never resets it.
+                                        reminderDelivery = uiState.business?.reminderDelivery
+                                            ?: ReminderDelivery.MANUAL.value
                                     )
                                 )
                             }
@@ -599,25 +625,36 @@ fun CreateBusinessScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            AppTextField(
-                enabled = !uiState.isLoading,
-                maxLength = 3,
-                value = defaultProgress,
-                onValueChange = onDefaultProgress,
-                label = stringResource(Res.string.default_time_service),
-                isError = defaultProgressError != null,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                errorMessage = defaultProgressError,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardType = KeyboardType.Number
-            )
+            // Duration is picked from a fixed 5-minute ladder rather than typed:
+            // free text let owners save slots the calendar can't lay out.
+            Box(modifier = Modifier.fillMaxWidth().clickable {
+                if (!uiState.isLoading) showDurationSheet = true
+            }) {
+                AppTextField(
+                    value = defaultProgress.toIntOrNull()?.let { formatServiceDuration(it) } ?: "",
+                    onValueChange = {},
+                    label = stringResource(Res.string.default_time_service),
+                    isError = defaultProgressError != null,
+                    errorMessage = defaultProgressError,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false, // Disable to act just as a clickable button
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -762,6 +799,16 @@ fun CreateBusinessScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            EmergencyNoticeSection(
+                enabled = noticeEnabled,
+                message = noticeMessage,
+                onEnabledChange = onNoticeEnabled,
+                onMessageChange = onNoticeMessage,
+                isEditable = !uiState.isLoading
+            )
+
             // Advanced settings (payment / capacity / reminders) now live on a
             // separate screen, reachable from the profile. The values are still
             // loaded and saved here so editing the business doesn't drop them.
@@ -773,6 +820,18 @@ fun CreateBusinessScreen(
                 Text(uiState.business.title)
             }
         }
+    }
+
+    if (showDurationSheet) {
+        ServiceDurationBottomSheet(
+            selectedMinutes = defaultProgress.toIntOrNull(),
+            onDurationSelected = { minutes ->
+                onDefaultProgress(minutes.toString())
+                onDefaultProgressErrorUpdate(null)
+                showDurationSheet = false
+            },
+            onDismiss = { showDurationSheet = false }
+        )
     }
 
     if (showCategorySheet) {
@@ -920,6 +979,10 @@ fun PreviewDashboardScreen() {
             onMerchantId = {},
             onPaymentLink = {},
             onUpgrade = {},
+            noticeEnabled = false,
+            noticeMessage = "",
+            onNoticeEnabled = {},
+            onNoticeMessage = {},
         )
     }
 }

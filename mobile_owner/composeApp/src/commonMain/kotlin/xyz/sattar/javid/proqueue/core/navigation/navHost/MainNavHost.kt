@@ -39,7 +39,9 @@ import xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsScreen
 import xyz.sattar.javid.proqueue.feature.messages.MessagesScreen
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsScreen
 import xyz.sattar.javid.proqueue.feature.profile.PaymentResultScreen
+import xyz.sattar.javid.proqueue.feature.settings.EmergencyNoticeScreen
 import xyz.sattar.javid.proqueue.feature.settings.SettingsScreen
+import xyz.sattar.javid.proqueue.feature.smsReport.SmsReportScreen
 import xyz.sattar.javid.proqueue.feature.visitorDetails.VisitorDetailsScreen
 import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionScreen
 import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
@@ -219,6 +221,12 @@ fun MainNavHost(
                     onNavigateToMessages = {
                         navController.navigate(AppScreens.Messages)
                     },
+                    onNavigateToSmsReport = {
+                        navController.navigate(AppScreens.SmsReport)
+                    },
+                    onNavigateToEmergencyNotice = {
+                        navController.navigate(AppScreens.EmergencyNotice)
+                    },
                     onNavigateToLogin = onNavigateToLogin
                 )
             }
@@ -254,6 +262,19 @@ fun MainNavHost(
 
             composable<AppScreens.Messages> {
                 MessagesScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToAddons = { navController.navigate(AppScreens.AddOns) }
+                )
+            }
+
+            composable<AppScreens.SmsReport> {
+                SmsReportScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable<AppScreens.EmergencyNotice> {
+                EmergencyNoticeScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -301,6 +322,7 @@ fun MainNavHost(
                 val args = backStackEntry.toRoute<AppScreens.Calendar>()
                 CalendarScreen(
                     isPicker = args.isPicker,
+                    excludeAppointmentId = args.excludeAppointmentId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToCreateAppointment = { date, time ->
                         navController.navigate(AppScreens.CreateAppointment(date = date, time = time))
@@ -331,7 +353,9 @@ fun MainNavHost(
                         navController.popBackStack()
                     },
                     onNavigateToCalendar = {
-                        navController.navigate(AppScreens.Calendar(isPicker = true))
+                        navController.navigate(
+                            AppScreens.Calendar(isPicker = true, excludeAppointmentId = args.appointmentId)
+                        )
                     },
                     onNavigateToVisitorSelection = {
                         navController.navigate(AppScreens.VisitorSelection(returnResult = true))

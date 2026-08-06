@@ -34,6 +34,7 @@ import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 fun CalendarScreen(
     viewModel: CalendarViewModel = koinViewModel(),
     isPicker: Boolean = false,
+    excludeAppointmentId: Long? = null,
     onNavigateBack: () -> Unit,
     onNavigateToCreateAppointment: (Long, String) -> Unit,
     onNavigateToAppointmentDetails: (Long) -> Unit,
@@ -54,6 +55,7 @@ fun CalendarScreen(
     CalendarScreenContent(
         uiState = uiState,
         isPicker = isPicker,
+        excludeAppointmentId = excludeAppointmentId,
         onIntent = viewModel::sendIntent,
         onSlotSelected = onSlotSelected
     )
@@ -63,6 +65,7 @@ fun CalendarScreen(
 fun CalendarScreenContent(
     uiState: CalendarState,
     isPicker: Boolean,
+    excludeAppointmentId: Long? = null,
     onIntent: (CalendarIntent) -> Unit,
     onSlotSelected: (Long, String) -> Unit
 ) {
@@ -135,9 +138,16 @@ fun CalendarScreenContent(
                     CircularProgressIndicator()
                 }
             } else {
-                // Time Slots
+                // Time Slots. The appointment being edited (if any) is dropped
+                // from the occupancy check, otherwise its own slot reads as
+                // "occupied" and the picker refuses to let it be reselected.
+                val visibleAppointments = if (excludeAppointmentId != null) {
+                    uiState.appointments.filter { it.appointment.id != excludeAppointmentId }
+                } else {
+                    uiState.appointments
+                }
                 TimeSlotsList(
-                    appointments = uiState.appointments,
+                    appointments = visibleAppointments,
                     selectedDate = uiState.selectedDate,
                     onSlotClick = { time ->
                         if (isPicker) {

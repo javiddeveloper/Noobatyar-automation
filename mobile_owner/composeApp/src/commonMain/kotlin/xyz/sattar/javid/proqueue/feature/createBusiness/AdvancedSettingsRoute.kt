@@ -134,7 +134,14 @@ fun AdvancedSettingsRoute(
                                     cardNumber = cardNumber,
                                     cardOwnerName = cardOwnerName,
                                     merchantId = merchantId,
-                                    paymentLink = paymentLink
+                                    paymentLink = paymentLink,
+                                    // Owned by other screens (business edit /
+                                    // reminder messages) — passed through
+                                    // unchanged so saving this tab can't reset
+                                    // them to their defaults.
+                                    noticeEnabled = business.noticeEnabled,
+                                    noticeMessage = business.noticeMessage,
+                                    reminderDelivery = business.reminderDelivery
                                 )
                             )
                         },

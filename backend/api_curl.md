@@ -123,6 +123,92 @@ curl -X PUT "http://127.0.0.1:8000/api/business/3/" \
   }'
 ```
 
+**فیلدهای مربوط به پیام اضطراری و کانال یادآوری:**
+
+| فیلد | نوع | توضیح |
+|------|-----|-------|
+| `notice_enabled` | bool | نمایش «پیام اضطراری» به مشتری. مستقل از `booking_enabled` است؛ اونر می‌تواند هم‌زمان نوبت بپذیرد و پیام هشدار بگذارد. |
+| `notice_message` | string (حداکثر ۳۰۰ کاراکتر) | متن پیام اضطراری. بیش از ۳۰۰ کاراکتر ⇒ خطای اعتبارسنجی. |
+| `reminder_delivery` | `MANUAL` \| `PANEL` | `MANUAL` (پیش‌فرض): یادآوری از سیم‌کارت خود اونر داخل اپ ارسال می‌شود و هزینه‌ای ندارد. `PANEL`: ارسال خودکار از پنل پیامکی و کسر از سهمیه‌ی پلن — نیازمند قابلیت `auto_reminder_sms`، در غیر این صورت پاسخ `403`. |
+
+```bash
+curl -X PUT "http://127.0.0.1:8000/api/business/3/" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "notice_enabled": true,
+    "notice_message": "امروز به دلیل قطعی آب، نوبت‌ها با تاخیر انجام می‌شود.",
+    "reminder_delivery": "PANEL"
+  }'
+```
+
+> در خروجی‌های عمومی (`PublicBusinessSerializer` / `ClientBusinessSerializer`) اگر
+> `notice_enabled` برابر `false` باشد، مقدار `notice_message` همیشه رشته‌ی خالی
+> برگردانده می‌شود تا کلاینت هرگز متن قدیمی را نمایش ندهد.
+
+### ۲.۴. گزارش پیامک‌های کسب‌وکار
+**توضیحات:** لیست صفحه‌بندی‌شده‌ی پیامک‌هایی که از طرف این کسب‌وکار ارسال شده است
+(هم پیامک مشتری و هم اعلان اونر). فقط مالک کسب‌وکار دسترسی دارد؛ در غیر این صورت `404`.
+- **مسیر و متد:** `GET /api/business/<business_id>/sms-logs/`
+- **پارامترها:** `page` (پیش‌فرض ۱)، `page_size` (پیش‌فرض ۲۰، حداکثر ۱۰۰)، `status` (`SENT` یا `FAILED`)
+
+```bash
+curl -X GET 'http://127.0.0.1:8000/api/business/3/sms-logs/?page=1&page_size=20&status=SENT' \
+  -H "Authorization: Bearer <access_token>"
+```
+
+**نمونه پاسخ موفق:** (پاسخ با پوشش استاندارد DRF است، نه `APIResponse`)
+```json
+{
+  "count": 137,
+  "next": "http://127.0.0.1:8000/api/business/3/sms-logs/?page=2&page_size=20",
+  "previous": null,
+  "results": [
+    {
+      "id": 812,
+      "message_text": "نوبت شما فردا ساعت ۱۰:۳۰ ثبت شد.",
+      "status": "SENT",
+      "error_detail": "",
+      "sent_at": "2026-08-02T09:14:22.113000Z",
+      "visitor": { "id": 45, "full_name": "مریم رضایی", "phone_number": "09121234567" }
+    },
+    {
+      "id": 811,
+      "message_text": "یک نوبت جدید برای شما ثبت شد.",
+      "status": "FAILED",
+      "error_detail": "provider rejected: invalid number",
+      "sent_at": "2026-08-02T09:14:21.007000Z",
+      "visitor": null
+    }
+  ]
+}
+```
+> `visitor` وقتی `null` است که گیرنده خودِ اونر باشد (اعلان نوبت جدید).
+
+### ۲.۵. خلاصه‌ی وضعیت پیامک
+**توضیحات:** جمع‌بندی پیامک‌های این ماه به‌همراه سهمیه و کیف‌پول مالک.
+- **مسیر و متد:** `GET /api/business/<business_id>/sms-logs/summary/`
+
+```bash
+curl -X GET "http://127.0.0.1:8000/api/business/3/sms-logs/summary/" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+**نمونه پاسخ موفق:**
+```json
+{
+  "sent_this_month": 128,
+  "failed_this_month": 9,
+  "monthly_quota": 300,
+  "monthly_used": 137,
+  "wallet_balance": 50
+}
+```
+> `sent_this_month` / `failed_this_month` فقط لاگ همین کسب‌وکار است، ولی
+> `monthly_quota` / `monthly_used` / `wallet_balance` برای **کل حساب مالک** (همه‌ی
+> کسب‌وکارهایش) محاسبه می‌شود؛ بنابراین این دو عدد لزوماً با هم برابر نیستند.
+> مقدار `-1` در `monthly_quota` یعنی نامحدود.
+
 ---
 
 ## ۳. مدیریت مشتریان (Visitor Management)
@@ -229,6 +315,21 @@ curl -X PATCH "http://127.0.0.1:8000/api/appointment/7/" \
 ### ۵.۲. قابلیت‌ها و مصرف (Entitlements & Usage)
 **توضیحات:** قابلیت‌های پلن فعلی و میزان مصرف ماهانه (نوبت و پیامک).
 - **مسیر و متد:** `GET /api/accounting/my-entitlements/`
+
+```jsonc
+{
+  "status": "success", "code": 200,
+  "data": {
+    "entitlements": { "auto_reminder_sms": true, "promotional_sms": true, "multi_channel": false, ... },
+    "coming_soon": ["promotional_sms", "multi_channel"],
+    "usage": { "appointments": { ... }, "sms": { ... } }
+  }
+}
+```
+> `coming_soon` کلیدهایی را برمی‌گرداند که در پلن فروخته شده‌اند ولی هنوز هیچ مسیری
+> در بک‌اند آن‌ها را اجرا نمی‌کند. مقدارشان در `entitlements` عمداً دست‌نخورده می‌ماند؛
+> کلاینت باید این ردیف‌ها را غیرفعال و با برچسب «به‌زودی» نمایش دهد. منبع واحد حقیقت
+> `COMING_SOON_FEATURES` در `accounting/entitlements.py` است.
 
 ### ۵.۳. خرید و پرداخت اشتراک
 **توضیحات:** شروع فرآیند خرید یک پلن اشتراکی (اتصال به زیبال).

@@ -27,5 +27,10 @@ data class Business(
     val cardNumber: String = "",
     val cardOwnerName: String = "",
     val bio: String = "",
-    val logoBytes: ByteArray? = null
+    val logoBytes: ByteArray? = null,
+    /** Emergency notice for the public booking page — hidden while disabled. */
+    val noticeEnabled: Boolean = false,
+    val noticeMessage: String = "",
+    /** [ReminderDelivery] value; PANEL needs the auto_reminder_sms entitlement. */
+    val reminderDelivery: String = ReminderDelivery.MANUAL.value
 )

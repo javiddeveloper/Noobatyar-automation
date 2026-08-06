@@ -15,7 +15,13 @@ import kotlinx.serialization.json.intOrNull
 @Serializable
 data class EntitlementsResponseDto(
     val entitlements: Map<String, JsonElement> = emptyMap(),
-    val usage: UsageDto = UsageDto()
+    val usage: UsageDto = UsageDto(),
+    /**
+     * Capabilities that are advertised in the plan ladder but not built yet.
+     * The server owns this list so a feature can start/stop being "coming soon"
+     * without an app release — never hardcode the keys in the UI.
+     */
+    @SerialName("coming_soon") val comingSoon: List<String> = emptyList()
 ) {
     /** Read a boolean capability flag (e.g. "online_gateway"). */
     fun hasFeature(key: String): Boolean =
@@ -24,6 +30,13 @@ data class EntitlementsResponseDto(
     /** Read a numeric quota (e.g. "monthly_appointments"). -1 means unlimited. */
     fun quota(key: String): Int =
         (entitlements[key] as? JsonPrimitive)?.intOrNull ?: 0
+
+    /**
+     * True when the capability has no implementation yet. Takes precedence over
+     * [hasFeature]: a plan may grant the flag while the feature is still a stub,
+     * and toggling it would promise something the app cannot deliver.
+     */
+    fun isComingSoon(key: String): Boolean = comingSoon.contains(key)
 }
 
 @Serializable
@@ -55,6 +68,8 @@ object EntitlementKeys {
     const val CAPACITY_CONTROL = "capacity_control"
     const val ADVANCED_REPORTS = "advanced_reports"
     const val MULTI_CHANNEL = "multi_channel"
+    /** Gates Business.reminder_delivery = PANEL (server-side reminder SMS). */
+    const val AUTO_REMINDER_SMS = "auto_reminder_sms"
     const val BRANDED_PAGE = "branded_page"
     const val PRIORITY_SUPPORT = "priority_support"
 

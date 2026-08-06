@@ -1,0 +1,17 @@
+<!--
+    Bale — white check glyph, meant to sit on the brand-green tile drawn in
+    AboutUsScreen. Replaces bale.xml, which was a bitmap auto-trace (hundreds of
+    near-collinear points) that also carried the "بله" wordmark, illegible at 32dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M4.8,12.7 L9.7,17.6 L19.2,6.8"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

@@ -55,6 +55,7 @@
   --color-warning-bg:    #fff7ed;
   --color-warning:       #b45309;
   --color-warning-border:#fed7aa;
+  --color-warning-tint:  rgba(180, 83, 9, 0.10);  /* amber icon ground */
   --color-error-bg:      #fef2f2;
   --color-error:         #dc2626;
   --color-success:       #10b981;
@@ -102,6 +103,7 @@
     --color-warning-bg:    #2a2113;
     --color-warning:       #fbbf24;
     --color-warning-border:#4d3b12;
+    --color-warning-tint:  rgba(251, 191, 36, 0.16);
     --color-error-bg:      #2a1414;
     --color-error:         #f87171;
     --color-success-text:  #34d399;
@@ -130,6 +132,7 @@
   --color-warning-bg:    #2a2113;
   --color-warning:       #fbbf24;
   --color-warning-border:#4d3b12;
+  --color-warning-tint:  rgba(251, 191, 36, 0.16);
   --color-error-bg:      #2a1414;
   --color-error:         #f87171;
   --color-success-text:  #34d399;
@@ -249,17 +252,59 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   width: 100%;
 }
 
-/* ── Notice Banner ── */
-.notice-banner {
+/* ── Business Notice (owner-posted advisory) ──────────────────
+   Borrows the card geometry of .biz-address so it sits in the same
+   rhythm as the rest of the profile, but wears the amber warning
+   tokens: attention-grabbing without claiming the red --color-error-*
+   set, which is reserved for hard blocks like "booking disabled".
+   Rendered only by app/components/BusinessNotice.tsx.
+
+   Outer spacing comes from the shared .section class plus a per-call-site
+   inline override, the same pattern every other block on these pages uses.  */
+.biz-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning-border);
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 13px;
-  color: var(--color-warning);
-  line-height: 1.6;
+  border: 1.5px solid var(--color-warning-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
   text-align: right;
+}
+.biz-notice .ico {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  background: var(--color-warning-tint);
+}
+/* min-width:0 lets the text column actually shrink inside the flex row,
+   which is what stops long content widening the 390px shell. */
+.biz-notice .notice-text {
+  flex: 1;
+  min-width: 0;
+}
+.biz-notice .notice-k {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-warning);
+  margin-bottom: 3px;
+}
+.biz-notice .notice-v {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.8;
+  /* Free-form owner text, up to 300 chars: keep their line breaks, and
+     never let one unbroken token (a long URL, a phone number) overflow. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ── Promo Banner ── */

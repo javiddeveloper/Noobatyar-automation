@@ -256,6 +256,7 @@ class ClientAppointmentPaymentView(APIView):
                     code=400,
                 )
             appointment.status = 'PENDING_APPROVAL'
+            appointment.deposit_payment_method = 'NONE'
             success_message = "نوبت شما ثبت شد و در انتظار تایید کسب‌وکار است"
         else:
             # Card / online transfers must come with proof, otherwise the owner
@@ -267,6 +268,7 @@ class ClientAppointmentPaymentView(APIView):
                 )
             appointment.status = 'PENDING_VERIFICATION'
             appointment.payment_reference = payment_reference
+            appointment.deposit_payment_method = 'CARD'
             if payment_receipt:
                 appointment.payment_receipt = payment_receipt
             success_message = "پرداخت با موفقیت ثبت شد و نوبت در انتظار تایید است"
@@ -410,8 +412,12 @@ class ClientDepositCallbackView(APIView):
         appointment.status = 'WAITING'
         appointment.locked_at = None
         appointment.expires_at = None
+        appointment.deposit_payment_method = 'GATEWAY'
         await appointment.asave(
-            update_fields=['status', 'locked_at', 'expires_at', 'updated_at']
+            update_fields=[
+                'status', 'locked_at', 'expires_at',
+                'deposit_payment_method', 'updated_at',
+            ]
         )
         await sync_to_async(invalidate_slots_cache)(
             appointment.business_id, appointment.appointment_date
@@ -647,9 +653,15 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
 
-    # Send to business owner. Also billed to the owner's own quota, so it is
-    # opt-out via Business.notify_owner_by_sms — an owner watching the app
-    # should not have to pay for a message repeating what the app already shows.
+    # Send to business owner — off unless the owner explicitly asked for it.
+    # Business.notify_owner_by_sms now defaults to False (and existing rows were
+    # switched off by business migration 0013): an owner learning about their own
+    # booking should not be paying, out of their own SMS quota, for a message
+    # that repeats what the owner app already shows them. The intended
+    # replacement is an app push notification, which this backend cannot send
+    # yet — there is no device-token model, no FCM/APNs credentials and no
+    # dispatch path anywhere in the project. Until that exists, an owner who
+    # still wants to be told by SMS can turn this back on and keep paying for it.
     try:
         if not owner_phone or not owner_msg:
             pass

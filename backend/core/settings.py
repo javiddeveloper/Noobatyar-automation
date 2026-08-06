@@ -6,6 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 import os
 
+# Local-only overrides. Production sets real env vars via docker-compose (which
+# reads its own .env at the repo root) and never carries this file, so this is a
+# no-op there. `override=False` (the load_dotenv default) means anything already
+# set in the real environment always wins over the file — see docs/ENVIRONMENTS.md.
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env.local')
+
 SECRET_KEY = os.getenv('SECRET_KEY', 'insecure-dev-key-change-in-production')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,10.0.2.2,localhost').split(',')

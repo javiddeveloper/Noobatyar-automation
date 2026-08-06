@@ -78,7 +78,11 @@ fun PullToRefreshBox(
     val density = LocalDensity.current
     val thresholdPx = with(density) { PullThreshold.toPx() }
     val maxPullPx = with(density) { MaxPull.toPx() }
-    val restingPx = with(density) { (IndicatorSize + 16.dp).toPx() }
+    // Must fit the ring *and* the label text below it (icon + padding + label
+    // line is ~66dp) — a smaller resting height let the page content, which
+    // sits right below the indicator, draw over and clip the bottom of the
+    // label once the pull settled here after release.
+    val restingPx = with(density) { (IndicatorSize + 30.dp).toPx() }
 
     val scope = rememberCoroutineScope()
     val offset = remember { Animatable(0f) }

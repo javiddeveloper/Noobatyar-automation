@@ -70,5 +70,6 @@ data class DashboardStats(
     val totalAppointments: Int = 0,
     val completedAppointments: Int = 0,
     val noShowAppointments: Int = 0,
+    val cancelledAppointments: Int = 0,
     val totalVisitors: Int = 0
 )

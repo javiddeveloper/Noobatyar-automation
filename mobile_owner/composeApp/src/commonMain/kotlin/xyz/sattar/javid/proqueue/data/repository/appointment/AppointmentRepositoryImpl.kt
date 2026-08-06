@@ -61,6 +61,9 @@ class AppointmentRepositoryImpl(
                     status = dto.status,
                     description = dto.description,
                     paymentReceipt = dto.paymentReceipt,
+                    trackingCode = dto.trackingCode,
+                    paymentReference = dto.paymentReference,
+                    depositPaymentMethod = dto.depositPaymentMethod,
                     createdAt = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(dto.createdAt),
                     updatedAt = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(dto.updatedAt)
                 )
@@ -319,6 +322,9 @@ class AppointmentRepositoryImpl(
                         // card never has anything to show: the API returns it,
                         // but sync dropped it before it reached the DB.
                         paymentReceipt = dto.paymentReceipt,
+                    trackingCode = dto.trackingCode,
+                    paymentReference = dto.paymentReference,
+                    depositPaymentMethod = dto.depositPaymentMethod,
                         createdAt = DateTimeUtils.parseIsoToEpochMillis(dto.createdAt),
                         updatedAt = DateTimeUtils.parseIsoToEpochMillis(dto.updatedAt)
                     )

@@ -3,15 +3,23 @@ package xyz.sattar.javid.proqueue.feature.messages
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import xyz.sattar.javid.proqueue.core.network.ApiException
+import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
+import xyz.sattar.javid.proqueue.domain.usecase.BusinessUpsertUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GenerateReminderMessageUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
 
 class MessagesViewModel(
-    private val generateReminderMessageUseCase: GenerateReminderMessageUseCase
+    private val generateReminderMessageUseCase: GenerateReminderMessageUseCase,
+    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase,
+    private val businessUpsertUseCase: BusinessUpsertUseCase
 ) :
-    BaseViewModel<MessagesState, MessagesState.PartialState, Unit, MessagesIntent>(
+    BaseViewModel<MessagesState, MessagesState.PartialState, MessagesEvent, MessagesIntent>(
         initialState = MessagesState()
     ) {
     override fun handleIntent(intent: MessagesIntent): Flow<MessagesState.PartialState> {
@@ -21,6 +29,8 @@ class MessagesViewModel(
             is MessagesIntent.InsertToken -> insertToken(intent.token)
             is MessagesIntent.SetReminder -> setReminder(intent.minutes)
             is MessagesIntent.ApplyReadyTemplate -> applyReady(intent.text)
+            is MessagesIntent.SetDelivery -> setDelivery(intent.delivery)
+            MessagesIntent.UpgradeForPanelDelivery -> sendEvent(MessagesEvent.NavigateToAddons)
             MessagesIntent.Save -> save()
         }
     }
@@ -35,11 +45,31 @@ class MessagesViewModel(
         val templateFlow = PreferencesManager.messageTemplate(business.id)
         val currentTemplate: String? = templateFlow.first()
         val defaultTemplate = currentTemplate ?: defaultTemplates().first()
+        // The lead time used to live only in preferences and in the notifications
+        // screen, so on this screen the «{minutes}» token had an invisible value.
+        val leadMinutes = PreferencesManager.getNotificationReminderMinutes()
         emit(MessagesState.PartialState.ApplyBusiness(business.id, business.title))
+        emit(MessagesState.PartialState.SetReminder(leadMinutes))
+        emit(MessagesState.PartialState.SetDelivery(business.reminderDelivery))
         emit(MessagesState.PartialState.ApplyTemplate(defaultTemplate))
-        emit(MessagesState.PartialState.ApplyPreview(buildPreview(defaultTemplate)))
+        emit(MessagesState.PartialState.ApplyPreview(buildPreview(defaultTemplate, leadMinutes)))
         emit(MessagesState.PartialState.LoadReadyTemplates(defaultTemplates()))
+        emit(MessagesState.PartialState.SetPanelAllowed(loadPanelEntitlement()))
         emit(MessagesState.PartialState.IsLoading(false))
+    }
+
+    /**
+     * Whether the plan covers server-side reminders. A failed entitlements call
+     * leaves PANEL locked rather than optimistically unlocked — offering it and
+     * then eating a 403 on save is the worse of the two failures.
+     */
+    private suspend fun loadPanelEntitlement(): Boolean = try {
+        when (val response = getMyEntitlementsUseCase()) {
+            is ApiResponse.Success -> response.data.hasFeature(EntitlementKeys.AUTO_REMINDER_SMS)
+            is ApiResponse.Error -> false
+        }
+    } catch (e: Exception) {
+        false
     }
 
     private fun updateTemplate(text: String): Flow<MessagesState.PartialState> = flow {
@@ -63,13 +93,53 @@ class MessagesViewModel(
         emit(MessagesState.PartialState.ApplyPreview(buildPreview(text)))
     }
 
+    /**
+     * Selecting PANEL is refused locally when the plan doesn't cover it, so the
+     * user never sees a state they cannot save.
+     */
+    private fun setDelivery(delivery: String): Flow<MessagesState.PartialState> = flow {
+        if (delivery == ReminderDelivery.PANEL.value && !uiState.value.canUsePanelDelivery) {
+            emit(MessagesState.PartialState.ShowMessage("ارسال خودکار یادآوری در پلن فعلی شما نیست."))
+            return@flow
+        }
+        emit(MessagesState.PartialState.SetDelivery(delivery))
+    }
+
     private fun save(): Flow<MessagesState.PartialState> = flow {
         val business = BusinessStateHolder.selectedBusiness.value
         if (business == null) {
             emit(MessagesState.PartialState.ShowMessage("کسب‌وکار انتخاب نشده"))
             return@flow
         }
+        emit(MessagesState.PartialState.IsLoading(true))
         PreferencesManager.setMessageTemplate(business.id, uiState.value.template)
+        PreferencesManager.setNotificationReminderMinutes(uiState.value.reminderMinutes)
+
+        val delivery = uiState.value.reminderDelivery
+        if (delivery != business.reminderDelivery) {
+            try {
+                val updated = businessUpsertUseCase(business.copy(reminderDelivery = delivery))
+                if (updated != null) BusinessStateHolder.selectBusiness(updated)
+            } catch (e: ApiException) {
+                // 403 = the server disagrees with what we believed about the
+                // plan (expired mid-session, for instance). Fall back to the
+                // mode that always works instead of leaving the UI lying.
+                if (e.code == 403) {
+                    emit(MessagesState.PartialState.SetDelivery(ReminderDelivery.MANUAL.value))
+                    emit(MessagesState.PartialState.SetPanelAllowed(false))
+                    emit(MessagesState.PartialState.ShowMessage("پلن فعلی شما ارسال خودکار یادآوری را پوشش نمی‌دهد."))
+                } else {
+                    emit(MessagesState.PartialState.ShowMessage(e.message ?: "خطا در ذخیره تنظیمات"))
+                }
+                emit(MessagesState.PartialState.IsLoading(false))
+                return@flow
+            } catch (e: Exception) {
+                emit(MessagesState.PartialState.ShowMessage(e.message ?: "خطا در ذخیره تنظیمات"))
+                emit(MessagesState.PartialState.IsLoading(false))
+                return@flow
+            }
+        }
+        emit(MessagesState.PartialState.IsLoading(false))
         emit(MessagesState.PartialState.ShowMessage("تنظیمات ذخیره شد"))
     }
 
@@ -90,6 +160,8 @@ class MessagesViewModel(
             is MessagesState.PartialState.ApplyPreview -> currentState.copy(preview = partialState.text)
             is MessagesState.PartialState.SetReminder -> currentState.copy(reminderMinutes = partialState.minutes)
             is MessagesState.PartialState.LoadReadyTemplates -> currentState.copy(readyTemplates = partialState.list)
+            is MessagesState.PartialState.SetDelivery -> currentState.copy(reminderDelivery = partialState.delivery)
+            is MessagesState.PartialState.SetPanelAllowed -> currentState.copy(canUsePanelDelivery = partialState.allowed)
         }
     }
 
