@@ -6,8 +6,8 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 import logging
 
-from .models import Business
-from .serializers import BusinessSerializer
+from .models import Business, ServiceCatalogItem
+from .serializers import BusinessSerializer, ServiceCatalogItemSerializer
 from api.responses import APIResponse
 from accounting import entitlements
 from accounting.permissions import validate_business_settings
@@ -177,3 +177,54 @@ class BusinessView(APIView):
                 message="خطا در حذف کسب و کار، لطفا مجددا تلاش کنید",
                 code=500
             )
+
+
+class ServiceCatalogView(APIView):
+    """
+    Service-name chips, shared across every business in a category.
+
+    GET  ?category=BEAUTY_SALON  -> existing names an owner can pick from.
+    POST {category, name}        -> add one, visible to every business in
+                                     that category from then on (get_or_create,
+                                     no moderation — see ServiceCatalogItem's
+                                     docstring for why).
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    async def get(self, request):
+        category = request.query_params.get('category')
+        valid_categories = {choice[0] for choice in Business.CATEGORY_CHOICES}
+        if not category or category not in valid_categories:
+            return APIResponse.error(message="دسته‌بندی معتبر نیست", code=400)
+
+        items = [
+            i async for i in ServiceCatalogItem.objects.filter(category=category).order_by('name')
+        ]
+        serializer = ServiceCatalogItemSerializer(items, many=True)
+        return APIResponse.success(
+            data=serializer.data,
+            message="لیست خدمات با موفقیت دریافت شد"
+        )
+
+    async def post(self, request):
+        category = (request.data.get('category') or '').strip()
+        name = (request.data.get('name') or '').strip()
+
+        valid_categories = {choice[0] for choice in Business.CATEGORY_CHOICES}
+        if category not in valid_categories:
+            return APIResponse.error(message="دسته‌بندی معتبر نیست", code=400)
+        if not name:
+            return APIResponse.error(message="نام خدمت الزامی است", code=400)
+        if len(name) > 100:
+            return APIResponse.error(message="نام خدمت نباید بیشتر از ۱۰۰ کاراکتر باشد", code=400)
+
+        item, created = await sync_to_async(ServiceCatalogItem.objects.get_or_create)(
+            category=category, name=name
+        )
+        serializer = ServiceCatalogItemSerializer(item)
+        return APIResponse.success(
+            data=serializer.data,
+            message="خدمت با موفقیت اضافه شد",
+            status=201 if created else 200
+        )

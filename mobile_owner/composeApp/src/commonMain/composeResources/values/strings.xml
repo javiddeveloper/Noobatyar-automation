@@ -263,6 +263,15 @@
     <string name="service_duration_sheet_title">مدت زمان سرویس</string>
     <string name="service_duration_sheet_hint">کوتاه‌ترین بازه‌ای که برای هر نوبت در نظر می‌گیرید.</string>
 
+    <!-- Service catalog chip picker -->
+    <string name="service_catalog_title">خدمات دریافت‌شده</string>
+    <string name="service_catalog_sheet_title">انتخاب خدمات</string>
+    <string name="service_catalog_sheet_hint">از بین خدمات این دسته‌بندی انتخاب کنید یا مورد جدید اضافه کنید.</string>
+    <string name="service_catalog_add_new">افزودن خدمت جدید</string>
+    <string name="service_catalog_add_placeholder">مثلاً رنگ مو</string>
+    <string name="service_catalog_empty">هنوز خدمتی برای این دسته‌بندی ثبت نشده. اولین مورد را اضافه کنید.</string>
+    <string name="service_catalog_done">تایید</string>
+
     <!-- Emergency notice (public) -->
     <string name="notice_section_title">پیام اضطراری</string>
     <string name="notice_switch_label">نمایش پیام اضطراری</string>

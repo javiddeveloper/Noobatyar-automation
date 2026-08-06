@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import xyz.sattar.javid.proqueue.core.network.ApiException
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.ServiceCatalogItemDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 
@@ -133,4 +134,12 @@ class BusinessRepositoryImpl(
 
     override suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto> =
         businessApiService.getSmsLogSummary(businessId)
+
+    // Server-owned and shared across businesses — nothing to cache locally,
+    // same reasoning as the SMS log above.
+    override suspend fun getServiceCatalog(category: String): ApiResponse<List<ServiceCatalogItemDto>> =
+        businessApiService.getServiceCatalog(category)
+
+    override suspend fun addServiceCatalogItem(category: String, name: String): ApiResponse<ServiceCatalogItemDto> =
+        businessApiService.addServiceCatalogItem(category, name)
 }

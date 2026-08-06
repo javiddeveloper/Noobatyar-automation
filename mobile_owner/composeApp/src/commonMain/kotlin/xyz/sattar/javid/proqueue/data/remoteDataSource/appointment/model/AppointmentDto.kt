@@ -12,6 +12,7 @@ data class AppointmentDto(
     @SerialName("service_duration") val serviceDuration: Int?,
     val status: String,
     val description: String?,
+    @SerialName("selected_services") val selectedServices: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("payment_receipt") val paymentReceipt: String? = null,

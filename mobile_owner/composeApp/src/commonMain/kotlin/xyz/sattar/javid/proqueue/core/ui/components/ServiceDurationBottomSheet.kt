@@ -38,10 +38,10 @@ import xyz.sattar.javid.proqueue.core.utils.toPersianDigits
 
 /** Shortest slot the business can sell, and the longest one worth listing. */
 private const val MIN_DURATION_MINUTES = 10
-private const val MAX_DURATION_MINUTES = 180
+private const val MAX_DURATION_MINUTES = 480
 private const val DURATION_STEP_MINUTES = 5
 
-/** 10, 15, 20 … 180 — every option the sheet offers. */
+/** 10, 15, 20 … 480 — every option the sheet offers. */
 val serviceDurationOptions: List<Int> =
     (MIN_DURATION_MINUTES..MAX_DURATION_MINUTES step DURATION_STEP_MINUTES).toList()
 
