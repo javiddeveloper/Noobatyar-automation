@@ -70,12 +70,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -360,52 +360,36 @@ fun PlanBannerSection(
         // آن‌ها را دستی swipe کند (دیگر چرخش خودکار نداریم).
         //
         // ارتفاع همه‌ی صفحات باید یکسان باشد، حتی اگر محتوای پلن‌ها متفاوت
-        // باشد (مثلاً تعداد ویژگی‌ها یا فرمت قیمت). به همین دلیل ابتدا با
-        // SubcomposeLayout ارتفاع بلندترین کارت را در همان عرضی که واقعاً
-        // در Pager خواهد داشت اندازه می‌گیریم، سپس همان ارتفاع را روی
-        // HorizontalPager ثابت می‌کنیم؛ به این ترتیب مقداری ثابت و
-        // دلبخواهی (که ممکن است در دستگاه‌های کوچک‌تر یا فونت درشت‌تر
-        // محتوا را ببرد) هاردکد نمی‌شود.
+        // باشد. قبلاً این کار با SubcomposeLayout انجام می‌شد، اما آن رویکرد
+        // HorizontalPager را داخل یک subcomposition جدا قرار می‌داد و
+        // gesture drag اصلاً به Pager نمی‌رسید — یعنی swipe کاملاً از کار
+        // می‌افتاد (تأیید شده روی امولاتور واقعی). به‌جایش با
+        // onSizeChanged روی هر صفحه، بلندترین ارتفاع دیده‌شده را ردیابی
+        // می‌کنیم و به‌عنوان ارتفاع ثابت Pager می‌دهیم — Pager همچنان یک
+        // composable معمولی می‌ماند و drag درست کار می‌کند.
         val pagerContentPadding = 28.dp
-        SubcomposeLayout(
-            modifier = Modifier.fillMaxWidth()
-        ) { constraints ->
-            val horizontalPaddingPx = pagerContentPadding.roundToPx() * 2
-            val pageConstraints = Constraints(
-                minWidth = 0,
-                maxWidth = (constraints.maxWidth - horizontalPaddingPx).coerceAtLeast(0),
-                minHeight = 0,
-                maxHeight = Constraints.Infinity
+        val density = LocalDensity.current
+        var maxCardHeight by remember(plans) { mutableStateOf(0.dp) }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (maxCardHeight > 0.dp) Modifier.height(maxCardHeight) else Modifier),
+            contentPadding = PaddingValues(horizontal = pagerContentPadding),
+            pageSpacing = 10.dp
+        ) { page ->
+            val plan = plans[page]
+            PlanBannerItem(
+                plan = plan,
+                onClick = { onPlanClick(plan) },
+                modifier = Modifier
+                    .let { if (maxCardHeight > 0.dp) it.height(maxCardHeight) else it }
+                    .onSizeChanged { size ->
+                        val heightDp = with(density) { size.height.toDp() }
+                        if (heightDp > maxCardHeight) maxCardHeight = heightDp
+                    }
             )
-
-            val maxCardHeightPx = plans.indices.maxOfOrNull { index ->
-                subcompose("measure-$index") {
-                    PlanBannerItem(plan = plans[index], onClick = {})
-                }.first().measure(pageConstraints).height
-            } ?: 0
-            val maxCardHeightDp = maxCardHeightPx.toDp()
-
-            val pagerPlaceable = subcompose("pager") {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(maxCardHeightDp),
-                    contentPadding = PaddingValues(horizontal = pagerContentPadding),
-                    pageSpacing = 10.dp
-                ) { page ->
-                    val plan = plans[page]
-                    PlanBannerItem(
-                        plan = plan,
-                        onClick = { onPlanClick(plan) },
-                        modifier = Modifier.fillMaxHeight()
-                    )
-                }
-            }.first().measure(constraints)
-
-            layout(pagerPlaceable.width, pagerPlaceable.height) {
-                pagerPlaceable.place(0, 0)
-            }
         }
 
         if (plans.size > 1) {
