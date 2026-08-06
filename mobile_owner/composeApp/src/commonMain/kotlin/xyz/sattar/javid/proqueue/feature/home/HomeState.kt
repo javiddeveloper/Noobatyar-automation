@@ -21,7 +21,6 @@ data class HomeState(
     val statsLoaded: Boolean = false,
     val plans: List<PlanDto> = emptyList(),
     val plansLoaded: Boolean = false,
-    val paymentResult: PaymentResultInfo? = null,
     val subscription: SubscriptionDto? = null,
     val entitlements: EntitlementsResponseDto? = null,
     val entitlementsLoaded: Boolean = false,
@@ -38,19 +37,11 @@ data class HomeState(
         data class LoadQueue(val queue: List<QueueItem>) : PartialState()
         data class LoadStats(val stats: DashboardStats) : PartialState()
         data class LoadPlans(val plans: List<PlanDto>) : PartialState()
-        data class ShowPaymentResult(val info: PaymentResultInfo?) : PartialState()
         data class LoadSubscription(val subscription: SubscriptionDto?) : PartialState()
         data class LoadEntitlements(val entitlements: EntitlementsResponseDto?) : PartialState()
         data class LoadDailyCounts(val counts: List<DailyCountDto>) : PartialState()
     }
 }
-
-data class PaymentResultInfo(
-    val success: Boolean,
-    val ref: String? = null,
-    val amount: String? = null,
-    val txn: String? = null
-)
 
 data class QueueItem(
     val appointment: Appointment,

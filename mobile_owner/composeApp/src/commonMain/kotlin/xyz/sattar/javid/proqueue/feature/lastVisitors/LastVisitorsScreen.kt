@@ -47,6 +47,10 @@ import kotlin.math.abs
 @Composable
 fun LastVisitorsScreen(
     viewModel: LastVisitorsViewModel = koinViewModel<LastVisitorsViewModel>(),
+    initialStatus: String? = null,
+    initialTab: Int? = null,
+    initialDateFrom: Long? = null,
+    initialDateTo: Long? = null,
     onNavigateToCreateAppointment: () -> Unit = {},
     onNavigateToEditAppointment: (Long) -> Unit = {},
     onNavigateToVisitorDetails: (Long) -> Unit = {},
@@ -58,6 +62,28 @@ fun LastVisitorsScreen(
     // Initial load happens once in LastVisitorsViewModel.init (it observes the
     // selected business). Not re-triggered here, so switching back to this tab
     // does not re-request the server.
+
+    // Applies the filter/tab a Home stat card, the queue row, or the 7-day
+    // chart navigated in with. Reuses the existing OnFilterChanged/OnTabSelected
+    // intents rather than a parallel filtering mechanism. Keyed on the actual
+    // arg values (not Unit) so re-navigating here with different args — e.g.
+    // tapping a different stat card without leaving the tab stack — re-applies.
+    LaunchedEffect(initialStatus, initialTab, initialDateFrom, initialDateTo) {
+        if (initialTab != null) {
+            viewModel.sendIntent(LastVisitorsIntent.OnTabSelected(initialTab))
+        }
+        if (initialStatus != null || initialDateFrom != null || initialDateTo != null) {
+            viewModel.sendIntent(
+                LastVisitorsIntent.OnFilterChanged(
+                    AppointmentFilter(
+                        status = initialStatus,
+                        dateFrom = initialDateFrom,
+                        dateTo = initialDateTo
+                    )
+                )
+            )
+        }
+    }
 
     HandleEvents(
         events = viewModel.events,

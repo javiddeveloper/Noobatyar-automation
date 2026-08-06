@@ -159,13 +159,28 @@ class LastVisitorsViewModel(
         try {
             val business = BusinessStateHolder.selectedBusiness.value
             if (business != null) {
+                // این تب باید فقط ۷ روز آینده را نشان دهد. وقتی فیلتر کاربر نه
+                // یک روز خاص (filter.date) و نه بازه‌ی تاریخ صریحی (مثلاً از
+                // نمودار روند) مشخص کرده، پیش‌فرض را به [امروز, امروز+۷روز]
+                // محدود می‌کنیم — قبلاً بدون این پیش‌فرض همه‌ی نوبت‌های
+                // گذشته/آینده بارگذاری می‌شدند.
+                val effectiveDateFrom: Long?
+                val effectiveDateTo: Long?
+                if (filter.date != null) {
+                    effectiveDateFrom = filter.dateFrom
+                    effectiveDateTo = filter.dateTo
+                } else {
+                    effectiveDateFrom = filter.dateFrom ?: DateTimeUtils.startOfTodayMillis()
+                    effectiveDateTo = filter.dateTo ?: (DateTimeUtils.startOfTodayMillis() + 7L * 24 * 60 * 60 * 1000L)
+                }
+
                 // Sync with server using filters
                 syncAppointmentsUseCase(
                     businessId = business.id,
                     status = filter.status,
                     date = filter.date,
-                    dateFrom = filter.dateFrom,
-                    dateTo = filter.dateTo,
+                    dateFrom = effectiveDateFrom,
+                    dateTo = effectiveDateTo,
                     ordering = filter.ordering
                 )
 
@@ -178,8 +193,8 @@ class LastVisitorsViewModel(
                 val filtered = appointments.filter { app ->
                     (filter.status == null || app.appointment.status == filter.status) &&
                     (filter.date == null || DateTimeUtils.isSameDay(app.appointment.appointmentDate, filter.date)) &&
-                    (filter.dateFrom == null || app.appointment.appointmentDate >= filter.dateFrom) &&
-                    (filter.dateTo == null || app.appointment.appointmentDate <= filter.dateTo)
+                    (effectiveDateFrom == null || app.appointment.appointmentDate >= effectiveDateFrom) &&
+                    (effectiveDateTo == null || app.appointment.appointmentDate <= effectiveDateTo)
                 }
 
                 val ordered = when (filter.ordering) {

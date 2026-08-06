@@ -25,16 +25,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import xyz.sattar.javid.proqueue.core.navigation.AppScreens
 import xyz.sattar.javid.proqueue.core.navigation.MainTab
 import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
+import xyz.sattar.javid.proqueue.core.navigation.PaymentNavigationManager
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentScreen
 import xyz.sattar.javid.proqueue.feature.createVisitor.CreateVisitorRoute
 import xyz.sattar.javid.proqueue.feature.home.HomeScreen
+import xyz.sattar.javid.proqueue.feature.home.VisitorsNavArgs
 import xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsScreen
 import xyz.sattar.javid.proqueue.feature.messages.MessagesScreen
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsScreen
@@ -60,6 +61,7 @@ fun MainNavHost(
     val currentDestination = navBackStackEntry?.destination
 
     val notificationEvent by NotificationNavigationManager.navigationEvent.collectAsState()
+    val paymentEvent by PaymentNavigationManager.paymentEvent.collectAsState()
 
     // Shared blur source/target state for the glass top & bottom bars.
     val hazeState = remember { HazeState() }
@@ -75,6 +77,20 @@ fun MainNavHost(
                 navController.navigate(AppScreens.VisitorDetails(event.visitorId, event.openMessageDialog))
                 NotificationNavigationManager.consumeEvent()
             }
+        }
+    }
+
+    LaunchedEffect(paymentEvent) {
+        paymentEvent?.let { event ->
+            navController.navigate(
+                AppScreens.PaymentResult(
+                    success = if (event.success) 1 else 0,
+                    ref = event.ref,
+                    amount = event.amount,
+                    txn = event.txn
+                )
+            )
+            PaymentNavigationManager.consumeEvent()
         }
     }
 
@@ -148,11 +164,26 @@ fun MainNavHost(
                     onNavigateToAddons = {
                         navController.navigate(AppScreens.AddOns)
                     },
+                    onNavigateToVisitors = { args: VisitorsNavArgs ->
+                        navController.navigate(
+                            AppScreens.Visitors(
+                                initialStatus = args.status,
+                                initialTab = args.tab,
+                                initialDateFrom = args.dateFrom,
+                                initialDateTo = args.dateTo
+                            )
+                        )
+                    },
                 )
             }
 
-            composable<AppScreens.Visitors> {
+            composable<AppScreens.Visitors> { backStackEntry ->
+                val args = backStackEntry.toRoute<AppScreens.Visitors>()
                 LastVisitorsScreen(
+                    initialStatus = args.initialStatus,
+                    initialTab = args.initialTab,
+                    initialDateFrom = args.initialDateFrom,
+                    initialDateTo = args.initialDateTo,
                     onNavigateToCreateAppointment = {
                         navController.navigate(AppScreens.VisitorSelection(returnResult = false))
                     },
@@ -382,16 +413,17 @@ fun MainNavHost(
                 )
             }
 
+            // No `deepLinks` here on purpose — the noobatyar://payment/result
+            // deep link is parsed once in MainActivity and routed through
+            // PaymentNavigationManager (see the LaunchedEffect above). Letting
+            // Navigation-Compose auto-handle the Activity intent itself would
+            // re-trigger this dialog every time a fresh NavHostController sets
+            // its graph, e.g. after a business switch recreates MainNavHost.
             dialog<AppScreens.PaymentResult>(
                 dialogProperties = DialogProperties(
                     dismissOnBackPress = false,
                     dismissOnClickOutside = false,
                     usePlatformDefaultWidth = false
-                ),
-                deepLinks = listOf(
-                    navDeepLink {
-                        uriPattern = "noobatyar://payment/result?success={success}&ref={ref}&amount={amount}&txn={txn}"
-                    }
                 )
             ) { backStackEntry ->
                 val args = backStackEntry.toRoute<AppScreens.PaymentResult>()

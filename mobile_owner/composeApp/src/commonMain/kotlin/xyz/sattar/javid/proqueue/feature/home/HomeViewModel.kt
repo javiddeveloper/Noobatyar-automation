@@ -89,8 +89,6 @@ class HomeViewModel(
                 currentState.copy(stats = partialState.stats, statsLoaded = true)
             is HomeState.PartialState.LoadPlans ->
                 currentState.copy(plans = partialState.plans, plansLoaded = true)
-            is HomeState.PartialState.ShowPaymentResult ->
-                currentState.copy(paymentResult = partialState.info)
             is HomeState.PartialState.LoadSubscription ->
                 currentState.copy(subscription = partialState.subscription)
             is HomeState.PartialState.LoadEntitlements ->
@@ -164,14 +162,25 @@ class HomeViewModel(
                 syncAppointmentsUseCase(business.id, date = today)
 
                 val queue = getWaitingQueueUseCase(business.id, today)
+                // BaseViewModel's intent pipeline uses flatMapMerge (concurrent,
+                // not cancelling superseded work), so if the user switches to a
+                // different business while this business's network calls are
+                // still in flight, its results can otherwise land *after* the
+                // newer business's and silently overwrite the stats/queue with
+                // stale numbers from the business that's no longer selected.
+                // Re-check right before each emit and drop stale results.
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadQueue(calculateQueueTimes(queue)))
 
                 val stats = getTodayStatsUseCase(business.id)
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadStats(stats))
 
                 val daily = getDailyCountsUseCase(business.id, 7)
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadDailyCounts(daily))
             } catch (e: Exception) {
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadStats(DashboardStats()))
                 emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
                 emit(HomeState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در بارگذاری")))
