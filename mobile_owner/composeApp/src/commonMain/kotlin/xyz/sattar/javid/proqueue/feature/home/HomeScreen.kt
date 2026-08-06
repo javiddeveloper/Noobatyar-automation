@@ -1,57 +1,95 @@
 package xyz.sattar.javid.proqueue.feature.home
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.Cancel
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DataUsage
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.EventBusy
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Sms
+import androidx.compose.material.icons.rounded.Stars
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.buildAnnotatedString
-import coil3.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
-import proqueue.composeapp.generated.resources.*
-import proqueue.composeapp.generated.resources.Res
-import proqueue.composeapp.generated.resources.address
-import proqueue.composeapp.generated.resources.home_menu_item
-import proqueue.composeapp.generated.resources.phone
-import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
-import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomePlanBannerShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeUsageShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
+import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
@@ -272,34 +310,36 @@ fun PlanBannerSection(
 ) {
     val pagerState = rememberPagerState(pageCount = { plans.size })
 
-    // چرخش خودکار بنرها هر ۵ ثانیه
-    LaunchedEffect(plans) {
-        if (plans.isNotEmpty()) {
-            while (true) {
-                delay(5000)
-                if (pagerState.pageCount > 0) {
-                    val nextPage = (pagerState.currentPage + 1) % plans.size
-                    pagerState.animateScrollToPage(nextPage)
-                }
-            }
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
+        // contentPadding عمداً بیشتر از 4dp است: هر صفحه کمی باریک‌تر از عرض
+        // صفحه می‌شود تا لبه‌ی بنر بعدی/قبلی دیده شود و کاربر بفهمد می‌تواند
+        // آن‌ها را دستی swipe کند (دیگر چرخش خودکار نداریم).
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            pageSpacing = 8.dp
+            contentPadding = PaddingValues(horizontal = 28.dp),
+            pageSpacing = 10.dp
         ) { page ->
             val plan = plans[page]
             PlanBannerItem(
                 plan = plan,
                 onClick = { onPlanClick(plan) }
+            )
+        }
+
+        if (plans.size > 1) {
+            Text(
+                text = "برای مشاهده‌ی سایر طرح‌ها بکشید ⟷",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
 
