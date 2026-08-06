@@ -177,7 +177,7 @@ fun AboutUsContent(
                         SocialDivider()
                         SocialRow(
                             title = stringResource(Res.string.instagram),
-                            handle = "@ajviddev",
+                            handle = "@javiddev",
                             painter = painterResource(Res.drawable.ic_social_instagram),
                             // Instagram's mark is defined by its gradient, so the
                             // official ramp lives on the tile and the glyph is white.
@@ -189,7 +189,7 @@ fun AboutUsContent(
                                 Color(0xFF4F5BD5)
                             ),
                             index = 3,
-                            onClick = { uriHandler.openUri("https://instagram.com/ajviddev") }
+                            onClick = { uriHandler.openUri("https://instagram.com/javiddev") }
                         )
                         SocialDivider()
                         SocialRow(
@@ -554,8 +554,8 @@ private fun SocialRow(
             Text(
                 // Wrapped in an LTR isolate (U+2066 … U+2069). Handles are Latin
                 // but sit in an RTL paragraph, so leading/trailing neutrals get
-                // reordered to the paragraph edge — "@ajviddev" rendered as
-                // "ajviddev@". The isolate pins the run to LTR without changing
+                // reordered to the paragraph edge — "@javiddev" rendered as
+                // "javiddev@". The isolate pins the run to LTR without changing
                 // where the block itself sits.
                 text = "⁦$handle⁩",
                 style = MaterialTheme.typography.bodySmall,
