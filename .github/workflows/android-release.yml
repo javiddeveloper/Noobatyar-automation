@@ -43,7 +43,11 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build signed release APK
-        run: ./gradlew :composeApp:assembleRelease --no-daemon
+        # "prod" flavor only — mobile_owner/composeApp/build.gradle.kts also
+        # defines a "local" flavor for pointing at a dev backend (see
+        # docs/ENVIRONMENTS.md); assembleRelease (no flavor) would build both
+        # and land APKs under apk/{prod,local}/release instead of apk/release.
+        run: ./gradlew :composeApp:assembleProdRelease --no-daemon
         env:
           ANDROID_KEYSTORE_PATH: release.keystore.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -60,15 +64,16 @@ jobs:
       - name: Rename split APKs
         id: apk
         run: |
-          OUT_DIR="composeApp/build/outputs/apk/release"
-          DEST_DIR="composeApp/build/outputs/apk/release/dist"
+          OUT_DIR="composeApp/build/outputs/apk/prod/release"
+          DEST_DIR="composeApp/build/outputs/apk/prod/release/dist"
           mkdir -p "$DEST_DIR"
           VERSION="${{ steps.version.outputs.version_name }}"
           for f in "$OUT_DIR"/*.apk; do
             base=$(basename "$f" .apk)
-            # AGP names abi splits like composeApp-arm64-v8a-release.apk and the
-            # fat one composeApp-release.apk (universal)
-            arch=$(echo "$base" | sed -E 's/composeApp-(.*)-release/\1/; s/^composeApp-release$/universal/')
+            # AGP names these composeApp-prod-arm64-v8a-release.apk and
+            # composeApp-prod-universal-release.apk (splits.abi.isUniversalApk
+            # makes "universal" an explicit abi name, not a special case)
+            arch=$(echo "$base" | sed -E 's/composeApp-prod-(.*)-release/\1/')
             cp "$f" "$DEST_DIR/Noobatyar-Owner-${VERSION}-${arch}.apk"
           done
           echo "dir=mobile_owner/$DEST_DIR" >> "$GITHUB_OUTPUT"

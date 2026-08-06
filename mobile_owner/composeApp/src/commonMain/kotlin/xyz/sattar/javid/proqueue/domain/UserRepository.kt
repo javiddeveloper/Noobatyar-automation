@@ -14,7 +14,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.AddOnPackDto
 import xyz.sattar.javid.proqueue.domain.model.VersionInfo
 
 interface UserRepository {
-    suspend fun checkVersion(versionName: String): ApiResponse<VersionInfo>
+    suspend fun checkVersion(versionCode: Int): ApiResponse<VersionInfo>
     suspend fun register(phone: String, password: String, name: String): ApiResponse<RegisterResponseDto>
     suspend fun login(phone: String, password: String): ApiResponse<RegisterResponseDto>
     suspend fun logout(): ApiResponse<Unit>
