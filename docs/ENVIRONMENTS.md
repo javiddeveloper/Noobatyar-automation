@@ -152,7 +152,7 @@ buildkonfig {
         buildConfigField(STRING, "BASE_URL", "https://api.noobatyar.ir")
         buildConfigField(STRING, "BOOKING_BASE_URL", "https://app.noobatyar.ir")
     }
-    defaultConfigs("local") {           // با product flavor اندروید به‌نام "local" مچ می‌شه
+    defaultConfigs("local") {           // اسمش با flavor اندروید "local" یکیه، ولی خودکار بهش وصل نمی‌شه — پایین رو ببین
         buildConfigField(STRING, "BASE_URL", "http://10.0.2.2:8000")
         buildConfigField(STRING, "BOOKING_BASE_URL", "http://10.0.2.2:3000")
     }
@@ -171,18 +171,36 @@ android {
 }
 ```
 
-هرکدوم رو که لازم داری build/نصب کن:
+⚠️ **تله‌ی مهم:** `defaultConfigs("local")` توی پلاگین buildkonfig هیچ ربطی به
+product flavor اندروید نداره، حتی با اینکه هم‌اسمن. buildkonfig مقدارش رو از
+یک پرچم کاملاً جدا و سراسری می‌گیره: property به اسم `buildkonfig.flavor`
+(`-Pbuildkonfig.flavor=local` روی خط فرمان). این پرچم یک‌بار در کل اجرای
+Gradle خونده می‌شه و **مستقل از این‌که کدوم AGP task/flavor رو صدا می‌زنی**
+تعیین می‌کنه کدوم `BuildKonfig.kt` (تنها نسخه‌ی موجود، مشترک بین همه‌ی
+targetها) تولید بشه. اگه این پرچم رو ندی، even با build کردن
+`assembleLocalDebug`/`installLocalDebug`، مقدار `BASE_URL` بی‌سروصدا همون
+prod (`https://api.noobatyar.ir`) می‌مونه و اپ ساکت به سرور واقعی می‌زنه —
+بدون هیچ خطا یا هشداری. همیشه این پرچم رو کنار flavor اندروید بده:
 
 ```bash
 # لوکال (به 10.0.2.2:8000 وصل می‌شه — نام مستعار امولاتور برای این ماشین)
-./gradlew :composeApp:assembleLocalDebug
+./gradlew :composeApp:assembleLocalDebug -Pbuildkonfig.flavor=local
 adb install -r composeApp/build/outputs/apk/local/debug/composeApp-local-universal-debug.apk
 adb shell monkey -p xyz.sattar.javid.proqueue.local -c android.intent.category.LAUNCHER 1
 
-# Production
+# یا مستقیم نصب (assemble + install با هم)
+./gradlew :composeApp:installLocalDebug -Pbuildkonfig.flavor=local
+
+# Production (بدون پرچم هم کار می‌کنه چون defaultConfigs بدون اسم = prod)
 ./gradlew :composeApp:assembleProdDebug
 adb install -r composeApp/build/outputs/apk/prod/debug/composeApp-prod-universal-debug.apk
 adb shell monkey -p xyz.sattar.javid.proqueue -c android.intent.category.LAUNCHER 1
+```
+
+بعد از build، اگه شک داری کدوم `BASE_URL` واقعاً تولید شده، مستقیم چکش کن:
+
+```bash
+cat composeApp/build/buildkonfig/commonMain/xyz/sattar/javid/proqueue/BuildKonfig.kt
 ```
 
 `xyz.sattar.javid.proqueue` (prod) و `xyz.sattar.javid.proqueue.local`
@@ -236,5 +254,7 @@ Android Emulator (mobile_owner فلیور "local")
 3. `python manage.py migrate` بزن (سوییچ برنچ ممکنه migration عقب‌افتاده جا بذاره).
 4. `python manage.py runserver 0.0.0.0:8000`
 5. `npm --prefix front_client run dev` (خودکار `front_client/.env.local` رو می‌خونه).
-6. اگه داری اپ اندروید رو تست می‌کنی، فلیور `local` پروژه `mobile_owner` رو build/نصب کن (بالا رو ببین).
+6. اگه داری اپ اندروید رو تست می‌کنی، فلیور `local` پروژه `mobile_owner` رو
+   **با پرچم `-Pbuildkonfig.flavor=local`** build/نصب کن (بالا رو ببین) —
+   بدون این پرچم، ساکت به prod وصل می‌شه.
 7. فقط اگه داری یک پرداخت واقعی رو تست می‌کنی: مطمئن شو `CLIENT_WEB_URL` توی `.env.local` با مرورگر کلاینتی که واقعاً checkout رو اجرا می‌کنه هم‌خونی داره (امولاتور در برابر شبیه‌ساز در برابر دستگاه LAN — جدول هاست‌نیم بالای صفحه رو ببین).
