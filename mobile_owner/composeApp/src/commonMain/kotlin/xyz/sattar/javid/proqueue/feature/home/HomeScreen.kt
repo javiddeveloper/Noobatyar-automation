@@ -101,7 +101,8 @@ fun HomeScreen(
     onNavigateToCalendar: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onChangeBusiness: () -> Unit = {},
-    onNavigateToAddons: () -> Unit = {}
+    onNavigateToAddons: () -> Unit = {},
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -124,9 +125,21 @@ fun HomeScreen(
         onNavigateToCalendar = onNavigateToCalendar,
         onNavigateToLogin = onNavigateToLogin,
         onChangeBusiness = onChangeBusiness,
-        onNavigateToAddons = onNavigateToAddons
+        onNavigateToAddons = onNavigateToAddons,
+        onNavigateToVisitors = onNavigateToVisitors
     )
 }
+
+/**
+ * Arguments for jumping into the visitors/appointments tab pre-filtered —
+ * used when tapping a Home stat card, the queue row, or the 7-day chart.
+ */
+data class VisitorsNavArgs(
+    val status: String? = null,
+    val tab: Int? = null,
+    val dateFrom: Long? = null,
+    val dateTo: Long? = null
+)
 
 @Composable
 fun HomeScreenContent(
@@ -137,7 +150,8 @@ fun HomeScreenContent(
     onNavigateToCalendar: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onChangeBusiness: () -> Unit = {},
-    onNavigateToAddons: () -> Unit = {}
+    onNavigateToAddons: () -> Unit = {},
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -201,7 +215,7 @@ fun HomeScreenContent(
             contentPadding = PaddingValues(top = paddingValues.calculateTopPadding()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز)
+            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز) + تعداد نوبت‌های امروز
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -209,11 +223,13 @@ fun HomeScreenContent(
                         animationSpec = tween(500, delayMillis = 150)
                     )
                 ) {
-                    DateHeader()
+                    DateHeader(
+                        todayAppointmentsCount = uiState.stats.totalAppointments.takeIf { uiState.statsLoaded }
+                    )
                 }
             }
 
-            // ۲. آمار داشبورد امروز
+            // ۲. آمار داشبورد امروز (۴ مستطیل + یک سطر کامل برای صف)
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -223,7 +239,12 @@ fun HomeScreenContent(
                 ) {
                     when {
                         !uiState.statsLoaded -> HomeDashboardShimmer()
-                        else -> DashboardStatsSection(stats = uiState.stats)
+                        else -> DashboardStatsSection(
+                            stats = uiState.stats,
+                            peopleInQueue = uiState.queue.size,
+                            onStatClick = { status -> onNavigateToVisitors(VisitorsNavArgs(status = status)) },
+                            onQueueClick = { onNavigateToVisitors(VisitorsNavArgs(tab = 1)) }
+                        )
                     }
                 }
             }
@@ -239,7 +260,20 @@ fun HomeScreenContent(
                     if (!uiState.chartLoaded) {
                         HomeChartShimmer()
                     } else if (uiState.dailyCounts.isNotEmpty()) {
-                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
+                        // نمودار «۷ روز اخیر» است (گذشته)، پس با تپ روی آن به تب
+                        // مراجعین با همان بازه‌ی گذشته می‌رویم تا داده‌ی نمایش داده
+                        // شده با مقصد ناوبری همخوانی داشته باشد (نه بازه‌ی پیش‌فرض
+                        // «۷ روز آینده» آن تب).
+                        NeonLineChart(
+                            counts = uiState.dailyCounts.map { it.count },
+                            onClick = {
+                                val today = DateTimeUtils.startOfTodayMillis()
+                                val sevenDaysAgo = today - 6L * 24 * 60 * 60 * 1000L
+                                onNavigateToVisitors(
+                                    VisitorsNavArgs(dateFrom = sevenDaysAgo, dateTo = DateTimeUtils.systemCurrentMilliseconds())
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -597,10 +631,9 @@ fun PlanBannerItem(
 }
 
 @Composable
-fun DateHeader(modifier: Modifier = Modifier) {
+fun DateHeader(modifier: Modifier = Modifier, todayAppointmentsCount: Int? = null) {
     val currentTime = DateTimeUtils.systemCurrentMilliseconds()
     val formattedDate = DateTimeUtils.formatDate(currentTime)
-    val formattedTime = DateTimeUtils.formatTime(currentTime)
 
     Row(
         modifier = modifier
@@ -625,25 +658,51 @@ fun DateHeader(modifier: Modifier = Modifier) {
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "امروز، $formattedDate",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "ساعت فعلی: $formattedTime",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Text(
+                text = "امروز، $formattedDate",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        // تعداد نوبت‌های امروز — قبلاً یک مستطیل جدا بود («نوبت‌های امروز»)،
+        // حالا کنار هدر تاریخ به‌صورت یک بج کوچک نمایش داده می‌شود.
+        if (todayAppointmentsCount != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Event,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "$todayAppointmentsCount نوبت",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun DashboardStatsSection(stats: DashboardStats) {
+fun DashboardStatsSection(
+    stats: DashboardStats,
+    peopleInQueue: Int = 0,
+    onStatClick: (status: String?) -> Unit = {},
+    onQueueClick: () -> Unit = {}
+) {
     val isDark = !MaterialTheme.colorScheme.surface.let { color ->
         (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
     }
@@ -651,25 +710,29 @@ fun DashboardStatsSection(stats: DashboardStats) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // ۴ مستطیل آمار (۲×۲) — «نوبت‌های امروز» حذف شد چون تعدادش کنار هدر
+        // تاریخ نمایش داده می‌شود.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "نوبت‌های امروز",
-                value = stats.totalAppointments.toString(),
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                icon = Icons.Rounded.Event
-            )
-            StatCard(
-                modifier = Modifier.weight(1f),
                 title = "تکمیل شده",
                 value = stats.completedAppointments.toString(),
                 containerColor = if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9),
                 contentColor = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32),
-                icon = Icons.Rounded.CheckCircle
+                icon = Icons.Rounded.CheckCircle,
+                onClick = { onStatClick("COMPLETED") }
+            )
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "کل مراجعین",
+                value = stats.totalVisitors.toString(),
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                icon = Icons.Rounded.People,
+                onClick = { onStatClick(null) }
             )
         }
         Row(
@@ -682,30 +745,68 @@ fun DashboardStatsSection(stats: DashboardStats) {
                 value = stats.noShowAppointments.toString(),
                 containerColor = if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
                 contentColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828),
-                icon = Icons.Rounded.Cancel
+                icon = Icons.Rounded.Cancel,
+                onClick = { onStatClick("NO_SHOW") }
             )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                title = "کل مراجعین",
-                value = stats.totalVisitors.toString(),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                icon = Icons.Rounded.People
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
             StatCard(
                 modifier = Modifier.weight(1f),
                 title = "لغو شده",
                 value = stats.cancelledAppointments.toString(),
                 containerColor = if (isDark) Color(0xFF4A148C).copy(alpha = 0.4f) else Color(0xFFF3E5F5),
                 contentColor = if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A),
-                icon = Icons.Rounded.EventBusy
+                icon = Icons.Rounded.EventBusy,
+                onClick = { onStatClick("CANCELLED") }
             )
-            Spacer(modifier = Modifier.weight(1f))
+        }
+
+        // سطر کامل: افراد در حال حاضر در صف (امروز، در انتظار)
+        QueueStatRow(count = peopleInQueue, onClick = onQueueClick)
+    }
+}
+
+@Composable
+fun QueueStatRow(count: Int, onClick: () -> Unit = {}) {
+    val isDark = !MaterialTheme.colorScheme.surface.let { color ->
+        (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
+    }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) Color(0xFF01579B).copy(alpha = 0.35f) else Color(0xFFE1F5FE)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.Timer,
+                    contentDescription = null,
+                    tint = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "افراد در صف",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
+                )
+            }
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black,
+                color = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
+            )
         }
     }
 }
@@ -717,10 +818,11 @@ fun StatCard(
     value: String,
     containerColor: Color,
     contentColor: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

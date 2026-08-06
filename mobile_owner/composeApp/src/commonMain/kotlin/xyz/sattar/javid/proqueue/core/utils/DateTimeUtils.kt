@@ -49,6 +49,13 @@ object DateTimeUtils {
     fun systemCurrentMilliseconds(): Long =
         Clock.System.now().toEpochMilliseconds()
 
+    /** Midnight (00:00) of today, in the device's local time zone. */
+    @OptIn(ExperimentalTime::class)
+    fun startOfTodayMillis(timeZone: TimeZone = TimeZone.currentSystemDefault()): Long {
+        val now = Clock.System.now()
+        return now.toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone).toEpochMilliseconds()
+    }
+
 
     @OptIn(ExperimentalTime::class)
     fun formatMillisDateOnly(millis: Long): String {
