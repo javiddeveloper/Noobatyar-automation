@@ -10,6 +10,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -101,9 +103,25 @@ fun SmsReportScreen(
                 )
             }
 
+            SearchField(
+                query = uiState.searchQuery,
+                onQueryChange = { viewModel.sendIntent(SmsReportIntent.SetSearchQuery(it)) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             StatusFilterRow(
                 selected = uiState.statusFilter,
                 onSelect = { viewModel.sendIntent(SmsReportIntent.SetStatusFilter(it)) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            DateRangeFilterRow(
+                selected = uiState.dateRangeFilter,
+                onSelect = { viewModel.sendIntent(SmsReportIntent.SetDateRangeFilter(it)) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             )
 
@@ -268,6 +286,61 @@ private fun QuotaStat(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+/** Filters by the visitor's name or phone number — see `search` on the backend. */
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier,
+        placeholder = { Text(stringResource(Res.string.sms_report_search_placeholder)) },
+        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(Res.string.sms_report_search_clear)
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp)
+    )
+}
+
+@Composable
+private fun DateRangeFilterRow(
+    selected: SmsReportDateRange,
+    onSelect: (SmsReportDateRange) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val options = listOf(
+            SmsReportDateRange.ALL to Res.string.sms_report_date_filter_all,
+            SmsReportDateRange.TODAY to Res.string.sms_report_date_filter_today,
+            SmsReportDateRange.THIS_WEEK to Res.string.sms_report_date_filter_week,
+            SmsReportDateRange.THIS_MONTH to Res.string.sms_report_date_filter_month
+        )
+        options.forEach { (range, label) ->
+            FilterChip(
+                selected = selected == range,
+                onClick = { onSelect(range) },
+                label = { Text(stringResource(label)) },
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
     }
 }
 

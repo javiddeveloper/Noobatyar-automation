@@ -21,7 +21,10 @@ interface BusinessRepository {
         businessId: Long,
         page: Int,
         pageSize: Int,
-        status: String?
+        status: String?,
+        search: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
     ): ApiResponse<SmsLogPageDto>
 
     suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto>

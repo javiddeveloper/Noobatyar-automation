@@ -7,6 +7,9 @@ class GetSmsLogsUseCase(private val repository: BusinessRepository) {
         businessId: Long,
         page: Int,
         pageSize: Int = 20,
-        status: String? = null
-    ) = repository.getSmsLogs(businessId, page, pageSize, status)
+        status: String? = null,
+        search: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
+    ) = repository.getSmsLogs(businessId, page, pageSize, status, search, dateFrom, dateTo)
 }

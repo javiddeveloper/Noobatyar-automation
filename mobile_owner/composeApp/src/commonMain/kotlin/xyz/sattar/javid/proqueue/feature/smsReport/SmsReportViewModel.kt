@@ -1,11 +1,16 @@
 package xyz.sattar.javid.proqueue.feature.smsReport
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogSummaryUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogsUseCase
 
@@ -20,12 +25,15 @@ class SmsReportViewModel(
     initialState = SmsReportState()
 ) {
     private val pageSize = 20
+    private var searchJob: Job? = null
 
     override fun handleIntent(intent: SmsReportIntent): Flow<SmsReportState.PartialState> {
         return when (intent) {
             SmsReportIntent.Load -> load(reset = true)
             SmsReportIntent.LoadMore -> load(reset = false)
             is SmsReportIntent.SetStatusFilter -> setStatusFilter(intent.status)
+            is SmsReportIntent.SetSearchQuery -> setSearchQuery(intent.query)
+            is SmsReportIntent.SetDateRangeFilter -> setDateRangeFilter(intent.range)
         }
     }
 
@@ -38,6 +46,26 @@ class SmsReportViewModel(
         // the time loadLogs below reads it back — so the new status is passed
         // through explicitly instead of being re-read from state.
         emitAll(loadLogs(reset = true, status = status))
+    }
+
+    private fun setDateRangeFilter(range: SmsReportDateRange): Flow<SmsReportState.PartialState> = flow {
+        if (uiState.value.dateRangeFilter == range) return@flow
+        emit(SmsReportState.PartialState.SetDateRangeFilter(range))
+        emitAll(loadLogs(reset = true, status = uiState.value.statusFilter, dateRange = range))
+    }
+
+    /**
+     * The text updates immediately (so the field doesn't feel laggy), but the
+     * reload it triggers is debounced — same pattern as visitor search — so
+     * typing a name doesn't fire a request per keystroke.
+     */
+    private fun setSearchQuery(query: String): Flow<SmsReportState.PartialState> = flow {
+        emit(SmsReportState.PartialState.SetSearchQuery(query))
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(500)
+            sendIntent(SmsReportIntent.Load)
+        }
     }
 
     private fun load(reset: Boolean): Flow<SmsReportState.PartialState> = flow {
@@ -58,7 +86,11 @@ class SmsReportViewModel(
         }
     }
 
-    private fun loadLogs(reset: Boolean, status: String?): Flow<SmsReportState.PartialState> = flow {
+    private fun loadLogs(
+        reset: Boolean,
+        status: String?,
+        dateRange: SmsReportDateRange = uiState.value.dateRangeFilter
+    ): Flow<SmsReportState.PartialState> = flow {
         val current = uiState.value
         val businessId = BusinessStateHolder.selectedBusiness.value?.id
         if (businessId == null) {
@@ -74,12 +106,17 @@ class SmsReportViewModel(
             emit(SmsReportState.PartialState.IsPaginating(true))
         }
 
+        val (dateFrom, dateTo) = dateRange.toBounds()
+
         try {
             val response = getSmsLogsUseCase(
                 businessId = businessId,
                 page = page,
                 pageSize = pageSize,
-                status = status
+                status = status,
+                search = current.searchQuery.trim().takeIf { it.isNotBlank() },
+                dateFrom = dateFrom,
+                dateTo = dateTo
             )
             when (response) {
                 is ApiResponse.Success -> emit(
@@ -95,6 +132,17 @@ class SmsReportViewModel(
         } catch (e: Exception) {
             emit(failure(reset, e.message ?: "خطا در دریافت گزارش پیامک‌ها"))
         }
+    }
+
+    /**
+     * Preset -> (date_from, date_to) sent to the backend. Bounds are inclusive
+     * on both ends to match the server's `sent_at__date__gte/lte` filtering.
+     */
+    private fun SmsReportDateRange.toBounds(): Pair<String?, String?> = when (this) {
+        SmsReportDateRange.ALL -> null to null
+        SmsReportDateRange.TODAY -> DateTimeUtils.isoDateDaysAgo(0).let { it to it }
+        SmsReportDateRange.THIS_WEEK -> DateTimeUtils.isoDateDaysAgo(6) to DateTimeUtils.isoDateDaysAgo(0)
+        SmsReportDateRange.THIS_MONTH -> DateTimeUtils.isoDateDaysAgo(29) to DateTimeUtils.isoDateDaysAgo(0)
     }
 
     /**
@@ -141,6 +189,17 @@ class SmsReportViewModel(
             is SmsReportState.PartialState.SetStatusFilter ->
                 currentState.copy(
                     statusFilter = partialState.status,
+                    logs = emptyList(),
+                    currentPage = 0,
+                    canLoadMore = true
+                )
+
+            is SmsReportState.PartialState.SetSearchQuery ->
+                currentState.copy(searchQuery = partialState.query)
+
+            is SmsReportState.PartialState.SetDateRangeFilter ->
+                currentState.copy(
+                    dateRangeFilter = partialState.range,
                     logs = emptyList(),
                     currentPage = 0,
                     canLoadMore = true
