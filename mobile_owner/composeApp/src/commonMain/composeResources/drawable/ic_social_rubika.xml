@@ -1,0 +1,36 @@
+<!--
+    Rubika — six-segment hexagon pinwheel, the essential form of the brand mark,
+    in white with alternating opacity so the segments read at 24dp.
+
+    Replaces rubika.xml: 24 paths / 27KB of bitmap auto-trace. Its palette gave it
+    away — colours came in near-duplicate pairs (#E64C50 + #E64B51, #7DB427 +
+    #7DB426, #4C3682 + #4B3683) alongside grey fringe fills (#F1F0F0, #E3E4E4,
+    #E0E0E0) that were a baked white plate plus antialiasing, not brand colour.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,12 L12,2.6 L20.14,7.3 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M12,12 L20.14,7.3 L20.14,16.7 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6" />
+    <path
+        android:pathData="M12,12 L20.14,16.7 L12,21.4 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M12,12 L12,21.4 L3.86,16.7 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6" />
+    <path
+        android:pathData="M12,12 L3.86,16.7 L3.86,7.3 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M12,12 L3.86,7.3 L12,2.6 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6" />
+</vector>
