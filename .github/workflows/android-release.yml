@@ -78,6 +78,32 @@ jobs:
           done
           echo "dir=mobile_owner/$DEST_DIR" >> "$GITHUB_OUTPUT"
 
+      - name: Extract Persian release notes
+        # CHANGELOG.md (repo root) carries a `<!-- fa:start -->` / `<!-- fa:end
+        # -->` delimited Persian summary right after each `## vX.Y.Z` header —
+        # see the comment at the top of that file. This is the single source
+        # used for both the GitHub Release body and the Telegram caption
+        # below, so the two never drift out of sync with each other.
+        id: notes
+        working-directory: .
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SECTION=$(awk -v t="$TAG" '
+            $0 ~ ("^## " t "([^0-9.]|$)") { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md)
+          FA=$(printf '%s\n' "$SECTION" | sed -n '/<!-- fa:start -->/,/<!-- fa:end -->/p' | sed '1d;$d')
+          if [ -z "$FA" ]; then
+            echo "::error::No '<!-- fa:start -->' Persian summary found in CHANGELOG.md for tag ${TAG}. Add a ## ${TAG} section with a Persian fa:start/fa:end block before tagging — see the convention comment at the top of CHANGELOG.md."
+            exit 1
+          fi
+          {
+            echo "notes<<EOF_NOTES"
+            echo "$FA"
+            echo "EOF_NOTES"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Verify release APKs are properly configured
         working-directory: .
         run: |
@@ -125,15 +151,32 @@ jobs:
           name: Noobatyar-Owner-${{ steps.version.outputs.version_name }}
           path: ${{ steps.apk.outputs.dir }}/*.apk
 
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: نسخه ${{ steps.version.outputs.version_name }}
+          body: ${{ steps.notes.outputs.notes }}
+          files: ${{ steps.apk.outputs.dir }}/*.apk
+
       - name: Send to Telegram
         working-directory: .
         run: |
+          # Telegram's document caption limit is 1024 characters; the notes
+          # block is meant to stay well under that on its own (see the
+          # convention comment in CHANGELOG.md), but truncate defensively so
+          # a future over-long entry degrades gracefully instead of failing
+          # the send outright. Done via python3, not `cut -c`/`${var:0:N}` —
+          # both are byte-counting rather than character-counting unless the
+          # shell's locale is explicitly UTF-8-aware, which would silently
+          # mangle Persian text mid-character on a misconfigured runner.
+          NOTES_TRUNCATED=$(python3 -c 'import sys; n = sys.argv[1]; print(n if len(n) <= 700 else n[:700] + "…")' "${{ steps.notes.outputs.notes }}")
           for f in "${{ steps.apk.outputs.dir }}"/*.apk; do
             name=$(basename "$f")
             curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
               -F chat_id="${TELEGRAM_CHAT_ID}" \
               -F document=@"$f" \
-              -F caption="${name} (build ${{ steps.version.outputs.version_code }})"
+              -F caption="$(printf '%s (build %s)\n\n%s' "$name" "${{ steps.version.outputs.version_code }}" "$NOTES_TRUNCATED")"
           done
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

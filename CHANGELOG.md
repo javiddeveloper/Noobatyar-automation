@@ -1,6 +1,28 @@
 # Changelog
 
+<!--
+  Each version section must include a Persian summary block delimited by
+  `<!-- fa:start -->` / `<!-- fa:end -->` right after its `## vX.Y.Z` header.
+  The Android release workflow (.github/workflows/android-release.yml)
+  extracts exactly that block for the tag being released and uses it as
+  both the GitHub Release body and the Telegram APK caption — so keep it
+  short, user-facing, and in Persian. The rest of the section (English,
+  per-package, technical) is for developers/agents and isn't shown to users.
+-->
+
 ## v1.1.0 — 2026-08-06
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- نوتیفیکیشن‌ها (toast) حالا رنگ درستی دارن: موفقیت سبز، خطا قرمز، هشدار زرد — دیگه همه‌چیز قرمز نشون داده نمی‌شه.
+- خطای «نشست منقضی شده» و «محدودیت درخواست» حالا پیام واقعی نشون می‌ده، نه ریست بی‌صدای برنامه.
+- بنرهای خرید اشتراک در صفحه‌ی خانه: به‌جای چرخش خودکار (که قبل از خوندن رد می‌شد)، حالا با دست swipe می‌شن و لبه‌ی بنر بعدی هم دیده می‌شه.
+- باگ Pull-to-refresh برطرف شد: متن «در حال بروزرسانی…» زیر محتوای صفحه بریده نمی‌شد.
+- صفحه‌ی «درباره‌ی ما» بازطراحی شد؛ آیکون‌های شبکه‌های اجتماعی جدید و باکیفیت‌تر.
+- پیام اضطراری کسب‌وکار، یادآوری چندکاناله، گزارش پیامک با فیلتر، و ثبت بیعانه‌ی پرداختی به نوبت اضافه شد.
+- آمار «تکمیل‌شده» در داشبورد که اشتباه محاسبه می‌شد، درست شد.
+- صفحه‌ی اصلی وب دیگه لیست کسب‌وکارها رو بدون ورود نشون نمی‌ده؛ حالا صفحه‌ی معرفی اپلیکیشنه.
+<!-- fa:end -->
 
 ### mobile_owner
 - Typed toasts: success/error/warning now render with distinct styling instead of every screen showing the same error-red toast. Settings and LastVisitors, which had no toast host at all, now surface their ViewModel error messages. Several actions (delete/complete/no-show/approve/reject/send-message in LastVisitors) previously succeeded with zero user feedback — they now confirm.
