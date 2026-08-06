@@ -21,6 +21,7 @@ import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.sortedForBanner
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -117,9 +118,10 @@ class HomeViewModel(
         emit(HomeState.PartialState.LoadBusinessName(business))
 
         // پلن‌ها — فقط اگر قبلاً نگرفتیم یا لیست خالی بود
+        // ترتیب نمایش: ابتدا پلن آزمایشی، سپس بقیه به ترتیب صعودی مدت.
         try {
             when (val plansResponse = getPlansUseCase()) {
-                is ApiResponse.Success -> emit(HomeState.PartialState.LoadPlans(plansResponse.data))
+                is ApiResponse.Success -> emit(HomeState.PartialState.LoadPlans(plansResponse.data.sortedForBanner()))
                 is ApiResponse.Error -> emit(HomeState.PartialState.LoadPlans(emptyList()))
             }
         } catch (e: Exception) {
