@@ -31,6 +31,7 @@ import xyz.sattar.javid.proqueue.core.navigation.MainTab
 import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.PaymentNavigationManager
+import xyz.sattar.javid.proqueue.core.navigation.PendingVisitorsFilter
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentScreen
 import xyz.sattar.javid.proqueue.feature.createVisitor.CreateVisitorRoute
@@ -165,25 +166,30 @@ fun MainNavHost(
                         navController.navigate(AppScreens.AddOns)
                     },
                     onNavigateToVisitors = { args: VisitorsNavArgs ->
-                        navController.navigate(
-                            AppScreens.Visitors(
-                                initialStatus = args.status,
-                                initialTab = args.tab,
-                                initialDateFrom = args.dateFrom,
-                                initialDateTo = args.dateTo
-                            )
-                        )
+                        // Same call the bottom bar's onTabSelected uses — this
+                        // must land on the one shared MainTab.LastVisitors
+                        // entry, not push a second stacked copy (that copy
+                        // wouldn't match any tab in `tabs`, so shouldShowBottomBar
+                        // would stay false and the bottom bar would vanish).
+                        PendingVisitorsFilter.set(args)
+                        navController.navigate(MainTab.LastVisitors.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     },
                 )
             }
 
-            composable<AppScreens.Visitors> { backStackEntry ->
-                val args = backStackEntry.toRoute<AppScreens.Visitors>()
+            composable<AppScreens.Visitors> {
+                val pending = remember { PendingVisitorsFilter.consume() }
                 LastVisitorsScreen(
-                    initialStatus = args.initialStatus,
-                    initialTab = args.initialTab,
-                    initialDateFrom = args.initialDateFrom,
-                    initialDateTo = args.initialDateTo,
+                    initialStatus = pending?.status,
+                    initialTab = pending?.tab,
+                    initialDateFrom = pending?.dateFrom,
+                    initialDateTo = pending?.dateTo,
                     onNavigateToCreateAppointment = {
                         navController.navigate(AppScreens.VisitorSelection(returnResult = false))
                     },

@@ -43,22 +43,14 @@ sealed class AppScreens {
     object Settings : AppScreens()
     @Serializable
     object Notifications : AppScreens()
-    /**
-     * [initialStatus] pre-applies an [xyz.sattar.javid.proqueue.feature.lastVisitors.AppointmentFilter]
-     * status (e.g. "CANCELLED", "NO_SHOW", "COMPLETED", or null for "all") when
-     * jumping here from a Home stat card. [initialTab] selects the visitors (0)
-     * vs. queue (1) tab — used by the "افراد در صف" row. [initialDateFrom]/
-     * [initialDateTo] override the default date window — used when jumping in
-     * from the Home 7-day trend chart, which summarizes the *past* 7 days
-     * while this screen otherwise defaults to the *next* 7 days.
-     */
+    // A single shared tab destination — MainTab.LastVisitors.route. Reached
+    // either via the bottom bar or via a Home stat card / queue row / chart
+    // tap; the latter carries its filter through
+    // [xyz.sattar.javid.proqueue.core.navigation.PendingVisitorsFilter]
+    // rather than as route arguments, so every arrival lands on this exact
+    // same tab instance (see PendingVisitorsFilter's doc for why).
     @Serializable
-    data class Visitors(
-        val initialStatus: String? = null,
-        val initialTab: Int? = null,
-        val initialDateFrom: Long? = null,
-        val initialDateTo: Long? = null
-    ) : AppScreens()
+    object Visitors : AppScreens()
     @Serializable
     data class CreateBusiness(val businessId: Long? = null) : AppScreens()
     @Serializable
@@ -128,7 +120,7 @@ sealed interface MainTab {
         override val title = Res.string.last_visitors_menu_item
         override val iconSelected = Icons.Rounded.People
         override val iconUnSelected = Icons.Outlined.People
-        override val route = AppScreens.Visitors()
+        override val route = AppScreens.Visitors
     }
 
     @Serializable
