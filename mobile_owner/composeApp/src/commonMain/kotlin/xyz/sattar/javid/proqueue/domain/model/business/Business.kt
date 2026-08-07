@@ -32,5 +32,17 @@ data class Business(
     val noticeEnabled: Boolean = false,
     val noticeMessage: String = "",
     /** [ReminderDelivery] value; PANEL needs the auto_reminder_sms entitlement. */
-    val reminderDelivery: String = ReminderDelivery.MANUAL.value
+    val reminderDelivery: String = ReminderDelivery.MANUAL.value,
+    /**
+     * The services this business offers, defined once in the business screen.
+     * Drives the chip picker both here (recording what a visitor received) and
+     * on the client's public booking page (saying what they're coming for).
+     */
+    val services: List<String> = emptyList(),
+    /**
+     * Whether a client may type a service that isn't on [services]. Off by
+     * default — an owner who leaves it off gets answers they can plan slot
+     * lengths around instead of free text.
+     */
+    val allowClientAddService: Boolean = false
 )

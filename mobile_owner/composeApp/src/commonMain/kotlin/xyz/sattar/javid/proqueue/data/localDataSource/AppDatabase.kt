@@ -31,7 +31,9 @@ internal const val dbFileName = "proQueue.db"
     // local cache and refetches.
     // 12: AppointmentEntity.selectedServices (service-catalog chips picked
     // when recording an appointment).
-    version = 12
+    // 13: BusinessEntity.services / allowClientAddService (the business's own
+    // service menu, defined once and reused by the client booking page).
+    version = 13
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

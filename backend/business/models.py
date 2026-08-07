@@ -81,6 +81,35 @@ class Business(models.Model):
         help_text="If False, clients cannot create new appointments"
     )
 
+    # ── Service menu ──────────────────────────────────────────────────────
+    # The list of services THIS business actually offers ("لیست خدمات من"),
+    # picked by the owner in the business-definition screen from the
+    # category-wide ServiceCatalogItem chips (plus anything they add).
+    #
+    # Deliberately a JSON list of names on the business rather than a
+    # many-to-many to ServiceCatalogItem: the catalog is a shared vocabulary,
+    # not an inventory. What matters downstream (appointment.selected_services)
+    # is the *name*, and copying it here means an owner's menu is unaffected
+    # when some other business in the category renames or adds a chip.
+    #
+    # Read by the public booking page too: a client picking "رنگ مو" from the
+    # owner's own menu is the whole point — it turns an unparseable free-text
+    # note into something the owner can plan the slot length around.
+    services = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Service names this business offers, e.g. ['کوتاهی مو', 'رنگ مو']"
+    )
+    # Off by default: the owner's menu is what makes a client's answer usable,
+    # and a free "+" for clients quietly reintroduces the free-text mess this
+    # feature exists to remove. Owners who genuinely take custom requests can
+    # turn it on. A name a client adds this way is stored on that appointment
+    # only — it never edits the owner's menu.
+    allow_client_add_service = models.BooleanField(
+        default=False,
+        help_text="If True, clients may add a service name that is not on the business's menu"
+    )
+
     # ── Payment configuration ─────────────────────────────────────────────
     PAYMENT_METHOD_CHOICES = [
         ('NONE',    'رایگان / بدون پیش‌پرداخت'),

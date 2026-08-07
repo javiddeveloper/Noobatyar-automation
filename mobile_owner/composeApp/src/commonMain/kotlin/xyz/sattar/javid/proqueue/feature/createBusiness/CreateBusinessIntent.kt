@@ -26,7 +26,9 @@ sealed class CreateBusinessIntent {
         val paymentLink: String,
         val noticeEnabled: Boolean = false,
         val noticeMessage: String = "",
-        val reminderDelivery: String = ReminderDelivery.MANUAL.value
+        val reminderDelivery: String = ReminderDelivery.MANUAL.value,
+        val services: List<String> = emptyList(),
+        val allowClientAddService: Boolean = false
     ) : CreateBusinessIntent()
     object BackPress : CreateBusinessIntent()
     object ClearMessage : CreateBusinessIntent()
@@ -34,4 +36,11 @@ sealed class CreateBusinessIntent {
     data class LoadBusiness(val businessId: Long) : CreateBusinessIntent()
     object LoadEntitlements : CreateBusinessIntent()
     data class UpgradePlan(val planId: Int) : CreateBusinessIntent()
+    /** Chips to offer in the service-menu picker, for the picked category. */
+    data class LoadServiceCatalog(val category: BusinessCategory) : CreateBusinessIntent()
+    /** Adds a brand-new chip to the category's shared catalog. */
+    data class AddServiceCatalogItem(
+        val category: BusinessCategory,
+        val name: String
+    ) : CreateBusinessIntent()
 }

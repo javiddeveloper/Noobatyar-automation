@@ -72,6 +72,11 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 append("card_number", business.cardNumber)
                 append("card_owner_name", business.cardOwnerName)
                 append("bio", business.bio)
+                // Same JSON-array-in-a-multipart-field trick as
+                // accepted_payment_methods above: DRF's JSONField parses a
+                // string value when the request came in as form data.
+                append("services", business.services.toJsonArrayString())
+                append("allow_client_add_service", business.allowClientAddService.toString())
                 append("notice_enabled", business.noticeEnabled.toString())
                 append("notice_message", business.noticeMessage)
                 append("reminder_delivery", business.reminderDelivery)
@@ -86,6 +91,19 @@ class BusinessApiService(private val httpClient: HttpClient) {
             }
         )
     }
+
+    /**
+     * Serialises a list of *owner-typed* strings as a JSON array literal for a
+     * multipart field. Unlike the fixed enum values in
+     * accepted_payment_methods, a service name is free text, so quotes and
+     * backslashes have to be escaped or the whole payload stops being JSON and
+     * the field is silently rejected.
+     */
+    private fun List<String>.toJsonArrayString(): String =
+        joinToString(separator = ",", prefix = "[", postfix = "]") { name ->
+            val escaped = name.replace("\\", "\\\\").replace("\"", "\\\"")
+            "\"$escaped\""
+        }
 
     // These two endpoints deliberately return DRF's bare pagination shape
     // ({count, next, previous, results}), not the app-wide {status, code,

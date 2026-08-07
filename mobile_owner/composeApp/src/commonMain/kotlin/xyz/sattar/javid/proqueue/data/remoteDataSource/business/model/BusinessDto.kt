@@ -40,5 +40,9 @@ data class BusinessDto(
     @SerialName("notice_enabled") val noticeEnabled: Boolean = false,
     @SerialName("notice_message") val noticeMessage: String? = null,
     // "MANUAL" (owner texts from their own SIM) or "PANEL" (server sends).
-    @SerialName("reminder_delivery") val reminderDelivery: String? = null
+    @SerialName("reminder_delivery") val reminderDelivery: String? = null,
+    // The business's own service menu and whether clients may go off it.
+    // Defaulted so a backend that predates the field still deserializes.
+    @SerialName("services") val services: List<String> = emptyList(),
+    @SerialName("allow_client_add_service") val allowClientAddService: Boolean = false
 )

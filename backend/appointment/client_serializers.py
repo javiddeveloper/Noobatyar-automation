@@ -64,7 +64,19 @@ class ClientAppointmentCreateSerializer(serializers.ModelSerializer):
     appointment_date = serializers.IntegerField(write_only=True) # Unix timestamp in ms
     service_duration = serializers.IntegerField(write_only=True, required=False)
     description = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    # What the client says they're coming for, picked from the business's own
+    # menu (business.services). Accepted as a list here and stored on the
+    # appointment as the same comma-separated string the owner app writes, so
+    # both booking paths produce one comparable value.
+    # Whether a name that is NOT on the menu is allowed depends on the
+    # business's allow_client_add_service switch — enforced in the view, which
+    # is the only place that has the Business loaded.
+    selected_services = serializers.ListField(
+        child=serializers.CharField(allow_blank=True),
+        write_only=True,
+        required=False,
+    )
 
     class Meta:
         model = Appointment
-        fields = ['business_id', 'appointment_date', 'service_duration', 'description']
+        fields = ['business_id', 'appointment_date', 'service_duration', 'description', 'selected_services']

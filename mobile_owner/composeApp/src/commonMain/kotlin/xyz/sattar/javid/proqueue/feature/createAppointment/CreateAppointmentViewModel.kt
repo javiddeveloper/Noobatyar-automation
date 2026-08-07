@@ -334,15 +334,29 @@ class CreateAppointmentViewModel(
         }
     }
 
-    /** Loads the service-catalog chips for the currently selected business's category. */
+    /**
+     * Chips to offer when recording what a visitor is here for.
+     *
+     * The business's own menu (defined in the business screen, and the same
+     * list the client sees when booking online) comes first, then the rest of
+     * the category's shared catalog. Showing the menu alone would have made
+     * chips the owner adds inline here disappear from the next visit; showing
+     * only the category catalog is what made this list feel unrelated to the
+     * business in the first place.
+     */
     private fun loadServiceCatalog(): Flow<CreateAppointmentState.PartialState> = flow {
         val business = BusinessStateHolder.selectedBusiness.value ?: return@flow
         emit(CreateAppointmentState.PartialState.ServiceCatalogLoading(true))
         try {
             val items = getServiceCatalogUseCase(business.category.value)
-            emit(CreateAppointmentState.PartialState.LoadServiceCatalog(items))
+            emit(
+                CreateAppointmentState.PartialState.LoadServiceCatalog(
+                    (business.services + items).distinct()
+                )
+            )
         } catch (e: Exception) {
-            emit(CreateAppointmentState.PartialState.ServiceCatalogLoading(false))
+            // Offline or a failed fetch still leaves the owner their own menu.
+            emit(CreateAppointmentState.PartialState.LoadServiceCatalog(business.services))
         }
     }
 

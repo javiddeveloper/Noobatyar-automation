@@ -41,6 +41,15 @@ export interface Business {
   /** True when the business has a Zibal merchant, so checkout can redirect to a
    *  real gateway instead of the manual link + tracking-number flow. */
   online_gateway_enabled?: boolean;
+  /** The services this business offers, defined by the owner in the app. Shown
+   *  as chips at booking time so "what are you coming for?" is an answer the
+   *  owner can plan a slot length around instead of free text. Optional here to
+   *  tolerate older payloads. */
+  services?: string[];
+  /** Whether the client may add a service that isn't on `services`. Off unless
+   *  the owner turned it on in their business settings — the backend rejects
+   *  off-menu names either way, so this only decides whether we offer the box. */
+  allow_client_add_service?: boolean;
 }
 
 export interface TimeSlot {
@@ -210,7 +219,8 @@ export async function bookAppointment(
   appointmentDate: number,
   serviceDuration?: number,
   description?: string,
-  token?: string
+  token?: string,
+  selectedServices?: string[]
 ) {
   return apiFetch<{ id: number; requires_payment?: boolean }>('/api/client/appointments/', {
     method: 'POST',
@@ -220,6 +230,7 @@ export async function bookAppointment(
       appointment_date: appointmentDate,
       ...(serviceDuration && { service_duration: serviceDuration }),
       ...(description && { description }),
+      ...(selectedServices?.length && { selected_services: selectedServices }),
     }),
   });
 }

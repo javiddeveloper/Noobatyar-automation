@@ -53,6 +53,12 @@ export default function BookingPage({ params }: Props) {
   const [selectedDay, setSelectedDay] = useState<Date>(days[0]);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  // What the client is coming for, picked from the owner's own service menu.
+  // This is the part the owner can actually plan around; `description` stays
+  // for anything that doesn't fit a chip.
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  // Off-menu service the client typed — only offered when the owner allows it.
+  const [customService, setCustomService] = useState('');
   // Optional free-text note describing the requested service.
   const [description, setDescription] = useState('');
   // A slot the user picked before logging in, to be re-selected on return.
@@ -110,11 +116,13 @@ export default function BookingPage({ params }: Props) {
     try {
       const intent = JSON.parse(raw) as {
         slug: string; slot: TimeSlot; businessId: number; description?: string;
+        selectedServices?: string[];
       };
       if (intent.slug !== slug || intent.businessId !== business.id || !intent.slot) {
         return;
       }
       if (intent.description) setDescription(intent.description);
+      if (intent.selectedServices?.length) setSelectedServices(intent.selectedServices);
       const slotDay = days.find(
         (d) => toDateString(d) === toDateString(new Date(intent.slot.timestamp))
       );
@@ -155,6 +163,7 @@ export default function BookingPage({ params }: Props) {
       slot: selectedSlot,
       businessId: business.id,
       description: description.trim(),
+      selectedServices,
     }));
     router.push(`/auth/login?redirect=/b/${slug}/book`);
   };
@@ -176,7 +185,8 @@ export default function BookingPage({ params }: Props) {
         selectedSlot.timestamp,
         business.default_service_duration,
         description.trim(),
-        token
+        token,
+        selectedServices
       );
 
       if (requires_payment) {
@@ -274,6 +284,29 @@ export default function BookingPage({ params }: Props) {
 
   const selectedDayMonth = new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long' }).format(selectedDay);
   const availableCount = slots.filter((s) => s.status === 'AVAILABLE').length;
+
+  // The owner's menu, plus anything the client typed themselves — a custom
+  // entry has to keep showing as a chip so it can be un-picked again.
+  const menuServices = business.services ?? [];
+  const allowCustomService = business.allow_client_add_service === true;
+  const chipServices = [
+    ...menuServices,
+    ...selectedServices.filter((s) => !menuServices.includes(s)),
+  ];
+
+  const toggleService = (name: string) =>
+    setSelectedServices((current) =>
+      current.includes(name) ? current.filter((s) => s !== name) : [...current, name]
+    );
+
+  const addCustomService = () => {
+    // Commas separate services on the backend, so one inside a name would come
+    // back as two. Folded to a space rather than rejected.
+    const name = customService.replace(/,/g, ' ').trim();
+    if (!name) return;
+    setSelectedServices((current) => (current.includes(name) ? current : [...current, name]));
+    setCustomService('');
+  };
 
   return (
     <div className="page-content">
@@ -395,6 +428,88 @@ export default function BookingPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Service picker ──
+          The owner's own menu, as chips. Answering "رنگ مو" instead of writing
+          a sentence is what lets the owner size the slot correctly and is why
+          fewer of these get cancelled. Hidden entirely for a business that
+          hasn't defined a menu and doesn't accept off-menu requests — there
+          would be nothing to pick. */}
+      {selectedSlot && (menuServices.length > 0 || allowCustomService) && (
+        <div className="section" style={{ paddingTop: 0 }}>
+          <label
+            style={{ display: 'block', textAlign: 'right', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 8 }}
+          >
+            چه خدمتی می‌خواهید؟ (اختیاری)
+          </label>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
+            {chipServices.map((name) => {
+              const isSelected = selectedServices.includes(name);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => toggleService(name)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                    background: isSelected ? 'var(--color-primary-tint)' : 'var(--color-surface)',
+                    color: isSelected ? 'var(--color-primary)' : 'var(--color-text)',
+                    fontWeight: isSelected ? 700 : 500,
+                  }}
+                >
+                  {isSelected ? '✓ ' : ''}{name}
+                </button>
+              );
+            })}
+          </div>
+
+          {allowCustomService && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={addCustomService}
+                disabled={!customService.trim()}
+                style={{
+                  width: 44, height: 44, flexShrink: 0,
+                  borderRadius: 12, border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface)', color: 'var(--color-primary)',
+                  fontSize: 20, fontFamily: 'inherit',
+                  cursor: customService.trim() ? 'pointer' : 'default',
+                  opacity: customService.trim() ? 1 : 0.5,
+                }}
+                aria-label="افزودن خدمت"
+              >
+                +
+              </button>
+              <input
+                type="text"
+                value={customService}
+                onChange={(e) => setCustomService(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomService();
+                  }
+                }}
+                maxLength={100}
+                placeholder="خدمت دیگری می‌خواهید؟ بنویسید"
+                style={{
+                  flex: 1, minWidth: 0, boxSizing: 'border-box', height: 44,
+                  padding: '0 14px', borderRadius: 12, border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface)', color: 'var(--color-text)',
+                  fontSize: 14, fontFamily: 'inherit', textAlign: 'right',
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Service Description (optional) ── */}
       {selectedSlot && (

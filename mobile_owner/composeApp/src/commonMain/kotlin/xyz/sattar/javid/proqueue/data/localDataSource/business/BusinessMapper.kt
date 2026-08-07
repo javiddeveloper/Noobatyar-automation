@@ -34,7 +34,9 @@ fun BusinessEntity.toDomain() = Business(
     bio = bio,
     noticeEnabled = noticeEnabled,
     noticeMessage = noticeMessage,
-    reminderDelivery = reminderDelivery
+    reminderDelivery = reminderDelivery,
+    services = services.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+    allowClientAddService = allowClientAddService
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -65,7 +67,9 @@ fun Business.toEntity() = BusinessEntity(
     bio = bio,
     noticeEnabled = noticeEnabled,
     noticeMessage = noticeMessage,
-    reminderDelivery = reminderDelivery
+    reminderDelivery = reminderDelivery,
+    services = services.joinToString(","),
+    allowClientAddService = allowClientAddService
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -92,7 +96,9 @@ fun Business.toRequestDto() = CreateBusinessRequestDto(
     bio = bio,
     noticeEnabled = noticeEnabled,
     noticeMessage = noticeMessage,
-    reminderDelivery = reminderDelivery
+    reminderDelivery = reminderDelivery,
+    services = services,
+    allowClientAddService = allowClientAddService
 )
 
 fun BusinessDto.toEntity(): BusinessEntity {
@@ -126,6 +132,8 @@ fun BusinessDto.toEntity(): BusinessEntity {
         bio = bio ?: "",
         noticeEnabled = noticeEnabled,
         noticeMessage = noticeMessage ?: "",
-        reminderDelivery = reminderDelivery ?: ReminderDelivery.MANUAL.value
+        reminderDelivery = reminderDelivery ?: ReminderDelivery.MANUAL.value,
+        services = services.joinToString(","),
+        allowClientAddService = allowClientAddService
     )
 }

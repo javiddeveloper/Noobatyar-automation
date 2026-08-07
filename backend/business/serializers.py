@@ -10,6 +10,53 @@ from .models import Business, ServiceCatalogItem
 # quota / subscription can no longer pay for a new appointment.
 BOOKING_BLOCKED_NOTICE = "پذیرش نوبت جدید برای این کسب‌وکار موقتاً غیرفعال است."
 
+# Caps on Business.services. The menu is a picker on a phone screen, not a
+# catalogue: past a few dozen chips it stops being usable for the client it
+# exists to help, and the field is stored as JSON on the business row.
+MAX_SERVICE_NAME_LENGTH = 100
+MAX_SERVICES_PER_BUSINESS = 60
+
+
+def normalize_service_names(value):
+    """Clean a list of service names into the canonical form we store.
+
+    Trims, drops blanks, and de-duplicates while preserving the owner's
+    ordering — the same normalisation has to run on the owner's menu and on the
+    ``selected_services`` a client sends back, or a name would fail to match
+    itself over a stray space.
+
+    Raises ``ValidationError`` (Persian, client-facing) on anything unusable.
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        # Multipart/form posts send a comma-separated string; JSON sends a list.
+        value = [part for part in value.split(',')]
+    if not isinstance(value, list):
+        raise serializers.ValidationError("لیست خدمات باید یک آرایه باشد")
+
+    cleaned = []
+    for item in value:
+        if not isinstance(item, str):
+            raise serializers.ValidationError("نام خدمت باید متن باشد")
+        # Commas are the separator in Appointment.selected_services, so a name
+        # containing one would come back as two services. Folded to a space
+        # rather than rejected — the owner typed a fine name, just not one this
+        # storage format can round-trip.
+        name = item.replace(',', ' ').strip()
+        if not name:
+            continue
+        if len(name) > MAX_SERVICE_NAME_LENGTH:
+            raise serializers.ValidationError(
+                "نام خدمت نباید بیشتر از ۱۰۰ کاراکتر باشد"
+            )
+        if name not in cleaned:
+            cleaned.append(name)
+
+    if len(cleaned) > MAX_SERVICES_PER_BUSINESS:
+        raise serializers.ValidationError("حداکثر ۶۰ خدمت می‌توانید ثبت کنید")
+    return cleaned
+
 
 def apply_notice_rules(data, instance):
     """Normalise the client-facing notice + booking flags on an outgoing payload.
@@ -67,6 +114,9 @@ class BusinessSerializer(serializers.ModelSerializer):
             # SMS preferences
             'enable_reminder_sms', 'enable_promotional_sms', 'notify_owner_by_sms',
             'reminder_delivery',
+            # Service menu shown to the owner when booking and to clients on the
+            # public booking page
+            'services', 'allow_client_add_service',
             # Misc
             'allow_anonymous_view', 'bio', 'created_at', 'updated_at',
             # Booking control + emergency notice
@@ -110,6 +160,9 @@ class BusinessSerializer(serializers.ModelSerializer):
             )
         return normalized
 
+    def validate_services(self, value):
+        return normalize_service_names(value)
+
     def validate_work_start_hour(self, value):
         if not 0 <= value <= 23:
             raise serializers.ValidationError("Must be between 0-23")
@@ -127,7 +180,7 @@ class BusinessSerializer(serializers.ModelSerializer):
         # Since the mobile app doesn't send some boolean fields during creation,
         # we remove them from validated data if they weren't explicitly provided,
         # so the model defaults (e.g. True) take effect.
-        for field in ['booking_enabled', 'enable_reminder_sms', 'enable_promotional_sms', 'allow_anonymous_view', 'notification_enabled', 'notify_owner_by_sms', 'notice_enabled']:
+        for field in ['booking_enabled', 'enable_reminder_sms', 'enable_promotional_sms', 'allow_anonymous_view', 'notification_enabled', 'notify_owner_by_sms', 'notice_enabled', 'allow_client_add_service']:
             if field not in data and field in ret:
                 ret.pop(field)
                 
@@ -246,6 +299,11 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
             'notice_enabled',
             'notice_message',
             'allow_anonymous_view',
+            # The owner's service menu, so the booking page can ask "what do you
+            # want done?" as chips instead of a free-text box. Safe to expose:
+            # these are the same service names the business advertises.
+            'services',
+            'allow_client_add_service',
         ]
         # All fields are read-only for this serializer
         read_only_fields = fields
@@ -293,6 +351,7 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
             'deposit_mode', 'deposit_amount',
             'card_number', 'card_owner_name', 'payment_link',
             'online_gateway_enabled',
+            'services', 'allow_client_add_service',
         ]
 
     def get_online_gateway_enabled(self, obj) -> bool:

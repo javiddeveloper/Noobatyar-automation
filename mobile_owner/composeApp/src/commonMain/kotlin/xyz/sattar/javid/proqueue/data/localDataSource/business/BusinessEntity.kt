@@ -34,5 +34,8 @@ data class BusinessEntity(
     val bio: String = "",
     val noticeEnabled: Boolean = false,
     val noticeMessage: String = "",
-    val reminderDelivery: String = "MANUAL"
+    val reminderDelivery: String = "MANUAL",
+    /** Comma-separated, same encoding as [acceptedPaymentMethods]. */
+    val services: String = "",
+    val allowClientAddService: Boolean = false
 )

@@ -1,7 +1,9 @@
 from adrf.views import APIView
 from asgiref.sync import sync_to_async
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from api.responses import APIResponse
+from business.serializers import normalize_service_names
 from visitor.auth import VisitorTokenAuthentication, IsVisitorAuthenticated
 from visitor.activity import record_activity
 from visitor.models import VisitorActivity
@@ -93,11 +95,38 @@ class ClientAppointmentListView(APIView):
         # stale CARD/deposit config must not push clients into a payment step.
         requires_payment = await sync_to_async(_requires_payment)(business)
 
+        # What the client says they're coming for. Anything off-menu is rejected
+        # unless the owner opted into it — otherwise the switch in the business
+        # settings would be decoration, since the client controls the payload.
+        try:
+            selected_services = normalize_service_names(
+                serializer.validated_data.get('selected_services')
+            )
+        except DRFValidationError as exc:
+            return APIResponse.error(message=str(exc.detail[0]), code=400)
+
+        if not business.allow_client_add_service:
+            menu = set(normalize_service_names(business.services))
+            unknown = [name for name in selected_services if name not in menu]
+            if unknown:
+                return APIResponse.error(
+                    message="خدمت انتخاب‌شده در لیست خدمات این کسب‌وکار نیست",
+                    code=400,
+                )
+
+        # Appointment.selected_services is a CharField(500); on Postgres an
+        # over-long value is an error, not a truncation. Trimmed *after* the
+        # menu check so dropping the overflow can never hide an off-menu name
+        # that should have been rejected.
+        while selected_services and len(','.join(selected_services)) > 500:
+            selected_services.pop()
+
         # Create the row inside a transaction that first re-checks the slot, so
         # two clients racing for the same time cannot both win.
         appointment, conflict = await sync_to_async(self._create_if_free)(
             business, visitor, app_date, duration,
             serializer.validated_data.get('description', ''), requires_payment,
+            ','.join(selected_services),
         )
         if conflict:
             return APIResponse.error(
@@ -141,7 +170,8 @@ class ClientAppointmentListView(APIView):
         )
 
     @staticmethod
-    def _create_if_free(business, visitor, app_date, duration, description, requires_payment):
+    def _create_if_free(business, visitor, app_date, duration, description,
+                        requires_payment, selected_services=''):
         """
         Re-check the slot and create the appointment atomically.
 
@@ -170,6 +200,7 @@ class ClientAppointmentListView(APIView):
                 appointment_date=app_date,
                 service_duration=duration,
                 description=description,
+                selected_services=selected_services,
                 status='LOCKED' if requires_payment else 'PENDING_APPROVAL',
                 # Hold the slot only while the client is paying; an abandoned
                 # lock expires on its own and frees the slot (see occupancy.py).

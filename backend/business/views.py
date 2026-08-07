@@ -6,8 +6,14 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 import logging
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from .models import Business, ServiceCatalogItem
-from .serializers import BusinessSerializer, ServiceCatalogItemSerializer
+from .serializers import (
+    BusinessSerializer,
+    ServiceCatalogItemSerializer,
+    normalize_service_names,
+)
 from api.responses import APIResponse
 from accounting import entitlements
 from accounting.permissions import validate_business_settings
@@ -209,15 +215,20 @@ class ServiceCatalogView(APIView):
 
     async def post(self, request):
         category = (request.data.get('category') or '').strip()
-        name = (request.data.get('name') or '').strip()
+        # Same normalisation the business menu uses, so a chip added here can be
+        # stored in a business's `services` list and in an appointment's
+        # comma-separated `selected_services` without changing shape.
+        try:
+            names = normalize_service_names([request.data.get('name') or ''])
+        except DRFValidationError as exc:
+            return APIResponse.error(message=str(exc.detail[0]), code=400)
+        name = names[0] if names else ''
 
         valid_categories = {choice[0] for choice in Business.CATEGORY_CHOICES}
         if category not in valid_categories:
             return APIResponse.error(message="دسته‌بندی معتبر نیست", code=400)
         if not name:
             return APIResponse.error(message="نام خدمت الزامی است", code=400)
-        if len(name) > 100:
-            return APIResponse.error(message="نام خدمت نباید بیشتر از ۱۰۰ کاراکتر باشد", code=400)
 
         item, created = await sync_to_async(ServiceCatalogItem.objects.get_or_create)(
             category=category, name=name
