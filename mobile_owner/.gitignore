@@ -6,3 +6,12 @@ local.properties
 *.jks
 *.keystore
 
+# Kotlin's own build state — session locks, compiler error dumps, and the
+# transformed-metadata klib cache. Regenerated on every build and machine
+# specific; not covered by build/ because it sits at the project root.
+.kotlin/
+
+# Signed release output. `assembleRelease` writes the APK and its baseline
+# profiles here, NOT under build/, so this escaped every ignore rule and left a
+# multi-megabyte binary sitting in git status after each release build.
+composeApp/release/
