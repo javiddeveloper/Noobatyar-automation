@@ -98,13 +98,15 @@ async function ico(dest) {
   // without eating the artwork.
   await png('noobatyar-icon-square.svg', 512, out('front_client/public/icons/icon-maskable-512.png'));
 
-  // ── 2. Android (both apps) ───────────────────────────────────────────────
+  // ── 2. Android ───────────────────────────────────────────────────────────
   // Legacy launcher icons are pre-masked and sized in dp*density; adaptive
   // layers are a 108dp canvas, hence the second, larger ladder.
   const legacy = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
   const adaptive = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
 
-  for (const app of ['mobile_owner', 'mobile_client']) {
+  // Kept as a loop rather than inlined for mobile_owner: this used to also
+  // cover a mobile_client app, and a second KMP app would slot straight back in.
+  for (const app of ['mobile_owner']) {
     const res = out(app, 'composeApp/src/androidMain/res');
     for (const [density, size] of Object.entries(legacy)) {
       await webp('noobatyar-icon.svg', size, path.join(res, `mipmap-${density}/ic_launcher.webp`));
@@ -134,10 +136,10 @@ async function ico(dest) {
       out(app, 'composeApp/src/androidMain/res/drawable/main_icon.png'));
   }
 
-  // ── 3. iOS (both apps) ───────────────────────────────────────────────────
+  // ── 3. iOS ───────────────────────────────────────────────────────────────
   // The asset catalogue declares one universal 512x512 entry; the file keeps
   // that name and size so Contents.json stays valid. Opaque, per Apple's rule.
-  for (const app of ['mobile_owner', 'mobile_client']) {
+  for (const app of ['mobile_owner']) {
     await opaquePng('noobatyar-icon-square.svg', 512,
       out(app, 'iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/icon-ios-512.png'));
   }
