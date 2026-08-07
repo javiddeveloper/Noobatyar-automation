@@ -245,7 +245,10 @@ fun HomeScreenContent(
                         else -> DashboardStatsSection(
                             stats = uiState.stats,
                             peopleInQueue = uiState.queue.size,
-                            onStatClick = { status -> onNavigateToVisitors(VisitorsNavArgs(status = status)) },
+                            // tab = 0 (مراجعین/history) explicitly — LastVisitorsState
+                            // defaults selectedTab to 1 (صف/queue), where a status
+                            // filter like "cancelled" has nothing to show.
+                            onStatClick = { status -> onNavigateToVisitors(VisitorsNavArgs(status = status, tab = 0)) },
                             onQueueClick = { onNavigateToVisitors(VisitorsNavArgs(tab = 1)) }
                         )
                     }
