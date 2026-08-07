@@ -10,7 +10,7 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
-## v1.2.0 — 2026-08-07
+## v1.1.1 — 2026-08-07
 
 <!-- fa:start -->
 تغییرات این نسخه:
@@ -49,7 +49,7 @@
 ### CI/CD
 - Release workflow now creates an actual GitHub Release (previously it only built and sent to Telegram) and includes a Persian summary — sourced from this file's `fa:start`/`fa:end` block — in both the Release body and the Telegram APK caption. A tag with no matching block now fails the build loudly instead of shipping a placeholder release.
 
-Full commit range: [`v1.1.0...v1.2.0`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.1.0...v1.2.0)
+Full commit range: [`v1.1.0...v1.1.1`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.1.0...v1.1.1)
 
 ## v1.1.0 — 2026-08-06
 
