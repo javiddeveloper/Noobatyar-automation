@@ -10,6 +10,47 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
+## v1.2.0 — 2026-08-07
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- داشبورد خانه بازطراحی شد: ساعت فعلی حذف شد، تعداد نوبت‌های امروز کنار تاریخ نمایش داده می‌شه، مستطیل‌های آمار به ۴ تا رسیدن، و یک ردیف جدید «افراد در صف» اضافه شد.
+- همه‌ی کارت‌های آمار خانه حالا قابل کلیکن و با فیلتر درست شما رو به تب «مراجعین» می‌برن.
+- محدودیت جدید برای «خدمات دریافت‌شده»: به‌جای متن آزاد، از یک لیست آماده (قابل افزودن) بر اساس دسته‌بندی کسب‌وکار انتخاب می‌کنید؛ خدمت جدید برای بقیه‌ی کسب‌وکارهای همون دسته هم قابل استفاده می‌شه.
+- حداکثر مدت زمان سرویس از ۳ ساعت به ۸ ساعت افزایش پیدا کرد.
+- پیام اضطراری از صفحه‌ی ساخت/ویرایش کسب‌وکار حذف شد (در تنظیمات همچنان در دسترسه).
+- گزارش پیامک‌ها حالا فیلتر جست‌وجو بر اساس مشتری و بازه‌ی تاریخ داره.
+- وقتی اعتبار پیامک این ماه تموم بشه، پیامک‌های ارسال‌نشده حالا در گزارش پیامک ثبت می‌شن و یک هشدار توی خانه نشون داده می‌شه.
+- باگ لینک اینستاگرام «درباره‌ی ما» برطرف شد (آدرس اشتباه بود).
+- باگ swipe نکردن بنرهای پلن که در نسخه‌ی قبل تازه اضافه شده بود، برطرف شد.
+- دکمه‌ی «بروزرسانی» در پیام نسخه‌ی جدید حالا به سایت نوبت‌یار می‌ره.
+- انتشار هر نسخه‌ی جدید حالا در GitHub Release و کپشن تلگرام هم به‌صورت خودکار توضیح داده می‌شه.
+<!-- fa:end -->
+
+### mobile_owner
+- Home dashboard rework: removed the live clock, moved today's appointment count inline next to the date header, dropped the redundant "نوبت‌های امروز" card (4 stat cards remain), and added a full-width "افراد در صف" row sourced from data the ViewModel already fetched.
+- All four stat cards plus the queue row now navigate to the existing "آخرین نوبت‌ها" tab with the right filter applied — previously this pushed a second, separately-stacked screen that lost the bottom nav bar; fixed to reuse the same tab-switch call the bottom bar itself uses (`PendingVisitorsFilter`, a one-shot holder consumed on tab entry instead of route arguments). A related bug where the status filter applied correctly but landed on the wrong sub-tab ("صف" instead of "مراجعین") was also fixed.
+- Visitors tab now defaults to a 7-day window instead of showing everything; the Home 7-day trend chart navigates in with its own explicit past-date range since it summarizes the *past* week while the tab otherwise looks forward.
+- Fixed two bugs rooted in Home's payment/business-switch handling: the payment-result dialog could replay itself after switching business (a stale deep-link intent being reprocessed on nav-graph rebuild), and today's stats could show a stale business's numbers if a slow-finishing load for the previously-selected business completed after the new one's.
+- New service catalog: "خدمات دریافت‌شده" on the appointment-intake screen is now a chip picker (with an "add new" option) scoped to the business's category and shared across every business in that category, instead of unrestricted free text — the existing description field stays alongside it, unchanged.
+- Service duration cap raised from 180 to 480 minutes (8 hours).
+- Removed the inline emergency-notice section from the create/edit-business screen (the dedicated Settings screen is unaffected).
+- SMS report: added search (customer name/phone) and date-range (today/this week/this month) filters. Messages skipped because the month's SMS quota ran out are now actually logged (a new `SKIPPED_QUOTA` status) instead of silently dropped, rendered with their own amber status and filter chip instead of misleadingly appearing as "sent".
+- Home now shows a one-time warning toast per business when any messages were skipped this month for quota reasons, driven by a real server-side count, not a guess from the remaining-balance number.
+- Fixed the Instagram link in "درباره‌ی ما" (`ajviddev` → `javiddev` — wrong since the very first commit).
+- Fixed the plan banner regression from v1.1.0: wrapping `HorizontalPager` in a `SubcomposeLayout` for height-equalization silently broke swipe entirely. Replaced with an `onSizeChanged`-based max-height tracker that doesn't intercept touch input. Also fixed card height consistency and sort order (trial first, then ascending by duration) directly in the same pass.
+- The out-of-date-version update button now opens noobatyar.ir instead of a Cafe Bazaar developer listing page.
+
+### backend
+- New `ServiceCatalogItem` model (category-scoped, not business-scoped — the mechanism for cross-business sharing) plus `Appointment.selected_services`, both backing the new service catalog feature.
+- SMS report search/date filters on `GET business/<id>/sms-logs/`.
+- `visitor.SmsLog` gains a `SKIPPED_QUOTA` status, written by all four `consume_sms()` call sites when quota is exhausted; `accounting.usage.sms_balance()` exposes a real `skipped_this_month` count via `GET accounting/my-entitlements/`.
+
+### CI/CD
+- Release workflow now creates an actual GitHub Release (previously it only built and sent to Telegram) and includes a Persian summary — sourced from this file's `fa:start`/`fa:end` block — in both the Release body and the Telegram APK caption. A tag with no matching block now fails the build loudly instead of shipping a placeholder release.
+
+Full commit range: [`v1.1.0...v1.2.0`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.1.0...v1.2.0)
+
 ## v1.1.0 — 2026-08-06
 
 <!-- fa:start -->
