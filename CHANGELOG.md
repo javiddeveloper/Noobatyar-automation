@@ -10,6 +10,16 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
+## v1.2.0 — 2026-08-07
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- بهبودهای جزئی پشت‌صحنه (بدون تغییر در تجربه‌ی کاربری).
+<!-- fa:end -->
+
+### mobile_owner
+- Untracked Kotlin/Gradle build artifacts from git (`.gitignore` update); no user-facing change.
+
 ## v1.1.1 — 2026-08-07
 
 <!-- fa:start -->
