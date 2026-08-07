@@ -293,10 +293,28 @@ def refund_sms(receipt):
 
 
 def sms_balance(owner_or_id):
-    """Convenience for dashboards: {'monthly_remaining', 'wallet', 'quota'}."""
+    """Convenience for dashboards: {'monthly_remaining', 'wallet', 'quota', 'skipped_this_month'}.
+
+    ``skipped_this_month`` counts SmsLog rows actually written with
+    status='SKIPPED_QUOTA' this calendar month — a real record of messages
+    that never went out because quota was exhausted, not a guess derived
+    from the remaining-balance number (which can be stale by the time the
+    client reads it).
+    """
+    from visitor.models import SmsLog
+
     quota = entitlements.get_quota(owner_or_id, entitlements.QUOTA_MONTHLY_SMS)
+    owner_id = _uid(owner_or_id)
+    now = datetime.now(dt_timezone.utc)
+    skipped_this_month = SmsLog.objects.filter(
+        business__user_id=owner_id,
+        status='SKIPPED_QUOTA',
+        sent_at__year=now.year,
+        sent_at__month=now.month,
+    ).count()
     return {
         "quota": quota,
         "monthly_remaining": remaining(owner_or_id, METRIC_SMS, quota),
         "wallet": get_wallet(owner_or_id),
+        "skipped_this_month": skipped_this_month,
     }

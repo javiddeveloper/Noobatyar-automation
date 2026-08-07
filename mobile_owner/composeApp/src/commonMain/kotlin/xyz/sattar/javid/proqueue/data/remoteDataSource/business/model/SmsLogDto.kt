@@ -51,4 +51,6 @@ data class SmsLogSummaryDto(
 object SmsLogStatus {
     const val SENT = "SENT"
     const val FAILED = "FAILED"
+    /** Never attempted — the owner's SMS quota was already exhausted. */
+    const val SKIPPED_QUOTA = "SKIPPED_QUOTA"
 }

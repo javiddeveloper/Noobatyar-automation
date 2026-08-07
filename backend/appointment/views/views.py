@@ -802,6 +802,13 @@ def _send_client_sms(phone, message, business_id, visitor_id):
         receipt = usage.consume_sms(owner_id) if owner_id is not None else None
         if owner_id is not None and not receipt:
             logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+            SmsLog.objects.create(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                message_text=message,
+                status='SKIPPED_QUOTA',
+                error_detail="اعتبار پیامک این ماه تمام شده است",
+            )
             return
         ok, err = send_sms(phone, message)
         if not ok:

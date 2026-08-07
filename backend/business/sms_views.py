@@ -87,7 +87,7 @@ class SmsLogListView(APIView):
         # Owner notifications are logged with visitor=None, so select_related is
         # what keeps this from firing one query per row for the rest.
         status_filter = (request.query_params.get('status') or '').upper()
-        if status_filter in ('SENT', 'FAILED'):
+        if status_filter in ('SENT', 'FAILED', 'SKIPPED_QUOTA'):
             queryset = queryset.filter(status=status_filter)
 
         # Customer filter: match either identifying field SmsLog actually has

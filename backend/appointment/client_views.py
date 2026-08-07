@@ -636,6 +636,13 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
             receipt = usage.consume_sms(owner_id) if owner_id is not None else None
             if owner_id is not None and not receipt:
                 logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+                SmsLog.objects.create(
+                    business_id=business_id,
+                    visitor_id=visitor_id,
+                    message_text=client_msg,
+                    status='SKIPPED_QUOTA',
+                    error_detail="اعتبار پیامک این ماه تمام شده است",
+                )
             else:
                 client_ok, client_err = send_sms(client_phone, client_msg)
                 if not client_ok:
@@ -671,6 +678,13 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
             receipt = usage.consume_sms(owner_id) if owner_id is not None else None
             if owner_id is not None and not receipt:
                 logger.warning(f"SMS→owner skipped for business {business_id}: SMS quota exhausted")
+                SmsLog.objects.create(
+                    business_id=business_id,
+                    visitor_id=None,
+                    message_text=owner_msg,
+                    status='SKIPPED_QUOTA',
+                    error_detail="اعتبار پیامک این ماه تمام شده است",
+                )
             else:
                 owner_ok, owner_err = send_sms(owner_phone, owner_msg)
                 if not owner_ok:

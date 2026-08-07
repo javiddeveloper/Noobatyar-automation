@@ -57,7 +57,13 @@ data class AppointmentUsageDto(
 data class SmsUsageDto(
     val quota: Int = 0,
     @SerialName("monthly_remaining") val monthlyRemaining: Int = 0,
-    val wallet: Int = 0
+    val wallet: Int = 0,
+    /**
+     * Messages actually logged this month with status SKIPPED_QUOTA — a real
+     * count of sends that never happened because quota ran out, not a guess
+     * derived from [monthlyRemaining] hitting zero.
+     */
+    @SerialName("skipped_this_month") val skippedThisMonth: Int = 0
 )
 
 /** Canonical entitlement keys — keep in sync with backend accounting/entitlements.py. */

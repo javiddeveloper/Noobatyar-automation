@@ -139,17 +139,24 @@ class Command(BaseCommand):
             return 'skipped'
 
         owner_id = appointment.business.user_id
+        message = signed(
+            f"⏰ یادآوری نوبت شما در {appointment.business.title}\n"
+            f"تاریخ: {format_datetime(appointment.appointment_date)}"
+        )
+
         receipt = usage.consume_sms(owner_id)
         if not receipt:
             self.stderr.write(
                 f"#{appointment.id}: اعتبار پیامک کسب‌وکار {appointment.business_id} تمام شده است"
             )
+            SmsLog.objects.create(
+                business_id=appointment.business_id,
+                visitor_id=appointment.visitor_id,
+                message_text=message,
+                status='SKIPPED_QUOTA',
+                error_detail="اعتبار پیامک این ماه تمام شده است",
+            )
             return 'skipped'
-
-        message = signed(
-            f"⏰ یادآوری نوبت شما در {appointment.business.title}\n"
-            f"تاریخ: {format_datetime(appointment.appointment_date)}"
-        )
 
         ok, err = send_sms(phone, message)
         if not ok:

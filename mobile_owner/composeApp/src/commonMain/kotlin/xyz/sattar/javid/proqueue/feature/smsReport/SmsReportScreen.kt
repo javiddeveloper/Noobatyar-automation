@@ -372,14 +372,28 @@ private fun StatusFilterRow(
             label = { Text(stringResource(Res.string.sms_report_filter_failed)) },
             shape = RoundedCornerShape(12.dp)
         )
+        FilterChip(
+            selected = selected == SmsLogStatus.SKIPPED_QUOTA,
+            onClick = { onSelect(SmsLogStatus.SKIPPED_QUOTA) },
+            label = { Text(stringResource(Res.string.sms_report_filter_skipped)) },
+            shape = RoundedCornerShape(12.dp)
+        )
     }
 }
 
 @Composable
 private fun SmsLogRow(log: SmsLogDto) {
     val failed = log.status == SmsLogStatus.FAILED
-    val statusColor =
-        if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val skipped = log.status == SmsLogStatus.SKIPPED_QUOTA
+    // Not MaterialTheme.colorScheme.tertiary: this app's theme only overrides
+    // `primary`, so tertiary falls back to Material3's baseline (a muddy
+    // brownish-pink) — a hardcoded amber matches the warning color used
+    // elsewhere (e.g. front_client's --color-warning).
+    val statusColor = when {
+        failed -> MaterialTheme.colorScheme.error
+        skipped -> Color(0xFFF59E0B)
+        else -> MaterialTheme.colorScheme.primary
+    }
     // A null visitor means the message went to the owner (new-booking notice).
     val recipient = log.visitor?.let { visitor ->
         visitor.fullName.ifBlank { visitor.phoneNumber }
@@ -418,8 +432,11 @@ private fun SmsLogRow(log: SmsLogDto) {
                 ) {
                     Text(
                         text = stringResource(
-                            if (failed) Res.string.sms_report_status_failed
-                            else Res.string.sms_report_status_sent
+                            when {
+                                failed -> Res.string.sms_report_status_failed
+                                skipped -> Res.string.sms_report_status_skipped
+                                else -> Res.string.sms_report_status_sent
+                            }
                         ),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
@@ -436,12 +453,12 @@ private fun SmsLogRow(log: SmsLogDto) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            if (failed && !log.errorDetail.isNullOrBlank()) {
+            if ((failed || skipped) && !log.errorDetail.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = log.errorDetail,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = statusColor
                 )
             }
 

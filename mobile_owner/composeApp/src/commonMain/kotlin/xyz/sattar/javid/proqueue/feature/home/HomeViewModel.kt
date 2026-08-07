@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import org.jetbrains.compose.resources.getString
+import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.home_sms_quota_exhausted_warning
 
 
 class HomeViewModel(
@@ -45,6 +48,9 @@ class HomeViewModel(
 ) : BaseViewModel<HomeState, HomeState.PartialState, HomeEvent, HomeIntent>(
     initialState = HomeState()
 ) {
+    /** Business id the SMS-quota-exhausted warning was last shown for this session. */
+    private var smsQuotaWarningShownFor: Long? = null
+
     init {
         viewModelScope.launch {
             BusinessStateHolder.selectedBusiness.collectLatest {
@@ -139,7 +145,28 @@ class HomeViewModel(
         // Entitlements
         try {
             when (val entResponse = getMyEntitlementsUseCase()) {
-                is ApiResponse.Success -> emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
+                is ApiResponse.Success -> {
+                    emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
+                    val skipped = entResponse.data.usage.sms.skippedThisMonth
+                    // Real count of messages the server actually skipped this month
+                    // (SmsLog rows written with status SKIPPED_QUOTA) — not a guess
+                    // from monthlyRemaining hitting zero. Shown once per business
+                    // per app session so it doesn't repeat on every pull-to-refresh.
+                    val business = BusinessStateHolder.selectedBusiness.value
+                    if (skipped > 0 && business != null && smsQuotaWarningShownFor != business.id) {
+                        smsQuotaWarningShownFor = business.id
+                        emit(
+                            HomeState.PartialState.ShowMessage(
+                                UiMessage.warning(
+                                    getString(
+                                        Res.string.home_sms_quota_exhausted_warning,
+                                        skipped
+                                    )
+                                )
+                            )
+                        )
+                    }
+                }
                 is ApiResponse.Error -> emit(HomeState.PartialState.LoadEntitlements(null))
             }
         } catch (e: Exception) {

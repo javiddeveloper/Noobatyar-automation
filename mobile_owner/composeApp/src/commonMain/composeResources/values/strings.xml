@@ -300,6 +300,9 @@
     <string name="sms_report_filter_failed">ناموفق</string>
     <string name="sms_report_status_sent">ارسال شد</string>
     <string name="sms_report_status_failed">ارسال نشد</string>
+    <string name="sms_report_status_skipped">کسری اعتبار</string>
+    <string name="sms_report_filter_skipped">کسری اعتبار</string>
+    <string name="home_sms_quota_exhausted_warning">این ماه %1$d پیامک به‌دلیل اتمام اعتبار ارسال نشد. برای ادامه‌ی ارسال، بسته‌ی پیامک بخرید.</string>
     <string name="sms_report_owner_recipient">اونر</string>
     <string name="sms_report_summary_title">سهمیه‌ی پیامک این ماه</string>
     <string name="sms_report_summary_used">مصرف‌شده</string>
