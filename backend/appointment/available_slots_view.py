@@ -38,16 +38,26 @@ class AvailableSlotsView(APIView):
         except ValueError:
             return APIResponse.error(message="فرمت تاریخ نامعتبر است. از YYYY-MM-DD استفاده کنید", code=400)
 
+        try:
+            # Same gate as the public business detail endpoint: availability is
+            # discovery, so a business that is locked or not editorially
+            # approved reads as missing rather than as "exists but hidden".
+            #
+            # Resolved *before* the cache read on purpose. The cache is keyed on
+            # business+date and knows nothing about moderation, so serving a hit
+            # first would keep publishing a business's availability for the rest
+            # of the TTL after a moderator suspended it. One indexed PK lookup on
+            # a cache hit is a cheap price for the gate never going stale; the
+            # expensive part (the appointment scan) is still cached.
+            business = await Business.objects.aget(Business.public_filter(), id=business_id)
+        except Business.DoesNotExist:
+            return APIResponse.error(message="کسب‌وکار یافت نشد", code=404)
+
         # Serve from cache when available (high-traffic public endpoint).
         cache_key = available_slots_key(business_id, target_date)
         cached = await sync_to_async(cache.get)(cache_key)
         if cached is not None:
             return APIResponse.success(data=cached, message="ساعات خالی با موفقیت دریافت شد")
-
-        try:
-            business = await Business.objects.aget(id=business_id, is_locked=False)
-        except Business.DoesNotExist:
-            return APIResponse.error(message="کسب‌وکار یافت نشد", code=404)
 
         # Build all slots for the day based on work hours and default_service_duration
         duration = business.default_service_duration  # minutes

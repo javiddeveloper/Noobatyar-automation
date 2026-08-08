@@ -4,6 +4,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDt
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
 
 fun BusinessEntity.toDomain() = Business(
     id = id,
@@ -30,7 +31,11 @@ fun BusinessEntity.toDomain() = Business(
     paymentLink = paymentLink,
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
-    bio = bio
+    bio = bio,
+    moderationStatus = ModerationStatus.fromString(moderationStatus),
+    moderationStatusDisplay = moderationStatusDisplay,
+    moderationNote = moderationNote,
+    moderationSubmittedAt = moderationSubmittedAt
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -58,7 +63,11 @@ fun Business.toEntity() = BusinessEntity(
     paymentLink = paymentLink,
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
-    bio = bio
+    bio = bio,
+    moderationStatus = moderationStatus?.value,
+    moderationStatusDisplay = moderationStatusDisplay,
+    moderationNote = moderationNote,
+    moderationSubmittedAt = moderationSubmittedAt
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -113,6 +122,13 @@ fun BusinessDto.toEntity(): BusinessEntity {
         paymentLink = paymentLink ?: "",
         cardNumber = cardNumber ?: "",
         cardOwnerName = cardOwnerName ?: "",
-        bio = bio ?: ""
+        bio = bio ?: "",
+        moderationStatus = moderationStatus,
+        moderationStatusDisplay = moderationStatusDisplay ?: "",
+        moderationNote = moderationNote ?: "",
+        // 0 when absent or unparsable — treated as "unknown" by the UI.
+        moderationSubmittedAt = moderationSubmittedAt
+            ?.let { xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(it) }
+            ?: 0L
     )
 }

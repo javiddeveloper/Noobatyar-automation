@@ -60,6 +60,30 @@ export class UnauthorizedError extends Error {
   }
 }
 
+/**
+ * A failed API call that still carries its HTTP status. Callers need the status
+ * to tell "this resource is not served to the public" (404) apart from "the
+ * network or the server is having a bad day", which look identical once the
+ * response has been flattened to a message string.
+ */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/**
+ * True when the API answered 404. The public surface returns 404 for a business
+ * it does not serve, without saying why — so treat it as "not available", never
+ * as a bug to report.
+ */
+export function isNotFound(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404;
+}
+
 /** True when the outgoing request carried an Authorization header. */
 function hasAuthHeader(headers: HeadersInit | undefined): boolean {
   if (!headers) return false;
@@ -112,11 +136,24 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     throw new UnauthorizedError('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
   }
 
-  const json = await res.json();
-  if (!res.ok || json.status === 'error') {
-    throw new Error(json.message || 'خطا در ارتباط با سرور');
+  // An error response is not guaranteed to be JSON — a 404 from the proxy or a
+  // 500 from the WSGI layer arrives as HTML. Parsing that used to throw a raw
+  // SyntaxError, which then surfaced to the user as an English parser message.
+  let json: { status?: string; message?: string; data?: unknown } | null = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
   }
-  return json.data as T;
+
+  if (!res.ok || json?.status === 'error') {
+    // Prefer the server's own Persian message — for a refused booking that
+    // message is the whole point ("این کسب‌وکار در حال حاضر نوبت نمی‌پذیرد");
+    // replacing it with a generic string would leave the user with no idea
+    // what happened.
+    throw new ApiError(json?.message || 'خطا در ارتباط با سرور', res.status);
+  }
+  return json?.data as T;
 }
 
 // ── Auth: OTP Flow ──────────────────────────────────────────────────────────
@@ -171,7 +208,11 @@ export async function getBusinessByCode(code: string): Promise<Business> {
     count: number;
   }>(`/api/client/business/?search=${code}`);
   const biz = data.results?.find((b) => b.unique_code === code);
-  if (!biz) throw new Error('کسب‌وکار یافت نشد');
+  // The public listing only contains businesses the API is willing to serve, so
+  // "absent from the results" is the same condition as a 404 on the detail
+  // endpoint — report it as one, so callers get the not-available screen rather
+  // than a load-failure screen.
+  if (!biz) throw new ApiError('کسب‌وکار یافت نشد', 404);
   return biz;
 }
 

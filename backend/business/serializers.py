@@ -12,6 +12,17 @@ class BusinessSerializer(serializers.ModelSerializer):
     Includes ALL fields, including sensitive payment and SMS config.
     NEVER expose this to unauthenticated clients.
     """
+
+    # The owner has to be able to see *why* their business is invisible. Without
+    # this the moderation layer is silent from the app's side: a new business
+    # sits at PENDING and simply never appears anywhere, with nothing in the API
+    # to explain it. The Persian label ships alongside the raw code so the mobile
+    # app does not keep its own copy of MODERATION_STATUS_CHOICES and drift from
+    # it the next time a status is added.
+    moderation_status_display = serializers.CharField(
+        source='get_moderation_status_display', read_only=True,
+    )
+
     class Meta:
         model = Business
         fields = [
@@ -38,8 +49,20 @@ class BusinessSerializer(serializers.ModelSerializer):
             # validation, returned 200, and were then silently dropped by the
             # serializer instead of being saved.
             'max_appointments_per_hour', 'deposit_mode', 'deposit_amount',
+            # Editorial review state — owner-visible, never owner-writable.
+            # `moderation_note` carries the reviewer's reason verbatim; it is
+            # written for the owner to read, so it is exposed as-is.
+            'moderation_status', 'moderation_status_display',
+            'moderation_note', 'moderation_submitted_at',
         ]
-        read_only_fields = ['id', 'unique_code', 'created_at', 'updated_at', 'owner', 'is_locked']
+        read_only_fields = [
+            'id', 'unique_code', 'created_at', 'updated_at', 'owner', 'is_locked',
+            # Only business/moderation.py may move these. If they were writable
+            # an owner could PATCH themselves to APPROVED and walk straight past
+            # review — the whole point of the layer.
+            'moderation_status', 'moderation_status_display',
+            'moderation_note', 'moderation_submitted_at',
+        ]
 
     def validate_phone(self, value):
         """Normalise and check the business contact number.
@@ -142,6 +165,10 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
       - phone, merchant_id, card_owner_name, card_number (shown separately via logic)
       - notification_*, enable_*_sms, allow_anonymous_view
       - created_at, updated_at, unique_code (internal)
+      - moderation_* — editorial state is internal. A business only reaches a
+        public response at all once it is APPROVED (Business.public_filter()),
+        so the fields would be constant here, and `moderation_note` is a
+        reviewer's private wording addressed to the owner, not to the public.
     """
     class Meta:
         model = Business
@@ -203,7 +230,8 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
     pay at all. These are the same fields PublicBusinessSerializer already
     returns on the public booking page, so nothing new is exposed here.
 
-    Still excluded: merchant_id, notification_*, enable_*_sms, created_at/updated_at.
+    Still excluded: merchant_id, notification_*, enable_*_sms, created_at/updated_at,
+    and moderation_* (internal editorial state — see PublicBusinessSerializer).
     ``online_gateway_enabled`` is how the checkout screen learns a real Zibal
     gateway is available without the merchant id itself crossing the wire.
     """

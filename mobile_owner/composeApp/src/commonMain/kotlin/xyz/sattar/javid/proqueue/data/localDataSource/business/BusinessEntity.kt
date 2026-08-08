@@ -31,5 +31,9 @@ data class BusinessEntity(
     val paymentLink: String = "",
     val cardNumber: String = "",
     val cardOwnerName: String = "",
-    val bio: String = ""
+    val bio: String = "",
+    val moderationStatus: String? = null,
+    val moderationStatusDisplay: String = "",
+    val moderationNote: String = "",
+    val moderationSubmittedAt: Long = 0
 )

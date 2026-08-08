@@ -6,7 +6,10 @@ from api.exceptions import custom_404_handler
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Path comes from settings.ADMIN_URL (env: ADMIN_URL), already normalised to
+    # a single trailing slash there. nginx must be taught the new prefix too —
+    # see the note in core/settings.py.
+    path(settings.ADMIN_URL, admin.site.urls),
     path('api/', include('api.urls')),
     path('api/accounting/', include('accounting.urls')),
     path('api/version/', include('versions.urls')),

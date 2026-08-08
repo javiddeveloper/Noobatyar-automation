@@ -1,0 +1,126 @@
+/*
+ * admin_custom/css/admin.css — Persian typography + RTL readability for the
+ * Django admin. Loaded from templates/admin/base_site.html.
+ *
+ * Self-hosted font, no CDN: the production server sits in Iran, where Google
+ * Fonts and most public CDNs are unreachable. A CDN <link> here would not
+ * degrade gracefully — it would just leave staff staring at a fallback face
+ * with broken Persian shaping.
+ *
+ * Deliberately small. This is internal tooling; it should stay recognisably
+ * "the Django admin" so upstream template/CSS changes keep working.
+ */
+
+/* ── Vazirmatn (SIL OFL 1.1, see ../fonts/OFL.txt) ─────────────────────────── */
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('../fonts/Vazirmatn-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    /* swap, not block: the admin must stay usable if the font 404s after a
+       collectstatic that missed the assets/ dir. */
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('../fonts/Vazirmatn-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('../fonts/Vazirmatn-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ── Typography ────────────────────────────────────────────────────────────── */
+/* Django's base.css sets font-family on a long list of selectors, so a single
+   body rule is not enough — hence the explicit form-control selectors. */
+body,
+input, select, textarea, button,
+.module h2, .module caption, .inline-group h2,
+#header, .submit-row input, .button {
+    font-family: 'Vazirmatn', Tahoma, 'Segoe UI', sans-serif;
+}
+
+body {
+    /* Persian glyphs sit lower and need more room than Latin at the same size. */
+    font-size: 14px;
+    line-height: 1.9;
+}
+
+h1, h2, h3, .module h2, #header #site-name {
+    font-weight: 700;
+}
+
+/* ── Numbers ───────────────────────────────────────────────────────────────── */
+/* Phone numbers, unique codes, IDs and prices are Latin digits inside RTL
+   text. Without an explicit LTR isolate the bidi algorithm reorders leading
+   and trailing punctuation (a "09121234567" can render with its sign or
+   parentheses flipped), and proportional digits make price columns impossible
+   to scan. `tnum` gives fixed-width digits so figures line up vertically. */
+td, th,
+input, textarea,
+.vTextField, .readonly {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+}
+
+/* Fields that are pure numbers/identifiers: force LTR so digits never reorder. */
+.field-phone, .field-unique_code, .field-track_id, .field-order_id,
+.field-price, .field-amount, .field-id,
+input[type='number'], input[type='tel'], input[type='url'], input[type='email'],
+.vDateField, .vTimeField, .vIntegerField, .vBigIntegerField {
+    direction: ltr;
+    unicode-bidi: embed;
+    text-align: right;
+}
+
+/* ── Changelist readability ────────────────────────────────────────────────── */
+/* The list tables are where staff spend their time — moderation queues and
+   subscription lists get long, so rows need to be scannable at a glance. */
+#changelist table thead th {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+#changelist table tbody td,
+#changelist table tbody th {
+    padding: 9px 10px;
+    vertical-align: middle;
+}
+
+#changelist table tbody tr:hover > td,
+#changelist table tbody tr:hover > th {
+    background: var(--selected-row, #fffbe6);
+}
+
+/* Keep the header visible while scrolling a long queue. */
+#changelist table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* Long free-text columns (notes, resolution notes, business titles) otherwise
+   stretch a row to the full viewport width and squeeze every other column. */
+#changelist table tbody td {
+    max-width: 40ch;
+    overflow-wrap: anywhere;
+}
+
+/* ── Forms ─────────────────────────────────────────────────────────────────── */
+.help, .helptext, p.help {
+    /* Persian help text at Django's default size is genuinely hard to read. */
+    font-size: 12.5px;
+    line-height: 1.8;
+}
+
+.submit-row input, .button, a.button {
+    font-weight: 500;
+}

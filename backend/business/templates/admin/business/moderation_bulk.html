@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  Confirmation step for the bulk رد / تعلیق changelist actions.
+
+  It exists to collect the reason. A bulk decision reaches just as many owners
+  as individual ones, and each of them gets shown this text as the explanation
+  for why their listing is down — so "no note" is not an option here either.
+  The form posts straight back to the changelist with `action` and the original
+  `_selected_action` checkboxes, which is how Django's action machinery
+  re-enters the same action with `apply` set.
+--------------------------------------------------------------------------- #}
+
+{% block content %}
+<div id="content-main">
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    <p>می‌خواهید {{ queryset|length }} کسب‌وکار زیر را «{{ verb }}» کنید:</p>
+
+    <ul style="margin-block:12px 18px">
+      {% for business in queryset %}
+        <li>
+          <strong>{{ business.title }}</strong>
+          <span style="color:#888">({{ business.unique_code }} — {{ business.user.phone }})</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if note_error %}
+      <p class="errornote">{{ note_error }}</p>
+    {% endif %}
+
+    <div style="margin-block-end:16px">
+      <label for="id_moderation_note"><strong>دلیل (الزامی):</strong></label><br>
+      <p class="help" style="margin-block:4px">
+        این متن برای مالک هر کسب‌وکار نمایش داده می‌شود، پس باید مشخص کند چه چیزی باید اصلاح شود.
+      </p>
+      <textarea id="id_moderation_note" name="moderation_note" rows="4"
+                style="width:100%;max-width:640px" required></textarea>
+    </div>
+
+    {% for pk in selected %}
+      <input type="hidden" name="_selected_action" value="{{ pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+
+    <div class="submit-row">
+      <input type="submit" name="apply" value="تأیید و اعمال" class="default">
+      <a href="{% url 'admin:business_business_changelist' %}" class="button cancel-link">انصراف</a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

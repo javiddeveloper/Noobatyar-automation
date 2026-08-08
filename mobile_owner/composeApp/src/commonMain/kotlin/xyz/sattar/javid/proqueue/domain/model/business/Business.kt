@@ -27,5 +27,11 @@ data class Business(
     val cardNumber: String = "",
     val cardOwnerName: String = "",
     val bio: String = "",
+    // Moderation. Null status = the backend didn't report one (older server),
+    // in which case the UI stays silent about moderation altogether.
+    val moderationStatus: ModerationStatus? = null,
+    val moderationStatusDisplay: String = "",
+    val moderationNote: String = "",
+    val moderationSubmittedAt: Long = 0,
     val logoBytes: ByteArray? = null
 )

@@ -43,3 +43,9 @@ backend/db.sqlite3.bak-*
 backend/media/
 .DS_Store
 *.tar.gz
+
+# collectstatic output (STATIC_ROOT). Pure build artefact: entrypoint.sh runs
+# collectstatic on every container start, and nginx serves it from the
+# static_volume — nothing here should ever be committed. The *source* files we
+# author live in backend/assets/ (STATICFILES_DIRS) and are tracked.
+backend/static/

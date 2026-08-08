@@ -53,6 +53,8 @@ import xyz.sattar.javid.proqueue.core.state.AppThemeMode
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
+import xyz.sattar.javid.proqueue.core.ui.components.ModerationBadge
+import xyz.sattar.javid.proqueue.core.ui.components.ModerationBanner
 import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 
 @Composable
@@ -226,6 +228,17 @@ fun SettingsContent(
                 business = uiState.currentBusiness,
                 subscription = subscription
             )
+
+            // Moderation state of the active business. Only renders for
+            // pending/rejected/suspended — an approved business just keeps its
+            // badge in the hero above. Separate from the plan/subscription
+            // badge on purpose: "not reviewed yet" is not "plan lapsed".
+            uiState.currentBusiness?.let { business ->
+                ModerationBanner(
+                    business = business,
+                    onEditClick = { onIntent(SettingsIntent.OnEditBusinessClick(business.id)) }
+                )
+            }
 
             // Advanced settings — a separate, eye-catching card with a looping
             // shine animation to draw the owner in (upsell to premium features).
@@ -614,12 +627,19 @@ private fun ProfileHeaderCard(
                                 )
                             }
 
-                            Icon(
-                                imageVector = Icons.Rounded.Verified,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(20.dp)
-                            )
+                            // The decorative "verified" tick used to sit here
+                            // unconditionally, which now reads as a moderation
+                            // claim. Show the real state when we know it.
+                            if (business.moderationStatus != null) {
+                                ModerationBadge(business = business)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Rounded.Verified,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }

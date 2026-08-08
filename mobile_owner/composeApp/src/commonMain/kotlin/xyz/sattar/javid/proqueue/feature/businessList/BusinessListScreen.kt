@@ -297,6 +297,21 @@ fun BusinessItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                // Moderation state, so the owner can tell at a glance which of
+                // their businesses clients can actually see.
+                val moderationStatus = business.moderationStatus
+                if (moderationStatus != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    xyz.sattar.javid.proqueue.core.ui.components.ModerationBadge(business = business)
+                    if (!moderationStatus.isPubliclyVisible) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "برای مراجعین نمایش داده نمی‌شود",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Box {

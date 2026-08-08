@@ -34,5 +34,13 @@ data class BusinessDto(
     @SerialName("payment_link") val paymentLink: String? = null,
     @SerialName("card_number") val cardNumber: String? = null,
     @SerialName("card_owner_name") val cardOwnerName: String? = null,
-    @SerialName("bio") val bio: String? = null
+    @SerialName("bio") val bio: String? = null,
+    // Content moderation (read-only server side). All four are nullable with a
+    // null default so the app keeps working against a backend that predates the
+    // moderation layer — a missing moderation_status simply hides the badges
+    // instead of claiming a business is pending.
+    @SerialName("moderation_status") val moderationStatus: String? = null,
+    @SerialName("moderation_status_display") val moderationStatusDisplay: String? = null,
+    @SerialName("moderation_note") val moderationNote: String? = null,
+    @SerialName("moderation_submitted_at") val moderationSubmittedAt: String? = null
 )
