@@ -308,3 +308,76 @@ class ModerationSmsTests(TestCase):
 
         self.assertTrue(notified)
         self.assertIn('تأیید شد', send.call_args[0][1])
+
+
+class ContentReportAutoResolveTests(TestCase):
+    """A rejection/suspension auto-closes open reports against the business and
+    links them to the BusinessModerationLog that caused it (business/services.py
+    :func:`_auto_resolve_open_reports`)."""
+
+    def setUp(self):
+        from .models import ContentReport
+
+        self.ContentReport = ContentReport
+        self.user = User.objects.create_user(phone='09120000011', name='مالک')
+        self.staff = User.objects.create_user(
+            phone='09120000012', name='ناظر', is_staff=True,
+        )
+        self.business = make_business(self.user, title='سالن شب')
+
+    def _report(self, **overrides):
+        defaults = dict(business=self.business, reason='SPAM')
+        defaults.update(overrides)
+        return self.ContentReport.objects.create(**defaults)
+
+    def _decide(self, to_status, note='محتوای نامناسب'):
+        with patch('business.sms_moderation.send_sms', return_value=(True, '')), \
+                patch('business.sms_moderation.within_send_window', return_value=True):
+            return services.apply_moderation_decision(
+                self.business, to_status, self.staff, note=note,
+            )
+
+    def test_suspend_resolves_open_reports_and_links_the_log(self):
+        report = self._report(status=self.ContentReport.STATUS_NEW)
+
+        self._decide(Business.MODERATION_SUSPENDED)
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, self.ContentReport.STATUS_ACTIONED)
+        self.assertEqual(report.resolved_by, self.staff)
+        self.assertIsNotNone(report.resolved_at)
+        log = self.business.moderation_logs.latest('created_at')
+        self.assertEqual(report.resulting_moderation_log_id, log.pk)
+        self.assertEqual(log.to_status, Business.MODERATION_SUSPENDED)
+
+    def test_reject_resolves_reviewing_reports_too(self):
+        report = self._report(status=self.ContentReport.STATUS_REVIEWING)
+
+        self._decide(Business.MODERATION_REJECTED)
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, self.ContentReport.STATUS_ACTIONED)
+        self.assertIsNotNone(report.resulting_moderation_log_id)
+
+    def test_approval_does_not_touch_open_reports(self):
+        report = self._report(status=self.ContentReport.STATUS_NEW)
+
+        self._decide(Business.MODERATION_APPROVED)
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, self.ContentReport.STATUS_NEW)
+        self.assertIsNone(report.resulting_moderation_log_id)
+
+    def test_already_resolved_reports_are_left_alone(self):
+        other_staff = User.objects.create_user(phone='09120000013', name='ناظر۲')
+        report = self._report(
+            status=self.ContentReport.STATUS_DISMISSED,
+            resolved_by=other_staff,
+        )
+
+        self._decide(Business.MODERATION_SUSPENDED)
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, self.ContentReport.STATUS_DISMISSED)
+        self.assertEqual(report.resolved_by, other_staff)
+        self.assertIsNone(report.resulting_moderation_log_id)

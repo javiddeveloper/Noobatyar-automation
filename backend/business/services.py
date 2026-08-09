@@ -15,12 +15,17 @@ Two concerns, both "policy that has side effects", kept out of the views:
     ``business.moderation.apply_decision`` stays deliberately side-effect-free
     (status + audit log, atomic); the notification lives here so the admin UI,
     a future staff API, and management commands all get both halves from one
-    call instead of each remembering to send the SMS themselves.
+    call instead of each remembering to send the SMS themselves. A rejection or
+    suspension also auto-resolves any open content report against the business
+    (:func:`_auto_resolve_open_reports`), linking it to the resulting
+    BusinessModerationLog so "which report led to this decision" stays
+    answerable without correlating timestamps by hand.
 """
 
 import logging
 
 from django.db import transaction
+from django.utils import timezone
 
 from accounting import entitlements
 
@@ -91,14 +96,23 @@ def apply_moderation_decision(business, to_status, actor, note='', notify=True):
     changes the status without telling anyone, which for a rejection means the
     owner is left staring at a business that is offline for no stated reason.
 
+    A rejection or suspension also auto-resolves any content report still open
+    (NEW/REVIEWING) against ``business``: see :func:`_auto_resolve_open_reports`.
+    Approving does not — "it was fine" is not an action taken *on* a report, so
+    reports stay open for a reviewer to dismiss or action explicitly.
+
     The SMS is fired after the decision is committed and can never undo it: a
     provider outage must not roll a rejection back. Returns whether the notice
     was actually accepted by the provider, so a caller that cares (e.g. an admin
     message) can say "تأیید شد، اما پیامک ارسال نشد".
     """
+    from .models import Business
     from .moderation import apply_decision
 
-    apply_decision(business, to_status, actor, note=note)
+    with transaction.atomic():
+        log = apply_decision(business, to_status, actor, note=note)
+        if to_status in (Business.MODERATION_REJECTED, Business.MODERATION_SUSPENDED):
+            _auto_resolve_open_reports(business, log, actor)
 
     if not notify:
         return False
@@ -115,6 +129,31 @@ def apply_moderation_decision(business, to_status, actor, note='', notify=True):
             'Moderation notification failed for business %s (%s)', business.pk, to_status
         )
         return False
+
+
+def _auto_resolve_open_reports(business, log, actor):
+    """Close out open :class:`ContentReport` rows against ``business`` and link
+    them to the decision that resolved them.
+
+    Without this, a reviewer who suspends a business from the moderation queue
+    leaves any report that prompted the suspension sitting in the "NEW" queue
+    forever, and nothing records that this particular log row is *why* the
+    report was closed — "which report led to this suspension" becomes a manual
+    correlation across two unrelated tables. Scoped to NEW/REVIEWING only, so a
+    report someone already dismissed or actioned for an unrelated reason is
+    left exactly as that reviewer left it.
+    """
+    from .models import ContentReport
+
+    ContentReport.objects.filter(
+        business=business,
+        status__in=(ContentReport.STATUS_NEW, ContentReport.STATUS_REVIEWING),
+    ).update(
+        status=ContentReport.STATUS_ACTIONED,
+        resolved_by=actor,
+        resolved_at=timezone.now(),
+        resulting_moderation_log=log,
+    )
 
 
 def resubmit_if_content_changed(business, before_snapshot):

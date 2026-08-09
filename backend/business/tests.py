@@ -284,3 +284,94 @@ class ClientContentReportSubmissionTests(PublicGateTestCaseMixin, TestCase):
 
         blocked = self.report(business.id, auth=self.visitor_auth)
         self.assertEqual(blocked.status_code, 429)
+
+
+class ContentReportAdminResolutionActionTests(PublicGateTestCaseMixin, TestCase):
+    """ContentReportAdmin.mark_actioned / mark_dismissed require a reason.
+
+    business/admin.py:600 (_set_status) routes both through the same
+    confirmation-page pattern as BusinessAdmin's bulk reject/suspend
+    (moderation_bulk.html): resolving a report without recording why is a
+    triage decision nobody can explain later. mark_reviewing is exempt since
+    it's not a resolution.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from business.models import ContentReport
+
+        self.staff = User.objects.create_user(
+            phone='09120000099', password='x', name='ناظر', is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.staff)
+        self.business = self.make_business()
+        self.report = ContentReport.objects.create(
+            business=self.business, reason='SPAM', detail='توضیح تست',
+        )
+
+    def post_action(self, action_name, apply=False, note=None):
+        data = {
+            'action': action_name,
+            '_selected_action': [str(self.report.pk)],
+        }
+        if apply:
+            data['apply'] = '1'
+        if note is not None:
+            data['resolution_note'] = note
+        return self.client.post(
+            reverse('admin:business_contentreport_changelist'), data,
+        )
+
+    def test_mark_actioned_without_a_note_does_not_resolve(self):
+        response = self.post_action('mark_actioned')
+        self.assertEqual(response.status_code, 200)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, self.report.__class__.STATUS_NEW)
+        self.assertEqual(self.report.resolution_note, '')
+        self.assertIsNone(self.report.resolved_by_id)
+        self.assertIsNone(self.report.resolved_at)
+
+    def test_mark_actioned_with_empty_note_on_apply_is_refused(self):
+        response = self.post_action('mark_actioned', apply=True, note='   ')
+        self.assertEqual(response.status_code, 200)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, self.report.__class__.STATUS_NEW)
+
+    def test_mark_actioned_with_a_note_resolves_and_records_it(self):
+        from business.models import ContentReport
+
+        response = self.post_action('mark_actioned', apply=True, note='بررسی شد و حذف شد.')
+        self.assertEqual(response.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ContentReport.STATUS_ACTIONED)
+        self.assertEqual(self.report.resolution_note, 'بررسی شد و حذف شد.')
+        self.assertEqual(self.report.resolved_by_id, self.staff.id)
+        self.assertIsNotNone(self.report.resolved_at)
+
+    def test_mark_dismissed_without_a_note_does_not_resolve(self):
+        response = self.post_action('mark_dismissed')
+        self.assertEqual(response.status_code, 200)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, self.report.__class__.STATUS_NEW)
+
+    def test_mark_dismissed_with_a_note_resolves_and_records_it(self):
+        from business.models import ContentReport
+
+        response = self.post_action('mark_dismissed', apply=True, note='گزارش نامرتبط بود.')
+        self.assertEqual(response.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ContentReport.STATUS_DISMISSED)
+        self.assertEqual(self.report.resolution_note, 'گزارش نامرتبط بود.')
+        self.assertEqual(self.report.resolved_by_id, self.staff.id)
+        self.assertIsNotNone(self.report.resolved_at)
+
+    def test_mark_reviewing_does_not_require_a_note(self):
+        from business.models import ContentReport
+
+        response = self.post_action('mark_reviewing')
+        self.assertEqual(response.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ContentReport.STATUS_REVIEWING)
+        self.assertEqual(self.report.resolution_note, '')
+        self.assertIsNone(self.report.resolved_by_id)
+        self.assertIsNone(self.report.resolved_at)

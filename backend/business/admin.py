@@ -542,7 +542,7 @@ class ContentReportAdmin(admin.ModelAdmin):
 
     list_display = (
         'created_jalali', 'business_link', 'reason', 'status_badge',
-        'reporter_display', 'short_detail',
+        'reporter_display', 'short_detail', 'resulting_decision_link',
     )
     list_filter = ('status', 'reason')
     search_fields = (
@@ -551,13 +551,27 @@ class ContentReportAdmin(admin.ModelAdmin):
     )
     date_hierarchy = 'created_at'
     # Stamped by the actions below, never typed — same rule as the moderation
-    # fields on BusinessAdmin.
-    readonly_fields = ('resolved_by', 'resolved_at', 'created_at')
+    # fields on BusinessAdmin. resulting_moderation_log is stamped too, but only
+    # by apply_moderation_decision() (business/services.py) when a suspension or
+    # rejection auto-resolves this report — never by an admin action here.
+    readonly_fields = ('resolved_by', 'resolved_at', 'resulting_moderation_log', 'created_at')
     actions = ('mark_reviewing', 'mark_actioned', 'mark_dismissed')
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'business', 'reporter_user', 'reporter_visitor',
+            'business', 'reporter_user', 'reporter_visitor', 'resulting_moderation_log',
+        )
+
+    @admin.display(description='تصمیم مرتبط')
+    def resulting_decision_link(self, obj):
+        if not obj.resulting_moderation_log_id:
+            return '—'
+        url = reverse(
+            'admin:business_businessmoderationlog_change',
+            args=[obj.resulting_moderation_log_id],
+        )
+        return format_html(
+            '<a href="{}">{}</a>', url, obj.resulting_moderation_log.get_to_status_display(),
         )
 
     @admin.display(description='زمان', ordering='created_at')
@@ -598,25 +612,69 @@ class ContentReportAdmin(admin.ModelAdmin):
         return (obj.detail[:60] + '…') if len(obj.detail) > 60 else (obj.detail or '—')
 
     def _set_status(self, request, queryset, status, label, resolving):
+        """Shared body for the three changelist actions.
+
+        Resolving (actioned/dismissed) routes through a confirmation page that
+        asks for a reason — same rule as BusinessAdmin's reject/suspend bulk
+        actions: a decision that closes a report needs a recoverable "why" for
+        whoever reads it later. `mark_reviewing` is not a resolution, so it
+        skips this and updates in place.
+        """
         if not self.has_change_permission(request):
             raise PermissionDenied
-        fields = {'status': status}
-        if resolving:
-            fields['resolved_by'] = request.user
-            fields['resolved_at'] = timezone.now()
-        updated = queryset.update(**fields)
+
+        if not resolving:
+            updated = queryset.update(status=status)
+            self.message_user(request, f'{updated} گزارش «{label}» شد.', level=messages.SUCCESS)
+            return None
+
+        note = (request.POST.get('resolution_note') or '').strip()
+
+        if not request.POST.get('apply'):
+            context = {
+                **self.admin_site.each_context(request),
+                'title': f'{label} گزارش‌ها',
+                'opts': self.model._meta,
+                'queryset': queryset,
+                'verb': label,
+                'action_name': request.POST.get('action'),
+                'selected': request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME),
+                'note_error': '',
+            }
+            return TemplateResponse(request, 'admin/business/content_report_bulk.html', context)
+
+        if not note:
+            context = {
+                **self.admin_site.each_context(request),
+                'title': f'{label} گزارش‌ها',
+                'opts': self.model._meta,
+                'queryset': queryset,
+                'verb': label,
+                'action_name': request.POST.get('action'),
+                'selected': request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME),
+                'note_error': 'نوشتن دلیل الزامی است.',
+            }
+            return TemplateResponse(request, 'admin/business/content_report_bulk.html', context)
+
+        updated = queryset.update(
+            status=status,
+            resolution_note=note,
+            resolved_by=request.user,
+            resolved_at=timezone.now(),
+        )
         self.message_user(request, f'{updated} گزارش «{label}» شد.', level=messages.SUCCESS)
+        return None
 
     @admin.action(description='علامت‌گذاری به‌عنوان «در حال بررسی»')
     def mark_reviewing(self, request, queryset):
         # Not a resolution — resolved_by/resolved_at stay empty so the report
         # is still visibly open.
-        self._set_status(request, queryset, ContentReport.STATUS_REVIEWING, 'در حال بررسی', False)
+        return self._set_status(request, queryset, ContentReport.STATUS_REVIEWING, 'در حال بررسی', False)
 
     @admin.action(description='علامت‌گذاری به‌عنوان «اقدام شد»')
     def mark_actioned(self, request, queryset):
-        self._set_status(request, queryset, ContentReport.STATUS_ACTIONED, 'اقدام شد', True)
+        return self._set_status(request, queryset, ContentReport.STATUS_ACTIONED, 'اقدام شد', True)
 
     @admin.action(description='علامت‌گذاری به‌عنوان «رد شد»')
     def mark_dismissed(self, request, queryset):
-        self._set_status(request, queryset, ContentReport.STATUS_DISMISSED, 'رد شد', True)
+        return self._set_status(request, queryset, ContentReport.STATUS_DISMISSED, 'رد شد', True)

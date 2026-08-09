@@ -379,6 +379,16 @@ class ContentReport(models.Model):
         related_name='resolved_reports',
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
+    # Set only when resolving this report was a side effect of a moderation
+    # decision (suspending/rejecting the business it names) rather than some
+    # other resolution — a warning email, a phone call, dismissal as
+    # unfounded. SET_NULL, not CASCADE: the report should still show it *was*
+    # linked to a decision even if that log row were ever removed, but nothing
+    # here ever deletes a BusinessModerationLog in practice.
+    resulting_moderation_log = models.ForeignKey(
+        BusinessModerationLog, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='resolved_reports',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
