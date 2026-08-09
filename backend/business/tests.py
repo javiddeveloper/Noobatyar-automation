@@ -146,3 +146,141 @@ class PublicFilterConsistencyTests(PublicGateTestCaseMixin, TestCase):
                     ).exists()
                     self.assertEqual(via_filter, business.is_publicly_visible)
                     business.delete()
+
+
+class ClientContentReportSubmissionTests(PublicGateTestCaseMixin, TestCase):
+    """POST /api/client/business/<id>/report/ — phase 6's abuse-report intake.
+
+    Covers the three reporter-identity outcomes client_views.py's
+    ClientContentReportView docstring describes (visitor token / anonymous
+    with a phone / fully anonymous), the public-visibility gate reusing
+    Business.public_filter() the same way the detail endpoint does, and the
+    per-IP throttle (ContentReportRateThrottle, scope 'content_report').
+    """
+
+    def setUp(self):
+        super().setUp()
+        from visitor.auth import sign_visitor_token
+        from visitor.models import Visitor
+
+        self.visitor = Visitor.objects.create(
+            full_name='مراجع تست', phone_number='09350000009',
+        )
+        self.visitor_auth = f'Visitor {sign_visitor_token(self.visitor.id)}'
+
+    def report(self, business_id, data=None, auth=None):
+        kwargs = {}
+        if auth:
+            kwargs['HTTP_AUTHORIZATION'] = auth
+        return self.client.post(
+            reverse('client-business-report', args=[business_id]),
+            data or {'reason': 'SPAM', 'detail': 'توضیح تست'},
+            content_type='application/json',
+            **kwargs,
+        )
+
+    def test_anonymous_submission_with_no_identity_at_all(self):
+        from business.models import ContentReport
+
+        business = self.make_business()
+        response = self.report(business.id)
+        self.assertEqual(response.status_code, 201)
+
+        report = ContentReport.objects.get(business=business)
+        self.assertIsNone(report.reporter_visitor_id)
+        self.assertIsNone(report.reporter_user_id)
+        self.assertEqual(report.reporter_phone, '')
+        self.assertEqual(report.status, ContentReport.STATUS_NEW)
+
+    def test_anonymous_submission_with_a_contact_phone(self):
+        from business.models import ContentReport
+
+        business = self.make_business()
+        response = self.report(business.id, {
+            'reason': 'MISLEADING', 'detail': '', 'reporter_phone': '09121234567',
+        })
+        self.assertEqual(response.status_code, 201)
+        report = ContentReport.objects.get(business=business)
+        self.assertEqual(report.reporter_phone, '09121234567')
+        self.assertIsNone(report.reporter_visitor_id)
+
+    def test_invalid_contact_phone_is_rejected(self):
+        business = self.make_business()
+        response = self.report(business.id, {
+            'reason': 'SPAM', 'reporter_phone': 'not-a-phone',
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_authenticated_visitor_submission_sets_reporter_visitor(self):
+        from business.models import ContentReport
+
+        business = self.make_business()
+        response = self.report(business.id, auth=self.visitor_auth)
+        self.assertEqual(response.status_code, 201)
+
+        report = ContentReport.objects.get(business=business)
+        self.assertEqual(report.reporter_visitor_id, self.visitor.id)
+        # A signed-in visitor doesn't need to also type their phone in — the
+        # identity already carries it.
+        self.assertEqual(report.reporter_phone, '')
+
+    def test_invalid_reason_is_rejected(self):
+        business = self.make_business()
+        response = self.report(business.id, {'reason': 'NOT_A_REAL_REASON'})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(business.content_reports.count(), 0)
+
+    def test_non_public_business_returns_404_not_403(self):
+        # Same reasoning as ClientBusinessDetailGateTests: a stale/guessed id
+        # for a rejected or locked listing must not confirm it exists.
+        for status in NON_PUBLIC_STATUSES:
+            with self.subTest(status=status):
+                business = self.make_business(status=status)
+                response = self.report(business.id)
+                self.assertEqual(response.status_code, 404)
+                business.delete()
+
+        locked = self.make_business(is_locked=True)
+        self.assertEqual(self.report(locked.id).status_code, 404)
+
+    def test_unknown_business_returns_404(self):
+        self.assertEqual(self.report(999999).status_code, 404)
+
+    def test_throttle_engages_after_the_configured_rate(self):
+        """THROTTLE_RATES['content_report'] defaults to 5/hour
+        (core/settings.py) — the 6th request from the same client within the
+        window must be refused, proving this endpoint is not silently riding
+        on the much more generous shared 'anon' bucket (60/min)."""
+        from django.conf import settings
+
+        rate = settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['content_report']
+        limit = int(rate.split('/')[0])
+
+        business = self.make_business()
+        for _ in range(limit):
+            response = self.report(business.id)
+            self.assertEqual(response.status_code, 201)
+
+        blocked = self.report(business.id)
+        self.assertEqual(blocked.status_code, 429)
+
+    def test_throttle_also_engages_for_an_authenticated_visitor(self):
+        """Regression: plain AnonRateThrottle exempts any request whose
+        request.user.is_authenticated is True, and Visitor.is_authenticated is
+        hard-coded True (visitor/models.py) — so a signed-in visitor's
+        requests silently bypassed this throttle entirely until
+        ContentReportRateThrottle.get_cache_key() was overridden to always key
+        by IP. Caught by hand-testing against a running server; pinned down
+        here so it can't regress silently."""
+        from django.conf import settings
+
+        rate = settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['content_report']
+        limit = int(rate.split('/')[0])
+
+        business = self.make_business()
+        for _ in range(limit):
+            response = self.report(business.id, auth=self.visitor_auth)
+            self.assertEqual(response.status_code, 201)
+
+        blocked = self.report(business.id, auth=self.visitor_auth)
+        self.assertEqual(blocked.status_code, 429)

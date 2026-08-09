@@ -50,6 +50,12 @@ SUPPORT = {
     'api.User': 'v',
     'appointment.Appointment': 'v',
     'visitor.Visitor': 'v',
+    # A business owner asking "why didn't my client get the reminder SMS" is
+    # exactly the kind of ticket this role exists to answer, and view_smslog
+    # is also what gates the SMS operations report (visitor/reports.py) and
+    # its dashboard alert panel — without it here, that whole surface was
+    # reachable by Superadmin only.
+    'visitor.SmsLog': 'v',
     'accounting.Subscription': 'av',
     'accounting.AddOnPurchase': 'av',
     # View-only on the catalogue models: the add forms use autocomplete_fields

@@ -54,7 +54,7 @@ from accounting.models import AddOnPack, AddOnPurchase, Subscription, Transactio
 from api import jalali
 from api.models import User
 from appointment.models import Appointment
-from business.models import Business
+from business.models import Business, ContentReport
 from visitor.models import SmsLog
 
 # ── Tunables ──────────────────────────────────────────────────────────────────
@@ -65,6 +65,13 @@ EXPIRING_WITHIN_DAYS = 7
 # still `pending` after that is abandoned or broken and needs a human.
 STUCK_PAYMENT_MINUTES = 60
 SMS_FAILURE_WINDOW_HOURS = 24
+# "Spike" here is deliberately simple — a raw count crossing a threshold, not
+# a statistical baseline comparison (rate-of-change, moving average, etc).
+# The failure list already tells a reviewer the shape of the problem; this
+# threshold only decides whether the panel gets the red/urgent treatment so
+# the SMS failures panel isn't permanently urgent the moment any business has
+# a single bad send.
+SMS_FAILURE_SPIKE_THRESHOLD = 10
 # How many rows each alert list shows. The count next to it is the real total.
 ALERT_ROWS = 8
 
@@ -358,10 +365,40 @@ def alerts(now=None):
     sms_failures = [
         {
             'business': log.business.title,
+            # Only error_detail — never message_text. See visitor/reports.py's
+            # docstring, "PII discipline": the message body routinely carries
+            # the visitor's name/appointment details, and this alert (unlike
+            # a report a reviewer opened on purpose) is shown to anyone
+            # holding visitor.view_smslog just by loading the admin index.
             'error': (log.error_detail or '')[:120],
             'sent_at': jalali.format_datetime(log.sent_at),
         }
         for log in sms_fail_qs[:ALERT_ROWS]
+    ]
+    sms_fail_count = sms_fail_qs.count()
+
+    # Newest first, unresolved reports only — mirrors the moderation queue's
+    # "oldest waiting first" ordering below for its own alert, but a report
+    # sitting unresolved is itself the signal here; a submitter who reported
+    # something an hour ago needs the same visibility as one from last week,
+    # so this list still shows the true count and lets the panel's own link
+    # (business.view_contentreport → the ContentReport changelist, sorted by
+    # the admin's own default) do the "oldest first" triage ordering.
+    content_report_qs = ContentReport.objects.filter(
+        status=ContentReport.STATUS_NEW
+    ).select_related('business').order_by('created_at')
+    content_reports = [
+        {
+            'business': report.business.title,
+            'reason': report.get_reason_display(),
+            'reporter': (
+                str(report.reporter_user) if report.reporter_user_id else
+                str(report.reporter_visitor) if report.reporter_visitor_id else
+                (report.reporter_phone or 'ناشناس')
+            ),
+            'created_at': jalali.format_datetime(report.created_at),
+        }
+        for report in content_report_qs[:ALERT_ROWS]
     ]
 
     # Oldest first — the queue's own ordering. Businesses submitted before the
@@ -399,10 +436,13 @@ def alerts(now=None):
             'minutes': STUCK_PAYMENT_MINUTES,
         },
         'sms_failures': {
-            'count': sms_fail_qs.count(),
+            'count': sms_fail_count,
             'items': sms_failures,
             'hours': SMS_FAILURE_WINDOW_HOURS,
+            'spike_threshold': SMS_FAILURE_SPIKE_THRESHOLD,
+            'urgent': sms_fail_count > SMS_FAILURE_SPIKE_THRESHOLD,
         },
+        'content_reports': {'count': content_report_qs.count(), 'items': content_reports},
         'moderation_queue': {'count': queue_qs.count(), 'items': queue},
         'expiring_days': EXPIRING_WITHIN_DAYS,
     }

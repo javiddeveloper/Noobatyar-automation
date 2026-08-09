@@ -24,7 +24,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase
@@ -32,7 +32,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounting.models import AddOnPack, AddOnPurchase, Plan, Subscription, Transaction
-from business.models import Business
+from business.models import Business, ContentReport
 from core.dashboard import cache as dashboard_cache
 from core.dashboard import metrics, panels
 from visitor.models import SmsLog
@@ -261,6 +261,58 @@ class StandingAndAlertTests(DashboardTestData):
 
         self.assertEqual(metrics.alerts(NOW)['sms_failures']['count'], 1)
 
+    def test_sms_failure_spike_flag_follows_the_threshold(self):
+        """'urgent' is a simple count > threshold check (metrics.py's own
+        docstring on SMS_FAILURE_SPIKE_THRESHOLD), not a statistical
+        anomaly detector — this pins that simple contract down."""
+        business = make_business(self.user)
+
+        def _fail(when):
+            log = SmsLog.objects.create(business=business, message_text='x',
+                                        status='FAILED', error_detail='boom')
+            _backdate(log, 'sent_at', when)
+
+        for _ in range(metrics.SMS_FAILURE_SPIKE_THRESHOLD):
+            _fail(NOW - timedelta(hours=1))
+        self.assertFalse(metrics.alerts(NOW)['sms_failures']['urgent'])
+
+        _fail(NOW - timedelta(hours=1))  # tips it over the threshold
+        self.assertTrue(metrics.alerts(NOW)['sms_failures']['urgent'])
+
+    def test_sms_failure_alert_never_carries_message_text(self):
+        """PII discipline: message_text (may contain the visitor's name /
+        appointment details) must never appear in the alert payload, only
+        the provider-side error_detail."""
+        business = make_business(self.user)
+        log = SmsLog.objects.create(
+            business=business, message_text='سلام آقای احمدی، نوبت شما فردا ساعت ۱۰',
+            status='FAILED', error_detail='invalid number',
+        )
+        _backdate(log, 'sent_at', NOW - timedelta(hours=1))
+
+        item = metrics.alerts(NOW)['sms_failures']['items'][0]
+        self.assertNotIn('message_text', item)
+        self.assertNotIn('احمدی', str(item))
+        self.assertEqual(item['error'], 'invalid number')
+
+    def test_content_reports_are_new_only_oldest_first(self):
+        business = make_business(self.user)
+        old = ContentReport.objects.create(
+            business=business, reason='SPAM', status=ContentReport.STATUS_NEW)
+        _backdate(old, 'created_at', NOW - timedelta(days=3))
+        recent = ContentReport.objects.create(
+            business=business, reason='ILLEGAL', status=ContentReport.STATUS_NEW)
+        _backdate(recent, 'created_at', NOW - timedelta(hours=1))
+        # Already resolved — must not count as "unresolved".
+        resolved = ContentReport.objects.create(
+            business=business, reason='OTHER', status=ContentReport.STATUS_ACTIONED)
+        _backdate(resolved, 'created_at', NOW - timedelta(days=5))
+
+        result = metrics.alerts(NOW)['content_reports']
+        self.assertEqual(result['count'], 2)
+        self.assertEqual([item['reason'] for item in result['items']],
+                         [old.get_reason_display(), recent.get_reason_display()])
+
     def test_moderation_queue_orders_oldest_first_with_null_fallback(self):
         """A business submitted before the moderation fields existed has a null
         submitted_at; it must fall back to created_at rather than sorting to an
@@ -394,7 +446,8 @@ class PermissionGateTests(DashboardTestData):
         self.assertTrue(context['dashboard_revenue_cards'])
         self.assertTrue(context['dashboard_volume_cards'])
         self.assertIsNotNone(context['dashboard_charts']['revenue'])
-        self.assertEqual(len(context['dashboard_alerts']), 4)
+        # expiring, stuck, sms, content_reports, queue.
+        self.assertEqual(len(context['dashboard_alerts']), 5)
 
     def test_moderator_sees_no_money_anywhere(self):
         context = self._context(self._staff('09120000010', 'Moderator'))
@@ -451,6 +504,39 @@ class PermissionGateTests(DashboardTestData):
         # Count reflects only the kind this viewer can see (1 addon purchase),
         # not the true combined total (1 transaction + 1 addon purchase = 2).
         self.assertEqual(stuck_panel['count'], '1')
+
+    def test_moderator_sees_content_reports_but_not_sms(self):
+        """Moderator holds business.ContentReport 'acdv' (setup_admin_roles.py)
+        but no visitor.view_smslog anywhere — the two new phase-6 panels must
+        gate independently, not as a pair."""
+        context = self._context(self._staff('09120000015', 'Moderator'))
+        keys = [panel['key'] for panel in context['dashboard_alerts']]
+        self.assertIn('content_reports', keys)
+        self.assertNotIn('sms', keys)
+        self.assertFalse(context['dashboard_can']['sms'])
+        self.assertTrue(context['dashboard_can']['content_reports'])
+
+    def test_viewer_with_only_view_smslog_sees_sms_but_not_content_reports(self):
+        """No shipped role holds visitor.view_smslog today (see
+        setup_admin_roles.py) — granted directly here to prove the panel's
+        gate is the real model permission, not membership in a specific
+        group."""
+        user = self._staff('09120000016')
+        user.user_permissions.add(Permission.objects.get(
+            content_type__app_label='visitor', codename='view_smslog'))
+        user = User.objects.get(pk=user.pk)
+
+        context = self._context(user)
+        keys = [panel['key'] for panel in context['dashboard_alerts']]
+        self.assertIn('sms', keys)
+        self.assertNotIn('content_reports', keys)
+        self.assertNotIn('queue', keys)
+
+    def test_viewer_with_neither_permission_sees_neither_panel(self):
+        context = self._context(self._staff('09120000017'))
+        keys = [panel['key'] for panel in context['dashboard_alerts']]
+        self.assertNotIn('sms', keys)
+        self.assertNotIn('content_reports', keys)
 
     def test_chart_payload_omits_series_the_viewer_may_not_see(self):
         """Gating is server side: a hidden series must be absent from the JSON,

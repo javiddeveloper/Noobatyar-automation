@@ -138,6 +138,10 @@ def permissions(user):
         'businesses': user.has_perm('business.view_business'),
         'appointments': user.has_perm('appointment.view_appointment'),
         'sms': user.has_perm('visitor.view_smslog'),
+        # ContentReport is a business.view_contentreport model permission,
+        # same as everything else on this dict — Moderator holds it via
+        # 'business.ContentReport': 'acdv' in setup_admin_roles.py.
+        'content_reports': user.has_perm('business.view_contentreport'),
     }
 
 
@@ -244,14 +248,29 @@ def build(payload, user):
             empty='هیچ پرداخت معلقی وجود ندارد.',
         ))
     if can['sms']:
+        sms_block = alerts['sms_failures']
         alert_panels.append(_alert(
             'sms',
-            f"پیامک‌های ناموفق ({alerts['sms_failures']['hours']} ساعت اخیر)",
-            alerts['sms_failures'],
+            f"پیامک‌های ناموفق ({sms_block['hours']} ساعت اخیر)",
+            sms_block,
             ['کسب‌وکار', 'خطا', 'زمان'],
             ['business', 'error', 'sent_at'],
-            _link(('admin:visitor_smslog_changelist', '?status__exact=FAILED')),
+            _link(('admin:visitor_smslog_report', '?status=FAILED'),
+                  ('admin:visitor_smslog_changelist', '?status__exact=FAILED')),
+            # Urgent only past the spike threshold (metrics.py), not on every
+            # single failure — see SMS_FAILURE_SPIKE_THRESHOLD's comment there.
+            urgent=sms_block.get('urgent', False),
             empty='پیامک ناموفقی ثبت نشده است.',
+        ))
+    if can['content_reports']:
+        alert_panels.append(_alert(
+            'content_reports',
+            'گزارش‌های تخلف در انتظار بررسی',
+            alerts['content_reports'],
+            ['کسب‌وکار', 'دلیل', 'گزارش‌دهنده', 'زمان'],
+            ['business', 'reason', 'reporter', 'created_at'],
+            _link(('admin:business_contentreport_changelist', '?status__exact=NEW')),
+            empty='گزارش تخلف جدیدی وجود ندارد.',
         ))
     if can['businesses']:
         alert_panels.append(_alert(

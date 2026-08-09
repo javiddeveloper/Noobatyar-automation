@@ -162,6 +162,11 @@ REST_FRAMEWORK = {
         'user': os.getenv('THROTTLE_USER', '300/min'),
         'otp': os.getenv('THROTTLE_OTP', '5/min'),
         'public_slots': os.getenv('THROTTLE_PUBLIC_SLOTS', '120/min'),
+        # Abuse-report submission (business/client_views.py) — an anonymous,
+        # no-account endpoint with no other rate limit on it, so a tighter
+        # scope than the general 'anon' bucket is needed to keep it from
+        # being a spam/DoS vector (see business/client_views.py's docstring).
+        'content_report': os.getenv('THROTTLE_CONTENT_REPORT', '5/hour'),
     },
 }
 
