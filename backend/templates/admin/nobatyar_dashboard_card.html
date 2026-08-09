@@ -1,0 +1,19 @@
+{% comment %} One KPI card: a title and the same four windows (امروز / ۷ روز / ۳۰ روز /
+   از ابتدا) in the same order every time. The order comes from
+   panels.WINDOW_LABELS, not from this template, so every card's columns line up
+   vertically across the grid — that alignment is the whole point of the layout.
+   Expects `card` in context (included from inside a {% for %}). {% endcomment %}
+<div class="nb-card">
+  <div class="nb-card-title">
+    {{ card.title }}{% if card.unit %}<span class="nb-card-unit">{{ card.unit }}</span>{% endif %}
+  </div>
+  {% if card.hint %}<div class="nb-card-hint">{{ card.hint }}</div>{% endif %}
+  <div class="nb-cells">
+    {% for cell in card.cells %}
+      <div class="nb-cell">
+        <span class="nb-cell-label">{{ cell.label }}</span>
+        <span class="nb-cell-value">{{ cell.value }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</div>
