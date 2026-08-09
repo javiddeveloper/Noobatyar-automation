@@ -365,6 +365,45 @@ class FailOpenLedgerTests(LedgerTestCase):
         self.assertEqual(new_value, 15)
         self.assertEqual(usage.get_wallet(user.id), 15)
 
+    def test_ledger_write_does_not_poison_an_outer_transaction(self):
+        """Regression: appointment cancellation (appointment/views/views.py)
+        calls release_appointment -> _write_ledger and then does another DB
+        write (appointment.save()) in the SAME @transaction.atomic block. On
+        Postgres, a DB-level failure during the ledger insert aborts the
+        whole transaction at the protocol level even though _write_ledger's
+        except swallows it in Python — the connection is left unable to run
+        anything else until the transaction ends, so the very next write in
+        that outer block would raise anyway and roll back a real change
+        Redis has no way to undo.
+
+        _write_ledger now wraps CreditLedger.objects.create() in its own
+        nested transaction.atomic(), so Django opens a SAVEPOINT for it and
+        a failure there only rolls back to the savepoint — the outer
+        transaction, and any further writes inside it, stay usable. This is
+        exercised here as a real nested-atomic-plus-subsequent-write inside
+        one outer atomic() block, the same shape the real call site has, so
+        it holds regardless of whether the test DB backend actually
+        implements Postgres's abort-whole-transaction protocol.
+        """
+        from django.db import transaction as dj_transaction
+
+        user = make_user('09120000033')
+        subscribe(user, make_plan(monthly_appointments=2))
+        source = usage.record_appointment(user.id)
+
+        with dj_transaction.atomic():
+            with patch('accounting.models.CreditLedger.objects.create',
+                       side_effect=RuntimeError('db down')):
+                usage.release_appointment(user.id, source)
+            # The write that matters: the outer atomic() block must still be
+            # usable for further writes after the ledger failure, exactly
+            # like appointment.save() running right after refund_quota() in
+            # the real call site.
+            other_user = make_user('09120000034')
+
+        self.assertTrue(User.objects.filter(pk=other_user.pk).exists())
+        self.assertEqual(usage.get_usage(user.id, usage.METRIC_APPOINTMENTS), 0)
+
 
 class RebuildWalletsCommandTests(LedgerTestCase):
     def _run(self, *args):
@@ -464,6 +503,38 @@ class LedgerReportsTests(LedgerTestCase):
         self.assertEqual(bucket['granted'], 10)
         self.assertEqual(bucket['spent'], 4)
         self.assertEqual(bucket['net'], 6)
+
+    def test_monthly_usage_swaps_labels_for_monthly_counter_metrics(self):
+        """Regression: monthly_usage used to label a metric's raw positive
+        delta as 'granted' and negative as 'spent' uniformly, which is only
+        correct for the two wallet metrics. For sms_monthly/
+        appointment_monthly the sign is inverted (see CreditLedger's
+        docstring): a booking is +1 (consumption) and a refund is -1. Booking
+        5 and refunding 1 must read gross, the same way the module already
+        reports wallets (bank-statement style, per the module docstring):
+        spent=5 (five consumption events), granted=1 (one refunded back),
+        net=-4 — never the bug's literal-opposite reading of granted=5/
+        spent=1, which would claim 5 credits were handed to the user when
+        in fact 5 were consumed.
+        """
+        from django.utils import timezone
+
+        from accounting import ledger_reports
+
+        user = make_user('09120000052')
+        subscribe(user, make_plan(monthly_appointments=10))
+        booked_at = timezone.now()
+
+        sources = [usage.record_appointment(user.id) for _ in range(5)]
+        usage.release_appointment(user.id, sources[0], booked_at)
+
+        month_key = timezone.now().strftime('%Y-%m')
+        report = ledger_reports.monthly_usage(user.id, months=1)
+        bucket = report[month_key]['appointment_monthly']
+
+        self.assertEqual(bucket['spent'], 5)
+        self.assertEqual(bucket['granted'], 1)
+        self.assertEqual(bucket['net'], -4)
 
     def test_recent_entries_returns_newest_first(self):
         from accounting import ledger_reports

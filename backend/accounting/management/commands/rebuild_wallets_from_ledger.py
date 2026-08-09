@@ -33,15 +33,21 @@ allowed — see usage.py's fail-open ledger writes) has no row to reconstruct
 from, and assuming "no rows" means "should be zero" would let this tool
 destroy real, unrelated balance.
 
-Safe to run against a live system:
+Safe to run against a live system, WITH ONE CAVEAT:
   * ``--dry-run`` computes and prints the diff without writing anything.
   * Without ``--dry-run``, it still only *writes* buckets whose rebuilt value
     differs from what's currently in Redis — an already-correct key is left
     alone (matters less for the ``cache.set`` itself, more so the report only
     highlights what actually needed fixing).
-  * It never reads and holds a Redis value it doesn't immediately act on —
-    there's no larger race here than usage.py's own read-then-write helpers
-    already have.
+  * The caveat: this is a plain DB-read-then-``cache.set``, not a
+    compare-and-swap. ``usage.py``'s own writers (``cache.incr``/``decr``,
+    ``cache.add``) are single atomic round trips with no such window. If a
+    booking, SMS send, or refund lands on the same key between this
+    command's read and its write, that concurrent change is silently
+    overwritten — a real lost-update, not merely a theoretical one — and
+    stays wrong until the next mutation to that key. Prefer running this
+    during low-traffic windows, and treat the printed diff as something to
+    read before trusting a rebuild done while the system was busy.
 """
 
 from datetime import timezone as dt_timezone

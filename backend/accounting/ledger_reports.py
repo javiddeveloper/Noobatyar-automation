@@ -30,17 +30,39 @@ _POSITIVE_DELTA = Q(delta__gt=0)
 _NEGATIVE_DELTA = Q(delta__lt=0)
 
 
+# The sign of `delta` means opposite things for the two kinds of bucket —
+# see CreditLedger's own docstring (accounting/models.py). Wallet buckets:
+# positive = credit granted, negative = credit spent (the intuitive reading).
+# Monthly-counter buckets: the Redis value they mirror is a *consumed this
+# month* counter, not a remaining balance, so a booking is recorded as
+# positive (the counter went up) and a refund as negative. Labeling a
+# positive monthly-counter delta as "granted" would read as "5 credits
+# granted to this user" when in fact 5 were consumed — the literal opposite
+# of what happened. This set is what monthly_usage checks to pick the right
+# label pair for each metric.
+_MONTHLY_COUNTER_METRICS = {
+    CreditLedger.METRIC_SMS_MONTHLY,
+    CreditLedger.METRIC_APPOINTMENT_MONTHLY,
+}
+
+
 def monthly_usage(user_id, months=6, now=None):
     """
     ``{month: {metric: {'granted': int, 'spent': int, 'net': int}}}`` for the
     last ``months`` calendar months (most recent first), from ``user_id``'s
     CreditLedger rows.
 
-    "granted" sums positive deltas, "spent" sums the absolute value of
-    negative deltas, for the SAME reason a bank statement shows deposits and
-    withdrawals separately rather than netting them silently — "spent 40,
-    refunded 10" and "spent 30" look identical net but are not the same
-    story. ``net`` is granted - spent, for a single glance total.
+    For wallet metrics, "granted" sums positive deltas and "spent" sums the
+    absolute value of negative deltas — the same reason a bank statement
+    shows deposits and withdrawals separately rather than netting them
+    silently: "spent 40, refunded 10" and "spent 30" look identical net but
+    are not the same story. For monthly-counter metrics the two are swapped
+    (see ``_MONTHLY_COUNTER_METRICS`` above), so "granted"/"spent" mean the
+    same real-world thing — credit the user gained vs. credit they used —
+    for every metric this function returns, even though the underlying
+    ``delta`` sign convention differs between the two bucket kinds. ``net`` is
+    always granted - spent, for a single glance total, and is unaffected by
+    which label owns which sign.
 
     One grouped query (``TruncMonth`` + conditional aggregation via two
     ``Sum`` filters), never a query per month or per row.
@@ -56,21 +78,25 @@ def monthly_usage(user_id, months=6, now=None):
         .values('month', 'metric')
         .order_by()
         .annotate(
-            granted=Sum('delta', filter=_POSITIVE_DELTA),
-            spent=Sum('delta', filter=_NEGATIVE_DELTA),
+            positive_sum=Sum('delta', filter=_POSITIVE_DELTA),
+            negative_sum=Sum('delta', filter=_NEGATIVE_DELTA),
         )
     )
 
     result = {}
     for row in rows:
         month_key = row['month'].strftime('%Y-%m')
-        granted = int(row['granted'] or 0)
-        spent = int(row['spent'] or 0)  # negative or zero
+        positive = int(row['positive_sum'] or 0)
+        negative = int(row['negative_sum'] or 0)  # negative or zero
+        if row['metric'] in _MONTHLY_COUNTER_METRICS:
+            granted, spent = -negative, positive
+        else:
+            granted, spent = positive, -negative
         bucket = result.setdefault(month_key, {})
         bucket[row['metric']] = {
             'granted': granted,
-            'spent': -spent,  # report as a positive magnitude
-            'net': granted + spent,
+            'spent': spent,
+            'net': granted - spent,
         }
 
     return dict(sorted(result.items(), reverse=True))

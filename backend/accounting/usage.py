@@ -23,6 +23,7 @@ import logging
 from datetime import datetime, timezone as dt_timezone
 
 from django.core.cache import cache
+from django.db import transaction
 
 from . import entitlements
 
@@ -89,19 +90,37 @@ def _write_ledger(user_id, metric, delta, balance_after, reason, ref_type="", re
     Best-effort ledger write — never raises. Imported lazily so this module
     (imported early by async views, management commands, etc.) does not carry
     a module-level ORM dependency that needs the app registry ready.
+
+    Some call sites (e.g. appointment cancellation in
+    appointment/views/views.py) run inside an outer ``@transaction.atomic``
+    block and write to the same row again right after this returns. On
+    Postgres, a DB-level failure during the ``create()`` — a deadlock, a
+    connection blip — aborts the *whole* transaction at the protocol level
+    the instant it happens, regardless of whether Python catches the
+    exception: the bare ``except Exception`` below stops the ledger error from
+    propagating, but the connection itself is left unable to execute anything
+    else until the transaction ends, so the very next statement in the outer
+    block (the appointment save) would raise anyway and roll back a real
+    change that Redis has no way to undo. Wrapping the write in its own nested
+    ``atomic()`` makes Django open a SAVEPOINT for it; catching the exception
+    while still inside that block rolls back only to the savepoint, leaving
+    the outer transaction free to continue. Cheap and correct even when this
+    function is called with no outer transaction at all — a top-level atomic()
+    just behaves like a normal transaction.
     """
     try:
-        from .models import CreditLedger
+        with transaction.atomic():
+            from .models import CreditLedger
 
-        CreditLedger.objects.create(
-            user_id=user_id,
-            metric=metric,
-            delta=delta,
-            balance_after=balance_after,
-            reason=reason,
-            ref_type=ref_type or "",
-            ref_id=ref_id,
-        )
+            CreditLedger.objects.create(
+                user_id=user_id,
+                metric=metric,
+                delta=delta,
+                balance_after=balance_after,
+                reason=reason,
+                ref_type=ref_type or "",
+                ref_id=ref_id,
+            )
     except Exception:
         # A gap in the audit trail is a real problem to go investigate, but
         # never one worth failing the caller's actual booking/SMS operation
