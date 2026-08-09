@@ -17,11 +17,11 @@ what a "successful payment" is:
     ``failed`` / ``cancelled`` appear only in :func:`payment_conversion`.
   * ``Transaction`` (subscriptions) and ``AddOnPurchase`` (sms / appointment /
     feature packs) are disjoint tables; total revenue is their plain sum.
-  * Appointment deposits are never included. See ``DEPOSIT_NOTE`` below and
-    ``core/dashboard/metrics.py``'s module docstring: a deposit is requested
-    against ``Business.merchant_id`` so the money lands in the *owner's*
-    Zibal account, and ``appointment/payment/zibal_deposit.py`` never writes a
-    database row for it — there is nothing to sum.
+  * Appointment deposits are never included. See ``DEPOSIT_NOTE`` below: a
+    deposit is requested against ``Business.merchant_id`` so the money lands
+    in the *owner's* Zibal account, and while an appointment's status/
+    ``payment_reference`` do reflect that a deposit was verified, the actual
+    amount paid is never persisted anywhere — there is no exact figure to sum.
 
 The dashboard's ``revenue()`` works over four fixed lookback windows anchored
 on "now". This report works over one arbitrary ``[start, end)`` range chosen
@@ -46,12 +46,26 @@ from core.dashboard.metrics import ADDON_KINDS, project_tz
 
 DEFAULT_RANGE_DAYS = 30
 
+# Precisely what is and isn't available, since overstating the gap is its own
+# kind of wrong: appointment.payment_reference does get written with the
+# Zibal track_id when a deposit is requested (appointment/client_views.py),
+# and a verified deposit is what moves an appointment from LOCKED to WAITING —
+# so a *count* of successfully-deposited appointments (and, combined with
+# Business.deposit_amount, a rough GMV) is in fact derivable from existing
+# fields. What genuinely does not exist is the exact amount actually paid per
+# deposit: appointment/payment/zibal_deposit.py verifies the Zibal payment but
+# never persists the paid amount anywhere, so an exact per-transaction GMV
+# cannot be reconstructed even from those fields. This report computes
+# neither the count nor the amount this phase — both are future work — but
+# the note is careful not to claim more is missing than actually is.
 DEPOSIT_NOTE = (
-    'دادهٔ گردش مالی بیعانه در حال حاضر وجود ندارد: بیعانهٔ نوبت مستقیماً به درگاه '
-    'زیبالِ خودِ کسب‌وکار واریز می‌شود (نه حساب پلتفرم) و هیچ ردیفی از آن در دیتابیس '
-    'ذخیره نمی‌شود — appointment/payment/zibal_deposit.py هرگز رکوردی برای آن '
-    'نمی‌نویسد. این بخش عمداً بدون هیچ عددی نمایش داده می‌شود: نمایش صفر به‌جای «داده‌ای '
-    'در دسترس نیست» با فعالیت واقعیِ صفر اشتباه گرفته می‌شود، که نادرست‌تر از نبود عدد است.'
+    'مبلغ دقیق بیعانه‌ها در این گزارش محاسبه نشده: بیعانهٔ نوبت مستقیماً به درگاه '
+    'زیبالِ خودِ کسب‌وکار واریز می‌شود (نه حساب پلتفرم)، و مبلغ پرداخت‌شده در هیچ‌جای '
+    'دیتابیس ذخیره نمی‌شود — appointment/payment/zibal_deposit.py مبلغ را تأیید '
+    'می‌کند اما هرگز آن را ثبت نمی‌کند. (تعداد نوبت‌های دارای بیعانهٔ تأییدشده از روی '
+    'وضعیت نوبت قابل استخراج است، اما در این نسخه گزارش نشده.) این بخش عمداً بدون '
+    'هیچ عددی نمایش داده می‌شود: نمایش صفر به‌جای «داده‌ای در دسترس نیست» با فعالیت '
+    'واقعیِ صفر اشتباه گرفته می‌شود، که نادرست‌تر از نبود عدد است.'
 )
 
 
@@ -318,6 +332,19 @@ def payment_conversion(start, end):
 
 # ── Report 4: MRR / ARPU / churn ────────────────────────────────────────────
 
+# Below this many days, "prorate to a monthly rate" stops normalizing and
+# starts amplifying: dividing a 21,000-Toman/7-day plan's price by
+# months=7/30≈0.23 reports 90,000 Toman of MRR — 4.3x the actual price —
+# which only makes sense if the platform genuinely expects that subscriber to
+# keep re-buying every 7 days forever. Nothing in this system's plan ladder
+# (see PLANS.md — trial/۱/۳/۶/۱۲ ماهه) works that way: the only day-unit plan
+# today is the 10-day trial, priced at zero. This floor exists so that if
+# staff ever add a short *paid* promotional plan through PlanAdmin (nothing
+# stops them — duration_value has no minimum), it is excluded from MRR
+# outright rather than silently inflating the platform's headline number.
+_MRR_MIN_DURATION_DAYS = 28
+
+
 def mrr(now=None):
     """Monthly Recurring Revenue: currently active subscriptions' plan price,
     prorated to a 30-day month.
@@ -337,6 +364,9 @@ def mrr(now=None):
     system's own accounting, and using calendar months instead would make the
     two disagree for no reason grounded in how the platform actually bills.
 
+    Day-unit plans shorter than :data:`_MRR_MIN_DURATION_DAYS` are excluded
+    entirely rather than prorated — see that constant's comment for why.
+
     One grouped query (active subscriptions per plan — a handful of rows,
     never one row per subscription); the per-plan monthly rate is arithmetic
     done once per plan in Python, not a query per subscription.
@@ -351,6 +381,8 @@ def mrr(now=None):
     total = 0.0
     for row in rows:
         if row['plan__duration_unit'] == 'day':
+            if row['plan__duration_value'] < _MRR_MIN_DURATION_DAYS:
+                continue
             months = row['plan__duration_value'] / 30
         else:
             months = row['plan__duration_value']

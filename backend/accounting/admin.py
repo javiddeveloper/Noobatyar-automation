@@ -283,6 +283,46 @@ class TransactionAdmin(admin.ModelAdmin):
             writer.writerow([row['plan'], row['count'], row['revenue']])
         if not report['plans']:
             writer.writerow(['—', 0, 0])
+        writer.writerow([])
+
+        # These four sections were missing from an earlier version of this
+        # export: it wrote only revenue-by-source and per-plan sales, so a
+        # Finance user who saw the full report on screen and exported "the
+        # report" got a file silently missing conversion/MRR/ARPU/churn with
+        # no indication anything was left out. Every section on the HTML page
+        # must have a CSV counterpart, or the export is not actually a report.
+        writer.writerow(['نرخ موفقیت پرداخت'])
+        writer.writerow(['نوع', 'موفق', 'در انتظار', 'ناموفق/لغوشده', 'جمع', 'نرخ موفقیت'])
+        for label, key in (('اشتراک‌ها', 'transaction'), ('بسته‌های افزودنی', 'addon_purchase')):
+            block = report['conversion'][key]
+            counts = block['counts']
+            failed = sum(v for k, v in counts.items() if k not in ('success', 'pending'))
+            rate = f"{block['rate'] * 100:.1f}%" if block['rate'] is not None else '—'
+            writer.writerow([label, counts.get('success', 0), counts.get('pending', 0),
+                              failed, block['total'], rate])
+        writer.writerow([])
+
+        writer.writerow(['شاخص‌های تکرارشونده'])
+        writer.writerow(['شاخص', 'مقدار'])
+        writer.writerow(['MRR (تومان)', report['mrr']])
+        writer.writerow(['ARPU (تومان)',
+                          round(report['arpu']['arpu']) if report['arpu']['arpu'] is not None else '—'])
+        writer.writerow(['کاربران پرداخت‌کننده', report['arpu']['paying_users']])
+        # churn() returns a breakdown dict ({'lapsed', 'renewed', 'churned',
+        # 'active_at_start', 'rate'}), not a bare rate — same shape the HTML
+        # template reads via report['churn']['rate'] (admin.py's own
+        # _add_display_percentages, a few lines above). Treating the dict
+        # itself as a number here raised a TypeError on every export.
+        churn_rate = report['churn']['rate']
+        writer.writerow(['نرخ ریزش', f"{churn_rate * 100:.1f}%" if churn_rate is not None else '—'])
+        writer.writerow(['اشتراک‌های منقضی در بازه', report['churn']['lapsed']])
+        writer.writerow(['تمدید شده', report['churn']['renewed']])
+        writer.writerow(['ریزش‌شده', report['churn']['churned']])
+        writer.writerow(['فعال در ابتدای بازه', report['churn']['active_at_start']])
+        writer.writerow([])
+
+        writer.writerow(['گردش مالی بیعانه'])
+        writer.writerow([report['deposit_note']])
 
         # utf-8-sig, not a bare utf-8 encode with a manually prepended BOM
         # character: encoding to utf-8-sig is what actually inserts the

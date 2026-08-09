@@ -304,6 +304,34 @@ class MrrTests(ReportTestData):
     def test_no_active_subscriptions_gives_zero(self):
         self.assertEqual(reports.mrr(NOW), 0)
 
+    def test_short_duration_plans_excluded_from_mrr(self):
+        """Regression: a paid plan under `_MRR_MIN_DURATION_DAYS` (28) used to
+        get prorated to a monthly rate by dividing by a fraction, which
+        *inflates* rather than normalizes — a 7-day/21,000 plan reported
+        90,000 in MRR (4.28x its price), on the assumption a subscriber keeps
+        re-buying at that cadence forever. Nothing in this platform's real
+        plan ladder works that way (the only day-unit plan is the free
+        10-day trial); short paid plans are excluded from MRR entirely
+        rather than amplified.
+        """
+        trial_like = Plan.objects.create(
+            name='هفتگی', price=21_000, duration_value=7, duration_unit='day')
+        u = make_user('09120000007')
+        self.subscription(trial_like, NOW - timedelta(days=1), NOW + timedelta(days=6), user=u)
+
+        self.assertEqual(reports.mrr(NOW), 0)
+
+    def test_duration_at_the_mrr_floor_still_counts(self):
+        """28 days is included, prorated normally — only durations *below*
+        the floor are excluded."""
+        plan = Plan.objects.create(
+            name='تقریباً یک ماه', price=280_000, duration_value=28, duration_unit='day')
+        u = make_user('09120000008')
+        self.subscription(plan, NOW - timedelta(days=1), NOW + timedelta(days=27), user=u)
+
+        # months = 28/30, monthly_price = 280,000 / (28/30) = 300,000
+        self.assertEqual(reports.mrr(NOW), 300_000)
+
 
 # ── ARPU ────────────────────────────────────────────────────────────────────────
 
@@ -567,3 +595,23 @@ class CsvExportTests(ReportTestData):
             {'from': 'garbage', 'to': ''},
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_csv_includes_every_section_the_html_report_shows(self):
+        """Regression: the export used to write only revenue-by-source and
+        per-plan sales, silently dropping conversion/MRR/ARPU/churn and the
+        deposit note that the HTML report shows for the same range — a
+        Finance user exporting "the report" got a materially smaller file
+        with no indication anything was missing.
+        """
+        self.client.force_login(self.finance)
+        response = self.client.get(
+            reverse('admin:accounting_financial_report_csv'),
+            {'from': '1404/03/25', 'to': '1404/03/25'},
+        )
+        decoded = response.content.decode('utf-8-sig')
+        self.assertIn('نرخ موفقیت پرداخت', decoded)
+        self.assertIn('شاخص‌های تکرارشونده', decoded)
+        self.assertIn('MRR', decoded)
+        self.assertIn('ARPU', decoded)
+        self.assertIn('نرخ ریزش', decoded)
+        self.assertIn('گردش مالی بیعانه', decoded)
