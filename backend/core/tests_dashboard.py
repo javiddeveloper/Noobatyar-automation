@@ -426,6 +426,32 @@ class PermissionGateTests(DashboardTestData):
         # part of its job and the panel stays.
         self.assertIn('stuck', [panel['key'] for panel in context['dashboard_alerts']])
 
+    def test_support_stuck_payments_panel_omits_transaction_rows(self):
+        """Regression: the 'stuck' panel used to be gated by
+        view_transaction OR view_addonpurchase as a single unit, so a Support
+        user (view_addonpurchase only) saw Transaction rows verbatim — plan
+        name, owner, amount — despite having no permission on that model.
+        The panel must filter row-by-row, not just gate the whole block.
+        """
+        stuck_at = NOW - timedelta(minutes=metrics.STUCK_PAYMENT_MINUTES + 5)
+        self.transaction(999_999, stuck_at, status='pending')
+        self.purchase(self.sms_pack, 50_000, stuck_at, status='pending')
+
+        with patch('core.dashboard.metrics.timezone.now', return_value=NOW):
+            payload = metrics.collect()
+        context = panels.build(payload, self._staff('09120000014', 'Support'))
+
+        stuck_panel = next(p for p in context['dashboard_alerts'] if p['key'] == 'stuck')
+        kinds_shown = {row[0] for row in stuck_panel['rows']}
+        self.assertEqual(kinds_shown, {'بسته افزودنی'})
+        self.assertNotIn('اشتراک', kinds_shown)
+        rendered = str(stuck_panel['rows'])
+        self.assertNotIn('999,999', rendered)
+        self.assertNotIn('حرفه‌ای', rendered)  # the plan name — must not leak either
+        # Count reflects only the kind this viewer can see (1 addon purchase),
+        # not the true combined total (1 transaction + 1 addon purchase = 2).
+        self.assertEqual(stuck_panel['count'], '1')
+
     def test_chart_payload_omits_series_the_viewer_may_not_see(self):
         """Gating is server side: a hidden series must be absent from the JSON,
         not merely undrawn."""

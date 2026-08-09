@@ -349,6 +349,8 @@ def alerts(now=None):
         for row in stuck_addon_qs[:ALERT_ROWS]
     ]
     stuck.sort(key=lambda row: row['created_at'], reverse=True)
+    stuck_tx_count = stuck_tx_qs.count()
+    stuck_addon_count = stuck_addon_qs.count()
 
     sms_fail_qs = SmsLog.objects.filter(
         status='FAILED', sent_at__gte=sms_since
@@ -384,7 +386,15 @@ def alerts(now=None):
     return {
         'expiring': {'count': expiring_qs.count(), 'items': expiring},
         'stuck_payments': {
-            'count': stuck_tx_qs.count() + stuck_addon_qs.count(),
+            # Split by source table, not just summed, because the two halves
+            # are gated by two different permissions downstream (panels.py):
+            # view_transaction unlocks the subscription rows, view_addonpurchase
+            # unlocks the pack rows, and a viewer can hold only one of them. A
+            # single combined count/items list would force an all-or-nothing
+            # gate on a panel that mixes data from both tables.
+            'count': stuck_tx_count + stuck_addon_count,
+            'count_transaction': stuck_tx_count,
+            'count_addonpurchase': stuck_addon_count,
             'items': stuck[:ALERT_ROWS],
             'minutes': STUCK_PAYMENT_MINUTES,
         },

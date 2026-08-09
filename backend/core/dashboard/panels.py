@@ -129,6 +129,10 @@ def permissions(user):
             user.has_perm('accounting.view_transaction')
             or user.has_perm('accounting.view_addonpurchase')
         ),
+        # Split out from 'payments' so the stuck-payments panel (which mixes
+        # Transaction and AddOnPurchase rows) can filter row-by-row instead of
+        # showing subscription data to a viewer who only holds view_addonpurchase.
+        'addon_purchases': user.has_perm('accounting.view_addonpurchase'),
         'subscriptions': user.has_perm('accounting.view_subscription'),
         'users': user.has_perm('api.view_user'),
         'businesses': user.has_perm('business.view_business'),
@@ -212,10 +216,26 @@ def build(payload, user):
             empty='هیچ اشتراکی به‌زودی منقضی نمی‌شود.',
         ))
     if can['payments']:
+        # Row-by-row filter, not just the 'payments' OR-gate above: the block
+        # mixes Transaction ('اشتراک') and AddOnPurchase ('بسته افزودنی') rows,
+        # and a viewer can hold view_addonpurchase without view_transaction (the
+        # Support role does exactly this). Passing the block through unfiltered
+        # showed subscription amounts and plan names to a viewer with no
+        # permission on Transaction at all.
+        stuck_block = alerts['stuck_payments']
+        stuck_items = [
+            row for row in stuck_block['items']
+            if (row['kind'] == 'اشتراک' and can['finance'])
+            or (row['kind'] == 'بسته افزودنی' and can['addon_purchases'])
+        ]
+        stuck_count = (
+            (stuck_block['count_transaction'] if can['finance'] else 0)
+            + (stuck_block['count_addonpurchase'] if can['addon_purchases'] else 0)
+        )
         alert_panels.append(_alert(
             'stuck',
-            f"پرداخت‌های معلق (بیش از {alerts['stuck_payments']['minutes']} دقیقه)",
-            alerts['stuck_payments'],
+            f"پرداخت‌های معلق (بیش از {stuck_block['minutes']} دقیقه)",
+            {'items': stuck_items, 'count': stuck_count},
             ['نوع', 'مورد', 'کاربر', 'مبلغ', 'زمان'],
             ['kind', 'label', 'user', 'amount', 'created_at'],
             _link(('admin:accounting_transaction_changelist', '?status__exact=pending'),
