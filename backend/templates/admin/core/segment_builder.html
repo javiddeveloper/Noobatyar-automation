@@ -172,30 +172,35 @@
       از نتیجه؛ هر بار که اجرا شود دوباره روی داده‌ی فعلی حساب می‌شود.
     </p>
 
-    <div class="sg-section">
-      <h3>پیش‌نمایش (حداکثر ۲۰ ردیف اول)</h3>
-      {% if preview_rows %}
-        <table class="sg-table">
-          <thead><tr><th>نام</th><th>تلفن</th></tr></thead>
-          <tbody>
-            {% for row in preview_rows %}
-              {% if kind == 'visitor' %}
-                <tr><td>{{ row.full_name }}</td><td style="direction:ltr;text-align:end">{{ row.phone_number }}</td></tr>
-              {% else %}
-                <tr><td>{{ row.name }}</td><td style="direction:ltr;text-align:end">{{ row.phone }}</td></tr>
-              {% endif %}
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <div class="sg-note">هیچ ردیفی با این فیلتر مطابقت ندارد.</div>
-      {% endif %}
-    </div>
+    {% if can_export %}
+      <div class="sg-section">
+        <h3>پیش‌نمایش (حداکثر ۲۰ ردیف اول)</h3>
+        {% if preview_rows %}
+          <table class="sg-table">
+            <thead><tr><th>نام</th><th>تلفن</th></tr></thead>
+            <tbody>
+              {% for row in preview_rows %}
+                {% if kind == 'visitor' %}
+                  <tr><td>{{ row.full_name }}</td><td style="direction:ltr;text-align:end">{{ row.phone_number }}</td></tr>
+                {% else %}
+                  <tr><td>{{ row.name }}</td><td style="direction:ltr;text-align:end">{{ row.phone }}</td></tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="sg-note">هیچ ردیفی با این فیلتر مطابقت ندارد.</div>
+        {% endif %}
+      </div>
+    {% endif %}
 
     {% if can_export and export_url %}
       <p><a class="button" href="{{ export_url }}">خروجی CSV ({{ counts.included }} ردیف)</a></p>
     {% elif not can_export %}
-      <p class="sg-note">دسترسی خروجی PII (core.export_pii) را ندارید — فقط پیش‌نمایش قابل مشاهده است.</p>
+      <p class="sg-note">
+        دسترسی خروجی PII (core.export_pii) را ندارید — فقط شمارش کلی گروه قابل مشاهده
+        است، نه نام/تلفن تک‌تک افراد.
+      </p>
     {% endif %}
 
     {% if can_save %}

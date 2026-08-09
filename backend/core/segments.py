@@ -249,6 +249,27 @@ def _owner_queryset_without_wallet(filters):
     return qs.distinct()
 
 
+# A cache miss and a cache OUTAGE are indistinguishable through get_many()
+# alone: django-redis's IGNORE_EXCEPTIONS (core/settings.py) swallows a Redis
+# connection failure and returns {} — the exact same value a genuinely-empty
+# batch of wallet keys produces, since most owners who never bought an SMS
+# add-on simply have no key at all. For the booking/SMS-send path that
+# ambiguity is fine and deliberate ("fail open" — accounting/usage.py's own
+# docstring). It is NOT fine here: {} read as "balance 0 for everyone" means
+# every owner in the DB matches a "low wallet" filter, so a Redis blip turns
+# a targeted upsell segment into "the entire owner base" with a plausible
+# row count and no warning anywhere in the exported CSV or its audit row.
+# A cheap round-trip on a throwaway key tells the two cases apart before the
+# filter result is trusted for a marketing export.
+_WALLET_PROBE_KEY = 'segments:wallet_probe'
+
+
+def _wallet_cache_is_reachable():
+    token = str(timezone.now().timestamp())
+    cache.set(_WALLET_PROBE_KEY, token, timeout=10)
+    return cache.get(_WALLET_PROBE_KEY) == token
+
+
 def _apply_low_wallet_filter(user_ids, threshold):
     """Which of `user_ids` currently have an SMS wallet balance below
     `threshold` — a Redis-only check (accounting/usage.py's wallet has no
@@ -259,10 +280,18 @@ def _apply_low_wallet_filter(user_ids, threshold):
     this module's counts/exports that reads live external state rather than
     the database the rest of the query ran against; see this module's
     docstring, "the live-count / drift warning".
+
+    Raises :class:`SegmentFilterError` rather than silently matching everyone
+    if the cache backend cannot be reached at all — see `_wallet_cache_is_reachable`.
     """
     ids = list(user_ids)
     if not ids:
         return []
+    if not _wallet_cache_is_reachable():
+        raise SegmentFilterError(
+            'در حال حاضر امکان بررسی موجودی کیف‌پول وجود ندارد (اتصال به سرویس کش '
+            'برقرار نیست). فیلتر «موجودی کم» را حذف کنید یا کمی بعد دوباره تلاش کنید.'
+        )
     keys = {uid: _wallet_key(uid) for uid in ids}
     values = cache.get_many(list(keys.values()))
     return [uid for uid, key in keys.items() if int(values.get(key) or 0) < threshold]

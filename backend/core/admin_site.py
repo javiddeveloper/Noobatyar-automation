@@ -270,6 +270,9 @@ class NobatyarAdminSite(admin.AdminSite):
         if kind == 'owner' and not can_owner:
             raise PermissionDenied
 
+        can_export = request.user.has_perm('core.export_pii')
+        can_save = request.user.has_perm('core.add_audiencesegment')
+
         error = None
         counts = None
         preview_rows = []
@@ -277,20 +280,31 @@ class NobatyarAdminSite(admin.AdminSite):
         try:
             filters = segments.parse_filters(kind, request.GET)
             if request.GET:
+                # The live COUNT is safe for anyone who can see this tab at
+                # all — a number identifies nobody. Individual name+phone rows
+                # are exactly the thing core.export_pii exists to gate, so
+                # they must never render for a viewer who lacks it. Before
+                # this check, holding only visitor.view_visitor/api.view_user
+                # (which Support already has, per setup_admin_roles.py) was
+                # enough to page through 20-row previews and reconstruct an
+                # arbitrarily large phone-number list one filter tweak at a
+                # time — entirely outside the export_pii gate and the
+                # AudienceSegmentExport audit trail this whole feature is
+                # built around. The query for preview_rows isn't even run
+                # when the viewer can't see the result, not just hidden in
+                # the template.
                 counts = segments.count_segment(kind, filters, exclude_opted_out=exclude_opted_out)
-                if kind == 'visitor':
-                    preview_qs = segments.visitor_queryset(filters, exclude_opted_out=exclude_opted_out)
-                    preview_rows = list(preview_qs.order_by('id')[:20].values('id', 'full_name', 'phone_number'))
-                else:
-                    preview_rows = list(
-                        segments.owner_queryset(filters).order_by('id')[:20].values('id', 'name', 'phone')
-                    )
+                if can_export:
+                    if kind == 'visitor':
+                        preview_qs = segments.visitor_queryset(filters, exclude_opted_out=exclude_opted_out)
+                        preview_rows = list(preview_qs.order_by('id')[:20].values('id', 'full_name', 'phone_number'))
+                    else:
+                        preview_rows = list(
+                            segments.owner_queryset(filters).order_by('id')[:20].values('id', 'name', 'phone')
+                        )
         except segments.SegmentFilterError as exc:
             error = str(exc)
             filters = {}
-
-        can_export = request.user.has_perm('core.export_pii')
-        can_save = request.user.has_perm('core.add_audiencesegment')
 
         from core.models import AudienceSegment
         saved_segments = AudienceSegment.objects.filter(kind=kind).select_related('created_by')[:25]
@@ -422,10 +436,15 @@ class NobatyarAdminSite(admin.AdminSite):
         exclude_opted_out = request.GET.get('exclude_opted_out', '1') != '0'
         try:
             filters = segments.parse_filters(kind, request.GET)
+            # export_rows (not just parse_filters) has to be inside this try:
+            # the low-wallet filter's cache-reachability check
+            # (segments._apply_low_wallet_filter) raises the same
+            # SegmentFilterError, and it can only be known once the query
+            # actually runs — it must fail this export closed with a clean
+            # 400, not fall through to an unhandled 500.
+            header, rows, row_count = segments.export_rows(kind, filters, exclude_opted_out=exclude_opted_out)
         except segments.SegmentFilterError as exc:
             return HttpResponse(str(exc), status=400, content_type='text/plain; charset=utf-8')
-
-        header, rows, row_count = segments.export_rows(kind, filters, exclude_opted_out=exclude_opted_out)
 
         export_definition = segments.raw_params(kind, request.GET)
         export_definition['exclude_opted_out'] = exclude_opted_out

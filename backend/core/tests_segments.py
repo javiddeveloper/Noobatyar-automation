@@ -270,6 +270,24 @@ class OwnerFilterTests(TestCase):
         self.assertIn(low.id, ids)
         self.assertNotIn(high.id, ids)
 
+    def test_low_wallet_filter_fails_closed_when_cache_is_unreachable(self):
+        """Regression: cache.get_many() on a Redis outage returns {} — the
+        exact same value a genuinely-empty batch of wallet keys produces
+        (django-redis's IGNORE_EXCEPTIONS swallows the connection error).
+        Reading that {} as "balance 0 for everyone" used to make a "low
+        wallet" filter silently match the entire owner base during an
+        outage, with a plausible row count and no warning in the export or
+        its audit row. It must raise instead of guessing.
+        """
+        cache.clear()
+        make_business(make_user('09140000013'))
+        make_business(make_user('09140000014'))
+
+        from unittest.mock import patch
+        with patch.object(segments.cache, 'get', return_value=None):
+            with self.assertRaises(segments.SegmentFilterError):
+                segments.owner_ids_for_segment({'low_wallet_below': 5})
+
     def test_export_owner_rows_has_no_email_column(self):
         owner = make_user('09140000012', name='مالک تست')
         make_business(owner)
@@ -343,6 +361,43 @@ class SegmentBuilderViewTests(TestCase):
         response = self.client.get(reverse('admin:core_segment_builder'), {'kind': 'owner'})
         self.assertEqual(response.status_code, 403)
 
+    def test_preview_rows_never_leak_pii_without_export_pii(self):
+        """Regression: the live-count preview used to render real name+phone
+        rows to anyone with plain visitor.view_visitor/api.view_user — the
+        same permission Support holds per setup_admin_roles.py — completely
+        bypassing core.export_pii and leaving no AudienceSegmentExport row.
+        A staff member without export_pii could page through 20-row previews
+        under different filters to reconstruct an arbitrarily large phone
+        list, entirely outside the audited export path.
+        """
+        owner = make_user('09160000005')
+        make_business(owner)
+        visitor = make_visitor('09161110099', name='نام محرمانه')
+
+        grant(self.staff, 'visitor.view_visitor')  # deliberately NOT core.export_pii
+        response = self.client.get(
+            reverse('admin:core_segment_builder'), {'kind': 'visitor'})
+        self.assertEqual(response.status_code, 200)
+
+        body = response.content.decode('utf-8')
+        self.assertNotIn(visitor.phone_number, body)
+        self.assertNotIn('نام محرمانه', body)
+        self.assertEqual(list(response.context['preview_rows']), [])
+        self.assertEqual(AudienceSegmentExport.objects.count(), 0)
+
+    def test_preview_rows_render_for_a_viewer_with_export_pii(self):
+        """The count-only restriction must not also hide rows from someone
+        who legitimately holds export_pii — only from someone who doesn't."""
+        owner = make_user('09160000006')
+        make_business(owner)
+        visitor = make_visitor('09161110098', name='مرئی برای این کاربر')
+
+        grant(self.staff, 'visitor.view_visitor', 'core.export_pii')
+        response = self.client.get(
+            reverse('admin:core_segment_builder'), {'kind': 'visitor'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(visitor.phone_number, response.content.decode('utf-8'))
+
 
 class SegmentExportPermissionAndAuditTests(TestCase):
     def setUp(self):
@@ -379,6 +434,23 @@ class SegmentExportPermissionAndAuditTests(TestCase):
         body = response.content.decode('utf-8-sig')
         self.assertIn(self.v1.phone_number, body)
         self.assertNotIn(self.v2.phone_number, body)
+
+    def test_export_fails_closed_not_500_when_wallet_cache_unreachable(self):
+        """The low-wallet filter's cache.get() raises SegmentFilterError on an
+        unreachable cache (see tests_segments' low-wallet fail-closed test);
+        the export view has to catch it and return a clean 400 with no
+        AudienceSegmentExport row, not let it become an unhandled 500 with a
+        stack trace in the response.
+        """
+        from unittest.mock import patch
+        grant(self.staff, 'api.view_user', 'core.export_pii')
+        with patch.object(segments.cache, 'get', return_value=None):
+            response = self.client.get(
+                reverse('admin:core_segment_export'),
+                {'kind': 'owner', 'low_wallet_below': '5'},
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(AudienceSegmentExport.objects.count(), 0)
 
 
 class SegmentSaveAndRunTests(TestCase):
