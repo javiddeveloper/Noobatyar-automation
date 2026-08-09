@@ -10,15 +10,48 @@ manually grant benefits to a specific user without a real payment:
     track_id/order_id/amount blank) to grant SMS credit or a temporary
     feature — the same benefit-granting logic used by real Zibal payments
     runs automatically on save.
+
+``TransactionAdmin`` also lives here (see its docstring for why it did not
+exist before this phase) and hosts the financial reporting page + CSV export
+under its own ``get_urls()`` — the same pattern ``business/admin.py`` uses to
+hang the moderation queue off ``BusinessAdmin``.
 """
 
+import csv
+import io
 from uuid import uuid4
 
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils import timezone
 
-from .models import Plan, Subscription, AddOnPack, AddOnPurchase
+from . import reports
+from .models import Plan, Subscription, AddOnPack, AddOnPurchase, Transaction
 from .payment.addon_payment import grant_addon_benefit
+
+
+def _add_display_percentages(report):
+    """Mutates ``report`` in place, adding ``*_pct`` display strings next to
+    the raw 0..1 fractions ``accounting/reports.py`` returns.
+
+    The fractions stay raw in ``reports.py`` because the tests assert against
+    them directly (``assertAlmostEqual(result['rate'], 0.5)``) — multiplying
+    by 100 there would make every test's hand-computed expectation a percent
+    instead of a ratio for no benefit. The template has no arithmetic filter
+    that both multiplies and rounds to one decimal, so this is view-layer
+    formatting, the same split ``core/dashboard/panels.py`` uses to turn
+    ``metrics.py``'s raw numbers into template-ready strings.
+    """
+    def pct(rate):
+        return f'{rate * 100:.1f}' if rate is not None else None
+
+    report['conversion']['transaction']['rate_pct'] = pct(report['conversion']['transaction']['rate'])
+    report['conversion']['addon_purchase']['rate_pct'] = pct(report['conversion']['addon_purchase']['rate'])
+    report['churn']['rate_pct'] = pct(report['churn']['rate'])
+    return report
 
 
 @admin.register(Plan)
@@ -113,3 +146,151 @@ class AddOnPurchaseAdmin(admin.ModelAdmin):
         if should_grant:
             grant_addon_benefit(obj)
             messages.success(request, f"بسته «{obj.pack.name}» برای {obj.user} فعال شد.")
+
+
+@admin.register(Transaction)
+class TransactionAdmin(admin.ModelAdmin):
+    """Read-only browsing of subscription payments, plus the financial report.
+
+    Known gap this closes: phase 2's dashboard (``core/dashboard/panels.py``)
+    had to build a URL-reversal fallback around ``Transaction`` because it had
+    no ``ModelAdmin`` at all — ``admin:accounting_transaction_changelist``
+    didn't exist, so a bare ``reverse()`` for the stuck-payments panel would
+    have taken down the whole admin index. Registering it here fixes that
+    link and gives Finance (which already holds ``view_transaction`` per
+    ``setup_admin_roles.py``) a place to actually look at a payment.
+
+    Read-only rather than editable for everyone, including superusers: a
+    Transaction row is the audit trail of a real Zibal payment (or, for a
+    manually granted subscription, of the Subscription admin's own save —
+    see ``SubscriptionAdmin`` above). Nothing in this codebase ever edits one
+    after creation; giving the panel edit controls it has no legitimate use
+    for would only invite an accidental change to a financial record with no
+    audit trail of its own.
+    """
+    list_display = ['order_id', 'user', 'plan', 'amount', 'status', 'created_at']
+    list_filter = ['status', 'plan']
+    search_fields = ['order_id', 'track_id', 'user__phone', 'user__name']
+    readonly_fields = [f.name for f in Transaction._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user', 'plan')
+
+    # ── Custom URLs ───────────────────────────────────────────────────────
+    # Prepended, same reason as business/admin.py's moderation queue: these
+    # must win over ModelAdmin's catch-all `<path:object_id>/` pattern, or
+    # "reports" gets parsed as a primary key.
+
+    def get_urls(self):
+        custom = [
+            path(
+                'reports/',
+                self.admin_site.admin_view(self.financial_report_view),
+                name='accounting_financial_report',
+            ),
+            path(
+                'reports/export.csv',
+                self.admin_site.admin_view(self.financial_report_csv_view),
+                name='accounting_financial_report_csv',
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def changelist_view(self, request, extra_context=None):
+        # A plain link into the report from the changelist a Finance user
+        # already lands on — same "button on the list page" pattern as the
+        # moderation queue's entry point off BusinessAdmin.
+        extra_context = extra_context or {}
+        extra_context['financial_report_url'] = reverse(
+            'admin:accounting_financial_report', current_app=self.admin_site.name,
+        )
+        return super().changelist_view(request, extra_context)
+
+    # ── Financial report ─────────────────────────────────────────────────
+
+    def _check_access(self, request):
+        # has_view_permission() is exactly "holds accounting.view_transaction
+        # (or a superuser)" for this ModelAdmin — Finance has that permission,
+        # Moderator and Support do not (see setup_admin_roles.py), so this is
+        # the real permission gate the task calls for, not merely a hidden
+        # nav link. admin_view() already enforced is_staff/login before this
+        # runs; this adds the per-model check on top of it.
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+
+    def financial_report_view(self, request):
+        self._check_access(request)
+
+        date_from = request.GET.get('from', '')
+        date_to = request.GET.get('to', '')
+        report = None
+        error = None
+        try:
+            report = reports.build_report(date_from, date_to)
+            _add_display_percentages(report)
+        except reports.ReportRangeError as exc:
+            error = str(exc)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'گزارش مالی',
+            'opts': self.model._meta,
+            'report': report,
+            'error': error,
+            'date_from': date_from or (report['range']['from_jalali'] if report else ''),
+            'date_to': date_to or (report['range']['to_jalali'] if report else ''),
+        }
+        return TemplateResponse(request, 'admin/accounting/financial_report.html', context)
+
+    def financial_report_csv_view(self, request):
+        self._check_access(request)
+
+        date_from = request.GET.get('from', '')
+        date_to = request.GET.get('to', '')
+        try:
+            report = reports.build_report(date_from, date_to)
+        except reports.ReportRangeError as exc:
+            return HttpResponse(str(exc), status=400, content_type='text/plain; charset=utf-8')
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(['گزارش مالی نوبت‌یار'])
+        writer.writerow(['بازه', f"{report['range']['from_jalali']} تا {report['range']['to_jalali']}"])
+        writer.writerow([])
+
+        writer.writerow(['درآمد بر اساس منبع (تومان)'])
+        writer.writerow(['منبع', 'مبلغ'])
+        writer.writerow(['اشتراک‌ها', report['revenue']['subscription']])
+        writer.writerow(['بسته پیامک', report['revenue']['sms_pack']])
+        writer.writerow(['بسته نوبت', report['revenue']['appointment_pack']])
+        if report['revenue']['feature_pack']:
+            writer.writerow(['قابلیت موقت (بایگانی)', report['revenue']['feature_pack']])
+        writer.writerow(['جمع کل', report['revenue']['total']])
+        writer.writerow([])
+
+        writer.writerow(['فروش بر اساس پلن'])
+        writer.writerow(['پلن', 'تعداد فروش', 'درآمد (تومان)'])
+        for row in report['plans']:
+            writer.writerow([row['plan'], row['count'], row['revenue']])
+        if not report['plans']:
+            writer.writerow(['—', 0, 0])
+
+        # utf-8-sig, not a bare utf-8 encode with a manually prepended BOM
+        # character: encoding to utf-8-sig is what actually inserts the
+        # 0xEF 0xBB 0xBF byte sequence Excel checks for before it will trust
+        # a CSV is UTF-8 rather than the system codepage — without it, every
+        # Persian column renders as mojibake the moment the file is opened.
+        content = buffer.getvalue().encode('utf-8-sig')
+        response = HttpResponse(content, content_type='text/csv; charset=utf-8')
+        filename = f"financial-report-{report['range']['from'].isoformat()}-{report['range']['to'].isoformat()}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
