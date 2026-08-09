@@ -54,6 +54,11 @@ def permissions_for_user(viewer):
         'wallet': viewer.has_perm('accounting.view_subscription') or viewer.has_perm('accounting.view_addonpurchase'),
         'businesses': viewer.has_perm('business.view_business'),
         'activity': viewer.has_perm('visitor.view_visitoractivity'),
+        # CreditLedger (accounting/models.py) is the audit trail underneath
+        # the live Redis numbers `user_wallet` reads — gated separately from
+        # `wallet` because it's a real model with its own permission, not a
+        # side effect of holding some other accounting permission.
+        'credit_ledger': viewer.has_perm('accounting.view_creditledger'),
     }
 
 
@@ -108,6 +113,23 @@ def user_wallet(user):
     }
 
 
+def user_credit_ledger(user):
+    """Recent CreditLedger rows for this user — the audit trail behind the
+    live numbers `user_wallet` shows.
+
+    Before this, CreditLedger (accounting/models.py, phase 5) had no admin
+    registration and its query layer (accounting/ledger_reports.py) was
+    never imported anywhere outside its own tests: the whole feature was
+    unreachable except via a Django shell. Surfacing recent entries here is
+    the minimal fix — the full changelist is `accounting.CreditLedgerAdmin`
+    for anyone who needs to filter/search beyond "this user's last N
+    events".
+    """
+    from accounting import ledger_reports
+
+    return ledger_reports.recent_entries(user.id, limit=DETAIL_ROWS)
+
+
 def user_activity(user):
     """The only owner-side activity trail that exists today.
 
@@ -141,6 +163,8 @@ def build_user_detail(user, viewer):
         data['addon_purchases'] = user_addon_purchases(user)
     if can['wallet']:
         data['wallet'] = user_wallet(user)
+    if can['credit_ledger']:
+        data['credit_ledger'] = user_credit_ledger(user)
     if can['businesses']:
         data['businesses'] = user_businesses(user)
     if can['activity']:

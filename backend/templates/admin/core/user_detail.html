@@ -71,6 +71,33 @@
   </div>
   {% endif %}
 
+  {% if detail.can.credit_ledger %}
+  <div class="ud-section">
+    <h3>تاریخچه‌ی اعتبار (آخرین رویدادها)</h3>
+    <p class="ud-note">
+      برخلاف بخش بالا که وضعیت لحظه‌ای Redis است، این ردیف‌ها تاریخچه‌ی واقعی هستند —
+      هر تغییر در سهمیه/کیف‌پول این کاربر با دلیل و مانده‌ی پس از آن ثبت می‌شود
+      (accounting.CreditLedger). فهرست کامل و فیلترپذیر در پنل «CreditLedger» موجود است.
+    </p>
+    {% if detail.credit_ledger %}
+      <table class="ud-table">
+        <thead><tr><th>معیار</th><th>تغییر</th><th>مانده پس از آن</th><th>دلیل</th><th>تاریخ</th></tr></thead>
+        <tbody>
+          {% for row in detail.credit_ledger %}
+            <tr><td>{{ row.get_metric_display }}</td>
+                <td class="num">{{ row.delta }}</td>
+                <td class="num">{{ row.balance_after }}</td>
+                <td>{{ row.reason }}</td>
+                <td class="num">{{ row.created_at|date:"Y-m-d H:i" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">هنوز رویدادی در تاریخچه‌ی اعتبار ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% if detail.can.businesses %}
   <div class="ud-section">
     <h3>کسب‌وکارها</h3>

@@ -139,6 +139,26 @@ class PermissionDegradeTests(TestCase):
         self.assertIn('subscriptions', detail)
         self.assertEqual(len(detail['subscriptions']), 1)
 
+    def test_credit_ledger_panel_gated_on_its_own_permission(self):
+        """Regression (final integration review): CreditLedger had no admin
+        registration and accounting/ledger_reports.py was never imported
+        anywhere outside its own tests — the whole phase-5 audit trail was
+        unreachable through the UI. Wired into the user 360 page here,
+        gated on its own permission rather than riding along with 'wallet'
+        (which only reflects live Redis state, not this history)."""
+        can = detail_views.permissions_for_user(self.viewer)
+        self.assertFalse(can['credit_ledger'])
+        detail = detail_views.build_user_detail(self.owner, self.viewer)
+        self.assertNotIn('credit_ledger', detail)
+
+        # has_perm caches on the instance after the first check above —
+        # refetch to see the newly granted permission, same as any real
+        # request would (a fresh user object per request).
+        grant(self.viewer, 'accounting.view_creditledger')
+        refreshed_viewer = User.objects.get(pk=self.viewer.pk)
+        detail = detail_views.build_user_detail(self.owner, refreshed_viewer)
+        self.assertIn('credit_ledger', detail)
+
 
 class UserDetailViewTests(TestCase):
     def setUp(self):

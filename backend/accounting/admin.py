@@ -29,7 +29,7 @@ from django.urls import path, reverse
 from django.utils import timezone
 
 from . import reports
-from .models import Plan, Subscription, AddOnPack, AddOnPurchase, Transaction
+from .models import Plan, Subscription, AddOnPack, AddOnPurchase, Transaction, CreditLedger
 from .payment.addon_payment import grant_addon_benefit
 
 
@@ -334,3 +334,42 @@ class TransactionAdmin(admin.ModelAdmin):
         filename = f"financial-report-{report['range']['from'].isoformat()}-{report['range']['to'].isoformat()}.csv"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+
+
+@admin.register(CreditLedger)
+class CreditLedgerAdmin(admin.ModelAdmin):
+    """Read-only browsing of the SMS/appointment wallet audit trail.
+
+    This is the one piece phase 5 (CreditLedger) never actually connected to
+    anything: the model and its query layer (accounting/ledger_reports.py)
+    existed with no admin registration and no page anywhere that reads them,
+    so "how did this user's balance get to zero" — the exact question this
+    table exists to answer — had no answer short of a Django shell. Filling
+    that gap here, not by building a new page: this changelist alone (filter
+    by user/metric, search, read the delta/balance_after/reason columns) is
+    the whole reporting surface CreditLedger needs; there's no case here for
+    a bespoke report template the way accounting/reports.py's financial
+    report earns one.
+
+    Read-only for the same reason Transaction/AddOnPurchase's audit-style
+    tables are: nothing in this codebase ever edits a ledger row after
+    creation (see accounting/usage.py's _write_ledger), and giving the panel
+    edit controls would only invite an accidental rewrite of an audit trail
+    that has no audit trail of its own to catch it.
+    """
+    list_display = ['created_at', 'user', 'metric', 'delta', 'balance_after', 'reason', 'ref_type', 'ref_id']
+    list_filter = ['metric', 'reason']
+    search_fields = ['user__phone', 'user__name', 'ref_type']
+    readonly_fields = [f.name for f in CreditLedger._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')

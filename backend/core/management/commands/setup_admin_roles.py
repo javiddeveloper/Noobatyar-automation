@@ -56,6 +56,12 @@ SUPPORT = {
     # its dashboard alert panel — without it here, that whole surface was
     # reachable by Superadmin only.
     'visitor.SmsLog': 'v',
+    # Gates the owner-activity panel on the user 360 page
+    # (core/detail_views.py:permissions_for_user). Same oversight as the
+    # view_smslog gap just above — nothing granted this, so the panel was
+    # reachable by Superadmin only, silently, with no comment marking it as
+    # a deliberate gap the way core.export_pii's is.
+    'visitor.VisitorActivity': 'v',
     'accounting.Subscription': 'av',
     'accounting.AddOnPurchase': 'av',
     # View-only on the catalogue models: the add forms use autocomplete_fields
@@ -74,6 +80,9 @@ FINANCE = {
     'accounting.Transaction': 'v',
     'accounting.AddOnPack': 'v',
     'accounting.AddOnPurchase': 'v',
+    # The audit trail underneath the wallets AddOnPurchase grants — same
+    # domain as everything else on this table, read-only same as the rest.
+    'accounting.CreditLedger': 'v',
 }
 
 ROLES = {
