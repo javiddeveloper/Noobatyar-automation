@@ -20,6 +20,8 @@ Two concerns, both "policy that has side effects", kept out of the views:
 
 import logging
 
+from django.db import transaction
+
 from accounting import entitlements
 
 logger = logging.getLogger(__name__)
@@ -163,3 +165,22 @@ def resubmit_if_content_changed(business, before_snapshot):
         'Business %s re-queued for review after editing %s', business.pk, changed
     )
     return True
+
+
+def save_and_maybe_requeue(serializer, business, before_snapshot):
+    """``serializer.save()`` and :func:`resubmit_if_content_changed`, atomically.
+
+    The owner's update view runs each of these as a separate ``sync_to_async``
+    hop, which means a separate database round trip. Between them, an edited but
+    still-``APPROVED`` business is genuinely live on the public booking page
+    with its new, unreviewed copy — a worker kill or a raised exception in that
+    window leaves it there permanently, since nothing rolls the save back. This
+    wraps both writes in one transaction so they commit — or fail — together;
+    call it as a single ``sync_to_async`` unit from the view rather than calling
+    the two pieces separately.
+
+    Returns whatever :func:`resubmit_if_content_changed` returns.
+    """
+    with transaction.atomic():
+        serializer.save()
+        return resubmit_if_content_changed(business, before_snapshot)

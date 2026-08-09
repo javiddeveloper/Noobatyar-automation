@@ -166,9 +166,12 @@ class BusinessView(APIView):
 
         try:
             if await sync_to_async(serializer.is_valid)(raise_exception=True):
-                await sync_to_async(serializer.save)()
-                requeued = await sync_to_async(services.resubmit_if_content_changed)(
-                    business, before
+                # save() and the re-queue check run as one transaction (see
+                # save_and_maybe_requeue's docstring): two separate sync_to_async
+                # hops would leave a window where an edited, unreviewed business
+                # is committed and still APPROVED.
+                requeued = await sync_to_async(services.save_and_maybe_requeue)(
+                    serializer, business, before
                 )
                 logger.info(f"Business updated: {business_id} by user {user.id}")
 
