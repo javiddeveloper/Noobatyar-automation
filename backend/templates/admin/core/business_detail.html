@@ -1,0 +1,126 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  Business 360 page (core.admin_site.NobatyarAdminSite.business_detail_view).
+  Panels gated by `detail.can.*` (core/detail_views.permissions_for_business),
+  same degrade-per-panel rule as user_detail.html.
+--------------------------------------------------------------------------- #}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .bd-head { display:flex; flex-wrap:wrap; gap:18px; align-items:baseline; margin-block-end:18px; }
+  .bd-head h2 { margin:0; }
+  .bd-meta { font-size:13px; color:#666; }
+  .bd-section { margin-block-end:26px; }
+  .bd-section h3 { margin-block-end:10px; }
+  .bd-table { width:100%; border-collapse:collapse; background:#fff; }
+  .bd-table th, .bd-table td { border:1px solid #e6e6e6; padding:7px 10px; font-size:13px; }
+  .bd-table th { background:#fafafa; text-align:start; }
+  .bd-table td.num { direction:ltr; text-align:end; }
+  .bd-empty { padding:14px; text-align:center; color:#888; border:1px dashed #ddd; border-radius:8px; }
+  .bd-cards { display:flex; flex-wrap:wrap; gap:14px; }
+  .bd-card { border:1px solid #ddd; border-radius:8px; padding:12px 16px; min-width:150px; background:#fff; }
+  .bd-card-title { font-size:12px; color:#666; margin-block-end:6px; }
+  .bd-card-value { font-size:18px; font-weight:700; direction:ltr; text-align:end; }
+  .bd-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .bd-b-approved { background:#d9f2e3; color:#0b6b34; }
+  .bd-b-pending  { background:#fff3cd; color:#7a5c00; }
+  .bd-b-rejected { background:#fbdddd; color:#8b1a1a; }
+  .bd-b-suspended{ background:#e4e4e4; color:#3d3d3d; }
+  .bd-note { font-size:12px; color:#666; margin-block-start:6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <div class="bd-head">
+    <h2>{{ detail.business.title }}</h2>
+    <span class="bd-meta">{{ detail.business.get_category_display }}</span>
+    <span class="bd-meta">مالک: <a href="{% url 'admin:core_user_detail' detail.business.user_id %}">{{ detail.business.user.name }}</a></span>
+    {% if detail.business.moderation_status == 'APPROVED' %}<span class="bd-badge bd-b-approved">تأیید شده</span>
+    {% elif detail.business.moderation_status == 'PENDING' %}<span class="bd-badge bd-b-pending">در انتظار بررسی</span>
+    {% elif detail.business.moderation_status == 'SUSPENDED' %}<span class="bd-badge bd-b-suspended">معلق</span>
+    {% else %}<span class="bd-badge bd-b-rejected">رد شده</span>{% endif %}
+    {% if detail.business.is_locked %}<span class="bd-badge bd-b-rejected">قفل (محدودیت اشتراک)</span>{% endif %}
+  </div>
+
+  {% if detail.can.appointments %}
+  <div class="bd-section">
+    <h3>آمار نوبت‌ها</h3>
+    <div class="bd-cards">
+      <div class="bd-card"><div class="bd-card-title">کل نوبت‌ها</div><div class="bd-card-value">{{ detail.appointment_stats.total }}</div></div>
+      <div class="bd-card"><div class="bd-card-title">نرخ غیبت</div>
+        <div class="bd-card-value">
+          {% if detail.appointment_stats.no_show_rate != None %}{{ detail.appointment_stats.no_show_rate|floatformat:1 }}%{% else %}—{% endif %}
+        </div></div>
+    </div>
+    <p class="bd-note">نرخ غیبت فقط از میان نوبت‌های «تکمیل‌شده» و «غیبت» محاسبه شده ({{ detail.appointment_stats.no_show_eligible }} نوبت) — نوبت‌های لغوشده یا منقضی‌شده‌ی پرداخت‌نشده در مخرج کسر نیستند.</p>
+    <table class="bd-table" style="margin-block-start:10px">
+      <thead><tr><th>وضعیت</th><th>تعداد</th></tr></thead>
+      <tbody>
+        {% for row in detail.appointment_stats.by_status %}
+          {% if row.count %}<tr><td>{{ row.label }}</td><td class="num">{{ row.count }}</td></tr>{% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if detail.can.sms %}
+  <div class="bd-section">
+    <h3>مصرف پیامک</h3>
+    <div class="bd-cards">
+      <div class="bd-card"><div class="bd-card-title">ارسال‌شده</div><div class="bd-card-value">{{ detail.sms_usage.sent }}</div></div>
+      <div class="bd-card"><div class="bd-card-title">ناموفق</div><div class="bd-card-value">{{ detail.sms_usage.failed }}</div></div>
+      <div class="bd-card"><div class="bd-card-title">جمع</div><div class="bd-card-value">{{ detail.sms_usage.total }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if detail.can.customers %}
+  <div class="bd-section">
+    <h3>مراجعان این کسب‌وکار ({{ detail.customers_total }})</h3>
+    {% if detail.customers_preview %}
+      <table class="bd-table">
+        <thead><tr><th>نام</th><th>تلفن</th><th>تعداد نوبت</th><th>آخرین نوبت</th></tr></thead>
+        <tbody>
+          {% for v in detail.customers_preview %}
+            <tr><td>{{ v.full_name }}</td><td style="direction:ltr;text-align:end">{{ v.phone_number }}</td>
+                <td class="num">{{ v.appointment_count }}</td>
+                <td class="num">{{ v.last_appointment_at|date:"Y-m-d" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if detail.customers_total > detail.customers_preview|length %}
+        <p class="bd-note"><a href="{{ customers_url }}">مشاهده‌ی همه‌ی {{ detail.customers_total }} مراجع ←</a></p>
+      {% endif %}
+    {% else %}
+      <div class="bd-empty">هنوز نوبتی برای این کسب‌وکار ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if detail.can.moderation %}
+  <div class="bd-section">
+    <h3>تاریخچه‌ی بررسی محتوا</h3>
+    {% if detail.moderation_history %}
+      <table class="bd-table">
+        <thead><tr><th>از</th><th>به</th><th>بازبین</th><th>یادداشت</th><th>تاریخ</th></tr></thead>
+        <tbody>
+          {% for log in detail.moderation_history %}
+            <tr><td>{{ log.from_status|default:"—" }}</td><td>{{ log.to_status }}</td>
+                <td>{{ log.actor.name|default:"—" }}</td>
+                <td>{{ log.note|truncatechars:80 }}</td>
+                <td class="num">{{ log.created_at|date:"Y-m-d H:i" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="bd-empty">تصمیم بررسی‌ای ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
