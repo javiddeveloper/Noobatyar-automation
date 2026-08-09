@@ -452,6 +452,14 @@ fun CreateBusinessScreen(
                                 // before the save — not after. Saving anything
                                 // else (hours, payment, switches) goes straight
                                 // through so we don't nag on every change.
+                                // Must track backend/business/models.py's MODERATED_FIELDS
+                                // exactly: title, bio, address, logo, notice_message. This
+                                // screen has no notice_message field yet, so it's absent
+                                // here — but if one is ever added to this or ANY screen
+                                // that saves a Business, it has to be added to this check
+                                // too, or an owner can silently de-list an approved
+                                // business (e.g. via the "temporarily closed" banner) with
+                                // no warning shown.
                                 val saved = uiState.business
                                 val moderatedFieldChanged = saved != null && (
                                         t != saved.title ||

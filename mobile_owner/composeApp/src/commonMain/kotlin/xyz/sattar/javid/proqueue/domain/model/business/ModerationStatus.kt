@@ -15,11 +15,28 @@ enum class ModerationStatus(val value: String, val persianName: String) {
     REJECTED("REJECTED", "تأیید نشده"),
     SUSPENDED("SUSPENDED", "تعلیق شده");
 
-    /** Whether clients can currently see this business. */
+    /** Whether the content review alone allows public visibility.
+     *
+     * Deliberately NOT the full answer — a business can be APPROVED and still
+     * hidden because of the billing lock. Callers that need the real answer
+     * must use [Business.isPubliclyVisible], which also checks `isLocked`.
+     */
     val isPubliclyVisible: Boolean get() = this == APPROVED
 
-    /** The owner has to fix something and resubmit. */
-    val needsOwnerAction: Boolean get() = this == REJECTED || this == SUSPENDED
+    /**
+     * Editing the business and saving will actually resubmit it for review.
+     *
+     * REJECTED only. The backend's `resubmit_if_content_changed`
+     * (business/services.py) deliberately excludes SUSPENDED — a moderator
+     * suspended the listing as an enforcement action, and letting the owner
+     * lift that by retyping their title would defeat the point of suspending
+     * it. An owner-app button offering "edit and resubmit" on a SUSPENDED
+     * business would do nothing when pressed.
+     */
+    val needsOwnerAction: Boolean get() = this == REJECTED
+
+    /** SUSPENDED can't be self-resolved by editing; the owner needs support. */
+    val requiresSupportContact: Boolean get() = this == SUSPENDED
 
     companion object {
         /**

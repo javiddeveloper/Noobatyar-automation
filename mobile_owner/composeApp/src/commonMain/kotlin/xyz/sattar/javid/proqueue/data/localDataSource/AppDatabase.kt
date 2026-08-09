@@ -26,9 +26,10 @@ internal const val dbFileName = "proQueue.db"
         UserEntity::class,
         SubscriptionEntity::class
     ],
-    // 10: BusinessEntity moderation columns. Both platforms build with
-    // fallbackToDestructiveMigration, so this drops the local cache and refetches.
-    version = 10
+    // 11: BusinessEntity.isLocked (billing lock, separate from moderation).
+    // Both platforms build with fallbackToDestructiveMigration, so this drops
+    // the local cache and refetches.
+    version = 11
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

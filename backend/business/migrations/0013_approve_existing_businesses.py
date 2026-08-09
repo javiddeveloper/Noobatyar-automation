@@ -17,8 +17,20 @@ from django.db.models import F
 
 
 def approve_existing(apps, schema_editor):
+    """Only ever touches rows still at the model default.
+
+    Filtered on PENDING so this is safe to re-run after a rollback: on first
+    application every row is PENDING (the field's default) and gets approved,
+    exactly as intended. But a `migrate business 0012` rollback followed by a
+    re-forward is a real operational sequence (bad deploy rolled back, fixed
+    build redeployed), and by the time that happens some rows may have moved to
+    REJECTED/SUSPENDED through real moderation decisions. An unfiltered update
+    would silently republish every one of those on the redeploy, with no
+    BusinessModerationLog entry to show it happened — the exact bypass this
+    whole feature exists to prevent.
+    """
     Business = apps.get_model('business', 'Business')
-    Business.objects.update(
+    Business.objects.filter(moderation_status='PENDING').update(
         moderation_status='APPROVED',
         moderation_submitted_at=F('created_at'),
     )

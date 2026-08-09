@@ -33,5 +33,13 @@ data class Business(
     val moderationStatusDisplay: String = "",
     val moderationNote: String = "",
     val moderationSubmittedAt: Long = 0,
+    // Billing lock (subscription/plan limits) — independent of moderationStatus.
+    // See ModerationStatus's kdoc: the two answer different questions and a
+    // visibility check that only looks at one of them is wrong.
+    val isLocked: Boolean = false,
     val logoBytes: ByteArray? = null
-)
+) {
+    /** True only when both the content review and the plan/billing state allow it. */
+    val isPubliclyVisible: Boolean
+        get() = moderationStatus?.isPubliclyVisible == true && !isLocked
+}

@@ -35,7 +35,8 @@ fun BusinessEntity.toDomain() = Business(
     moderationStatus = ModerationStatus.fromString(moderationStatus),
     moderationStatusDisplay = moderationStatusDisplay,
     moderationNote = moderationNote,
-    moderationSubmittedAt = moderationSubmittedAt
+    moderationSubmittedAt = moderationSubmittedAt,
+    isLocked = isLocked
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -67,7 +68,8 @@ fun Business.toEntity() = BusinessEntity(
     moderationStatus = moderationStatus?.value,
     moderationStatusDisplay = moderationStatusDisplay,
     moderationNote = moderationNote,
-    moderationSubmittedAt = moderationSubmittedAt
+    moderationSubmittedAt = moderationSubmittedAt,
+    isLocked = isLocked
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -129,6 +131,7 @@ fun BusinessDto.toEntity(): BusinessEntity {
         // 0 when absent or unparsable — treated as "unknown" by the UI.
         moderationSubmittedAt = moderationSubmittedAt
             ?.let { xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(it) }
-            ?: 0L
+            ?: 0L,
+        isLocked = isLocked
     )
 }

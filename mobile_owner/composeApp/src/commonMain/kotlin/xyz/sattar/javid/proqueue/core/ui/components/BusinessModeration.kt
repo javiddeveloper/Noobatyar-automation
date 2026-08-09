@@ -243,6 +243,9 @@ fun ModerationBanner(
                 }
 
                 if (onEditClick != null && status.needsOwnerAction) {
+                    // REJECTED only — see ModerationStatus.needsOwnerAction. Editing a
+                    // SUSPENDED business does not resubmit it (backend refuses that on
+                    // purpose), so no button is offered for it; see the branch below.
                     TextButton(
                         onClick = onEditClick,
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -264,6 +267,13 @@ fun ModerationBanner(
                             color = visuals.content
                         )
                     }
+                } else if (status.requiresSupportContact) {
+                    Text(
+                        text = "این وضعیت با ویرایش کسب‌وکار برطرف نمی‌شود. برای پیگیری با پشتیبانی تماس بگیرید.",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = visuals.content
+                    )
                 }
             }
         }

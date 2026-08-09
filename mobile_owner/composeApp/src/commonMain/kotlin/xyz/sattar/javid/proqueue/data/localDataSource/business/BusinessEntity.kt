@@ -35,5 +35,6 @@ data class BusinessEntity(
     val moderationStatus: String? = null,
     val moderationStatusDisplay: String = "",
     val moderationNote: String = "",
-    val moderationSubmittedAt: Long = 0
+    val moderationSubmittedAt: Long = 0,
+    val isLocked: Boolean = false
 )

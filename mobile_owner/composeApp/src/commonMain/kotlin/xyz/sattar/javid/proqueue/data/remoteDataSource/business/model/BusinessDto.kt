@@ -42,5 +42,9 @@ data class BusinessDto(
     @SerialName("moderation_status") val moderationStatus: String? = null,
     @SerialName("moderation_status_display") val moderationStatusDisplay: String? = null,
     @SerialName("moderation_note") val moderationNote: String? = null,
-    @SerialName("moderation_submitted_at") val moderationSubmittedAt: String? = null
+    @SerialName("moderation_submitted_at") val moderationSubmittedAt: String? = null,
+    // Billing lock, independent of moderation — the owner's plan lapsed rather
+    // than a content review. False default: an older backend that doesn't send
+    // this yet should never be treated as locked.
+    @SerialName("is_locked") val isLocked: Boolean = false
 )

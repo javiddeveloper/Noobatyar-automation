@@ -303,7 +303,10 @@ fun BusinessItem(
                 if (moderationStatus != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     xyz.sattar.javid.proqueue.core.ui.components.ModerationBadge(business = business)
-                    if (!moderationStatus.isPubliclyVisible) {
+                    // Checks both moderation AND the billing lock — a business can be
+                    // APPROVED but still invisible to clients because the plan lapsed,
+                    // and moderationStatus.isPubliclyVisible alone would miss that.
+                    if (!business.isPubliclyVisible) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "برای مراجعین نمایش داده نمی‌شود",
