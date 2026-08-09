@@ -104,11 +104,10 @@ class WalletLedgerTests(LedgerTestCase):
     def test_addon_payment_grant_path_writes_ledger(self):
         """
         accounting/payment/addon_payment.py:grant_addon_benefit calls
-        usage.add_wallet / usage.add_appt_wallet directly with no reason —
-        this is the one external (non-usage.py) caller of these functions
-        today, and it must still get a ledger row, even with a generic
-        fallback reason (see add_wallet's docstring for why the reason can't
-        be more specific without a change to that out-of-scope file).
+        usage.add_wallet / usage.add_appt_wallet with reason/ref_type/ref_id
+        pointing at the AddOnPurchase that caused the credit, so a ledger row
+        for an add-on purchase can be traced back to its cause instead of
+        showing the generic wallet_credit fallback.
         """
         from accounting.models import AddOnPack, AddOnPurchase
         from accounting.payment.addon_payment import grant_addon_benefit
@@ -127,7 +126,31 @@ class WalletLedgerTests(LedgerTestCase):
         row = CreditLedger.objects.get(user_id=user.id, metric='sms_wallet')
         self.assertEqual(row.delta, 20)
         self.assertEqual(row.balance_after, 20)
-        self.assertEqual(row.reason, usage.REASON_WALLET_CREDIT)
+        self.assertEqual(row.reason, 'addon_purchase')
+        self.assertEqual(row.ref_type, 'AddOnPurchase')
+        self.assertEqual(row.ref_id, purchase.id)
+
+    def test_addon_payment_grant_path_appointment_pack_writes_ledger(self):
+        from accounting.models import AddOnPack, AddOnPurchase
+        from accounting.payment.addon_payment import grant_addon_benefit
+
+        user = make_user('09120000006')
+        pack = AddOnPack.objects.create(
+            name='بسته نوبت', price=5000, kind=AddOnPack.KIND_APPOINTMENT, appointment_amount=7,
+        )
+        purchase = AddOnPurchase.objects.create(
+            user=user, pack=pack, amount=5000, track_id='t2', order_id='o2', status='pending',
+        )
+
+        grant_addon_benefit(purchase)
+
+        self.assertEqual(usage.get_appt_wallet(user.id), 7)
+        row = CreditLedger.objects.get(user_id=user.id, metric='appointment_wallet')
+        self.assertEqual(row.delta, 7)
+        self.assertEqual(row.balance_after, 7)
+        self.assertEqual(row.reason, 'addon_purchase')
+        self.assertEqual(row.ref_type, 'AddOnPurchase')
+        self.assertEqual(row.ref_id, purchase.id)
 
 
 class AppointmentLedgerTests(LedgerTestCase):
