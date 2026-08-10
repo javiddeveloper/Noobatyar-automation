@@ -26,10 +26,22 @@ internal const val dbFileName = "proQueue.db"
         UserEntity::class,
         SubscriptionEntity::class
     ],
-    // 11: BusinessEntity.isLocked (billing lock, separate from moderation).
     // Both platforms build with fallbackToDestructiveMigration, so this drops
-    // the local cache and refetches.
-    version = 11
+    // the local cache and refetches — no real migration path needed, just a
+    // version number higher than anything already shipped.
+    // 10: BusinessEntity moderation columns (moderationStatus/Note/etc, this
+    //     branch) AND, independently on develop, BusinessEntity.noticeEnabled/
+    //     noticeMessage/reminderDelivery — both landed as "version 10" on
+    //     their own branch and collided on merge.
+    // 11: BusinessEntity.isLocked (billing lock, separate from moderation).
+    // 12: AppointmentEntity.selectedServices (service-catalog chips picked
+    //     when recording an appointment).
+    // 13: BusinessEntity.services / allowClientAddService (the business's own
+    //     service menu, defined once and reused by the client booking page).
+    // 14: merge of the two branches above — no schema change of its own,
+    //     just the next version number since 10/11 and 13 were assigned
+    //     independently on two branches and can't both be "the" version 10/11.
+    version = 14
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

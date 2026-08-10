@@ -21,4 +21,6 @@ sealed interface LastVisitorsIntent {
     data class OnFilterChanged(val filter: AppointmentFilter) : LastVisitorsIntent
     data class ShowFilterSheet(val show: Boolean) : LastVisitorsIntent
     data object ClearFilter : LastVisitorsIntent
+    /** Dispatched right after a toast is shown so it can't be re-shown/deduped. */
+    data object ClearMessage : LastVisitorsIntent
 }

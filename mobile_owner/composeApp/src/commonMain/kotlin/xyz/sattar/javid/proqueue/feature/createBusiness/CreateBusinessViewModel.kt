@@ -5,7 +5,9 @@ import kotlinx.coroutines.flow.flow
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.model.business.Business
+import xyz.sattar.javid.proqueue.domain.usecase.AddServiceCatalogItemUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.BusinessUpsertUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetServiceCatalogUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
@@ -16,7 +18,9 @@ class CreateBusinessViewModel(
     private val businessRepository: xyz.sattar.javid.proqueue.domain.BusinessRepository,
     private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase,
     private val getPlansUseCase: GetPlansUseCase,
-    private val createPaymentUseCase: CreatePaymentUseCase
+    private val createPaymentUseCase: CreatePaymentUseCase,
+    private val getServiceCatalogUseCase: GetServiceCatalogUseCase,
+    private val addServiceCatalogItemUseCase: AddServiceCatalogItemUseCase
 ) : BaseViewModel<CreateBusinessState, CreateBusinessState.PartialState, CreateBusinessEvent, CreateBusinessIntent>(
     initialState
 ) {
@@ -42,7 +46,12 @@ class CreateBusinessViewModel(
                     intent.merchantId,
                     intent.paymentLink,
                     intent.bio,
-                    intent.logoBytes
+                    intent.logoBytes,
+                    intent.noticeEnabled,
+                    intent.noticeMessage,
+                    intent.reminderDelivery,
+                    intent.services,
+                    intent.allowClientAddService
                 )
             }
 
@@ -52,6 +61,47 @@ class CreateBusinessViewModel(
             is CreateBusinessIntent.LoadBusiness -> loadBusiness(intent.businessId)
             CreateBusinessIntent.LoadEntitlements -> loadEntitlements()
             is CreateBusinessIntent.UpgradePlan -> upgradePlan(intent.planId)
+            is CreateBusinessIntent.LoadServiceCatalog -> loadServiceCatalog(intent.category)
+            is CreateBusinessIntent.AddServiceCatalogItem ->
+                addServiceCatalogItem(intent.category, intent.name)
+        }
+    }
+
+    /**
+     * Chips for the service-menu picker. Category-scoped, so switching the
+     * business category reloads them — the salon list is not the clinic list.
+     */
+    private fun loadServiceCatalog(
+        category: xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+    ): Flow<CreateBusinessState.PartialState> = flow {
+        emit(CreateBusinessState.PartialState.ServiceCatalogLoading(true))
+        try {
+            emit(CreateBusinessState.PartialState.LoadServiceCatalog(getServiceCatalogUseCase(category.value)))
+        } catch (e: Exception) {
+            emit(CreateBusinessState.PartialState.ServiceCatalogLoading(false))
+        }
+    }
+
+    /**
+     * Adds a chip to the category's shared catalog so it becomes pickable.
+     * Selecting it into *this* business's menu is the screen's job — the
+     * catalog is shared, the menu is not.
+     */
+    private fun addServiceCatalogItem(
+        category: xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory,
+        name: String
+    ): Flow<CreateBusinessState.PartialState> = flow {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@flow
+        try {
+            val added = addServiceCatalogItemUseCase(category.value, trimmed)
+            emit(
+                CreateBusinessState.PartialState.LoadServiceCatalog(
+                    (uiState.value.serviceCatalog + added).distinct()
+                )
+            )
+        } catch (e: Exception) {
+            emit(CreateBusinessState.PartialState.ShowMessage(e.message ?: "خطا در افزودن خدمت"))
         }
     }
 
@@ -117,6 +167,15 @@ class CreateBusinessViewModel(
 
             is CreateBusinessState.PartialState.LoadPlans ->
                 currentState.copy(plans = partialState.plans)
+
+            is CreateBusinessState.PartialState.LoadServiceCatalog ->
+                currentState.copy(
+                    serviceCatalog = partialState.items,
+                    isServiceCatalogLoading = false
+                )
+
+            is CreateBusinessState.PartialState.ServiceCatalogLoading ->
+                currentState.copy(isServiceCatalogLoading = partialState.isLoading)
         }
     }
 
@@ -152,7 +211,12 @@ class CreateBusinessViewModel(
         merchantId: String,
         paymentLink: String,
         bio: String,
-        logoBytes: ByteArray?
+        logoBytes: ByteArray?,
+        noticeEnabled: Boolean,
+        noticeMessage: String,
+        reminderDelivery: String,
+        services: List<String>,
+        allowClientAddService: Boolean
     ): Flow<CreateBusinessState.PartialState> = flow {
         emit(CreateBusinessState.PartialState.IsLoading(true))
         val updatedBusiness = businessUpsertUseCase.invoke(
@@ -179,7 +243,12 @@ class CreateBusinessViewModel(
                 merchantId = merchantId,
                 paymentLink = paymentLink,
                 bio = bio,
-                logoBytes = logoBytes
+                logoBytes = logoBytes,
+                noticeEnabled = noticeEnabled,
+                noticeMessage = noticeMessage,
+                reminderDelivery = reminderDelivery,
+                services = services,
+                allowClientAddService = allowClientAddService
             )
         )
         if (updatedBusiness != null) {

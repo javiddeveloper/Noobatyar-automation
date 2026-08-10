@@ -16,10 +16,12 @@ import proqueue.composeapp.generated.resources.operation_error
 import proqueue.composeapp.generated.resources.select_business_error
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.domain.usecase.AddServiceCatalogItemUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.CheckAppointmentConflictUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.CreateAppointmentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentByIdUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentsForDateUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetServiceCatalogUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetVisitorByIdUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.RemoveAppointmentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.UpdateAppointmentUseCase
@@ -33,7 +35,9 @@ class CreateAppointmentViewModel(
     private val updateAppointmentUseCase: UpdateAppointmentUseCase,
     private val checkAppointmentConflictUseCase: CheckAppointmentConflictUseCase,
     private val getAppointmentsForDateUseCase: GetAppointmentsForDateUseCase,
-    private val removeAppointmentUseCase: RemoveAppointmentUseCase
+    private val removeAppointmentUseCase: RemoveAppointmentUseCase,
+    private val getServiceCatalogUseCase: GetServiceCatalogUseCase,
+    private val addServiceCatalogItemUseCase: AddServiceCatalogItemUseCase
 ) : BaseViewModel<CreateAppointmentState, CreateAppointmentState.PartialState, CreateAppointmentEvent, CreateAppointmentIntent>(
     initialState = CreateAppointmentState()
 ) {
@@ -66,6 +70,7 @@ class CreateAppointmentViewModel(
                         intent.appointmentDate,
                         intent.serviceDuration,
                         intent.description,
+                        intent.selectedServices,
                         intent.force
                     )
                 )
@@ -79,6 +84,11 @@ class CreateAppointmentViewModel(
                 emit(CreateAppointmentState.PartialState.DismissQuotaDialog)
             }
             is CreateAppointmentIntent.DeleteAppointment -> deleteAppointment(intent.appointmentId)
+            CreateAppointmentIntent.LoadServiceCatalog -> loadServiceCatalog()
+            is CreateAppointmentIntent.AddServiceCatalogItem -> addServiceCatalogItem(intent.name)
+            is CreateAppointmentIntent.UpdateSelectedServices -> flow {
+                emit(CreateAppointmentState.PartialState.UpdateSelectedServices(intent.services))
+            }
         }
     }
 
@@ -109,6 +119,7 @@ class CreateAppointmentViewModel(
                     serviceDuration = partialState.serviceDuration
                         ?: BusinessStateHolder.selectedBusiness.value?.defaultServiceDuration,
                     description = partialState.description,
+                    selectedServices = partialState.selectedServices,
                     editingAppointmentId = partialState.appointmentId,
                     isLoading = false
                 )
@@ -151,6 +162,15 @@ class CreateAppointmentViewModel(
                     appointmentDeleted = true,
                     isLoading = false
                 )
+            is LoadServiceCatalog ->
+                currentState.copy(
+                    serviceCatalog = partialState.items,
+                    isServiceCatalogLoading = false
+                )
+            is ServiceCatalogLoading ->
+                currentState.copy(isServiceCatalogLoading = partialState.isLoading)
+            is CreateAppointmentState.PartialState.UpdateSelectedServices ->
+                currentState.copy(selectedServices = partialState.services)
         }
     }
 
@@ -182,6 +202,11 @@ class CreateAppointmentViewModel(
                             appointmentDate = appointment.appointmentDate,
                             serviceDuration = appointment.serviceDuration,
                             description = appointment.description,
+                            selectedServices = appointment.selectedServices
+                                ?.split(",")
+                                ?.map { it.trim() }
+                                ?.filter { it.isNotEmpty() }
+                                ?: emptyList(),
                             appointmentId = appointment.id
                         )
                     )
@@ -221,8 +246,10 @@ class CreateAppointmentViewModel(
         appointmentDate: Long,
         serviceDuration: Int?,
         description: String?,
+        selectedServices: List<String>,
         force: Boolean
     ): Flow<CreateAppointmentState.PartialState> = flow {
+        val selectedServicesText = selectedServices.joinToString(",").ifEmpty { null }
         emit(CreateAppointmentState.PartialState.IsLoading(true))
         try {
             val business = BusinessStateHolder.selectedBusiness.value
@@ -259,7 +286,8 @@ class CreateAppointmentViewModel(
                     appointmentId = editingId,
                     date = appointmentDate,
                     duration = serviceDuration,
-                    description = description
+                    description = description,
+                    selectedServices = selectedServicesText
                 )
             } else {
                 createAppointmentUseCase(
@@ -267,7 +295,8 @@ class CreateAppointmentViewModel(
                     visitorId = visitorId,
                     appointmentDate = appointmentDate,
                     serviceDuration = serviceDuration,
-                    description = description
+                    description = description,
+                    selectedServices = selectedServicesText
                 ) > 0
             }
             if (success) {
@@ -300,6 +329,52 @@ class CreateAppointmentViewModel(
             } else {
                 emit(ShowMessage(getString(Res.string.operation_error)))
             }
+        } catch (e: Exception) {
+            emit(ShowMessage(e.message ?: getString(Res.string.operation_error)))
+        }
+    }
+
+    /**
+     * Chips to offer when recording what a visitor is here for.
+     *
+     * The business's own menu (defined in the business screen, and the same
+     * list the client sees when booking online) comes first, then the rest of
+     * the category's shared catalog. Showing the menu alone would have made
+     * chips the owner adds inline here disappear from the next visit; showing
+     * only the category catalog is what made this list feel unrelated to the
+     * business in the first place.
+     */
+    private fun loadServiceCatalog(): Flow<CreateAppointmentState.PartialState> = flow {
+        val business = BusinessStateHolder.selectedBusiness.value ?: return@flow
+        emit(CreateAppointmentState.PartialState.ServiceCatalogLoading(true))
+        try {
+            val items = getServiceCatalogUseCase(business.category.value)
+            emit(
+                CreateAppointmentState.PartialState.LoadServiceCatalog(
+                    (business.services + items).distinct()
+                )
+            )
+        } catch (e: Exception) {
+            // Offline or a failed fetch still leaves the owner their own menu.
+            emit(CreateAppointmentState.PartialState.LoadServiceCatalog(business.services))
+        }
+    }
+
+    /**
+     * Adds a chip to the category's shared catalog and immediately selects
+     * it, so the owner doesn't have to reopen the sheet to pick the item
+     * they just typed.
+     */
+    private fun addServiceCatalogItem(name: String): Flow<CreateAppointmentState.PartialState> = flow {
+        val business = BusinessStateHolder.selectedBusiness.value ?: return@flow
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@flow
+        try {
+            val addedName = addServiceCatalogItemUseCase(business.category.value, trimmed)
+            val updatedCatalog = (uiState.value.serviceCatalog + addedName).distinct()
+            emit(CreateAppointmentState.PartialState.LoadServiceCatalog(updatedCatalog))
+            val updatedSelected = (uiState.value.selectedServices + addedName).distinct()
+            emit(CreateAppointmentState.PartialState.UpdateSelectedServices(updatedSelected))
         } catch (e: Exception) {
             emit(ShowMessage(e.message ?: getString(Res.string.operation_error)))
         }

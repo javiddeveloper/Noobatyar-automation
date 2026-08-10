@@ -7,11 +7,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
+import xyz.sattar.javid.proqueue.core.ui.components.NOTICE_MESSAGE_MAX_LENGTH
+import xyz.sattar.javid.proqueue.domain.usecase.BusinessUpsertUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.DeleteBusinessUseCase
 
 class SettingsViewModel(
     private val deleteBusinessUseCase: DeleteBusinessUseCase,
-    private val businessRepository: xyz.sattar.javid.proqueue.domain.BusinessRepository
+    private val businessRepository: xyz.sattar.javid.proqueue.domain.BusinessRepository,
+    private val businessUpsertUseCase: BusinessUpsertUseCase
 ) : BaseViewModel<SettingsState, SettingsState.PartialState, SettingsEvent, SettingsIntent>(
     initialState = SettingsState()
 ) {
@@ -33,6 +37,54 @@ class SettingsViewModel(
             SettingsIntent.OnDeleteBusinessClick -> deleteBusiness()
             SettingsIntent.OnNotificationsClick -> sendEvent(SettingsEvent.NavigateToNotifications)
             SettingsIntent.OnMessagesClick -> sendEvent(SettingsEvent.NavigateToMessages)
+            SettingsIntent.ClearMessage -> flow { emit(SettingsState.PartialState.ClearMessage) }
+            SettingsIntent.OnSmsReportClick -> sendEvent(SettingsEvent.NavigateToSmsReport)
+            SettingsIntent.OnEmergencyNoticeClick -> sendEvent(SettingsEvent.NavigateToEmergencyNotice)
+            is SettingsIntent.UpdateNoticeEnabled ->
+                flow { emit(SettingsState.PartialState.SetNoticeEnabled(intent.enabled)) }
+
+            is SettingsIntent.UpdateNoticeMessage -> flow {
+                emit(
+                    SettingsState.PartialState.SetNoticeMessage(
+                        intent.message.take(NOTICE_MESSAGE_MAX_LENGTH)
+                    )
+                )
+            }
+
+            SettingsIntent.SaveNotice -> saveNotice()
+        }
+    }
+
+    /**
+     * Pushes the notice draft to the server. The whole business is sent (the API
+     * is a full update), so the copy is taken from the currently selected
+     * business rather than from anything this screen holds.
+     */
+    private fun saveNotice(): Flow<SettingsState.PartialState> = flow {
+        val business = BusinessStateHolder.selectedBusiness.value
+        if (business == null) {
+            emit(SettingsState.PartialState.ShowMessage(UiMessage.error("کسب‌وکار انتخاب نشده")))
+            return@flow
+        }
+        emit(SettingsState.PartialState.IsSavingNotice(true))
+        try {
+            val updated = businessUpsertUseCase(
+                business.copy(
+                    noticeEnabled = uiState.value.noticeEnabled,
+                    noticeMessage = uiState.value.noticeMessage.trim()
+                )
+            )
+            if (updated != null) {
+                BusinessStateHolder.selectBusiness(updated)
+                emit(SettingsState.PartialState.LoadSettings(updated))
+                emit(SettingsState.PartialState.ShowMessage(UiMessage.success("پیام اضطراری ذخیره شد")))
+            } else {
+                emit(SettingsState.PartialState.ShowMessage(UiMessage.error("خطا در ذخیره پیام اضطراری")))
+            }
+        } catch (e: Exception) {
+            emit(SettingsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در ذخیره پیام اضطراری")))
+        } finally {
+            emit(SettingsState.PartialState.IsSavingNotice(false))
         }
     }
 
@@ -44,7 +96,7 @@ class SettingsViewModel(
                 deleteBusinessUseCase(currentBusiness.id)
                 sendEvent(SettingsEvent.BusinessDeleted)
             } catch (e: Exception) {
-                emit(SettingsState.PartialState.ShowMessage(e.message ?: "Error deleting business"))
+                emit(SettingsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در حذف کسب‌وکار")))
             } finally {
                 emit(SettingsState.PartialState.IsLoading(false))
             }
@@ -64,13 +116,28 @@ class SettingsViewModel(
                 currentState.copy(
                     businessName = partialState.business?.title,
                     currentBusiness = partialState.business,
-                    isLoading = false
+                    isLoading = false,
+                    // The draft always starts from what the server has; anything
+                    // typed and not saved is discarded when the business reloads.
+                    noticeEnabled = partialState.business?.noticeEnabled ?: false,
+                    noticeMessage = partialState.business?.noticeMessage ?: ""
                 )
+            SettingsState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
+
+            is SettingsState.PartialState.SetNoticeEnabled ->
+                currentState.copy(noticeEnabled = partialState.enabled)
+
+            is SettingsState.PartialState.SetNoticeMessage ->
+                currentState.copy(noticeMessage = partialState.message)
+
+            is SettingsState.PartialState.IsSavingNotice ->
+                currentState.copy(isSavingNotice = partialState.saving)
         }
     }
 
     override fun createErrorState(message: String): SettingsState.PartialState =
-        SettingsState.PartialState.ShowMessage(message)
+        SettingsState.PartialState.ShowMessage(UiMessage.error(message))
 
     private fun loadSettings(): Flow<SettingsState.PartialState> = flow {
         emit(SettingsState.PartialState.IsLoading(true))

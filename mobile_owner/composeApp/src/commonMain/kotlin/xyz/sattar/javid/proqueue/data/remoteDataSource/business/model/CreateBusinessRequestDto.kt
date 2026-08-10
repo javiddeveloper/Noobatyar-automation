@@ -26,5 +26,10 @@ data class CreateBusinessRequestDto(
     @SerialName("payment_link") val paymentLink: String? = null,
     @SerialName("card_number") val cardNumber: String? = null,
     @SerialName("card_owner_name") val cardOwnerName: String? = null,
-    @SerialName("bio") val bio: String? = null
+    @SerialName("bio") val bio: String? = null,
+    @SerialName("notice_enabled") val noticeEnabled: Boolean = false,
+    @SerialName("notice_message") val noticeMessage: String? = null,
+    @SerialName("reminder_delivery") val reminderDelivery: String? = null,
+    @SerialName("services") val services: List<String> = emptyList(),
+    @SerialName("allow_client_add_service") val allowClientAddService: Boolean = false
 )

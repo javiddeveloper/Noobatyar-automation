@@ -8,20 +8,30 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
+import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
+import xyz.sattar.javid.proqueue.core.utils.toPersianDigits
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
@@ -29,10 +39,17 @@ import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 @Composable
 fun MessagesScreen(
     viewModel: MessagesViewModel = koinViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToAddons: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    viewModel.events.collectWithLifecycleAware { event ->
+        when (event) {
+            MessagesEvent.NavigateToAddons -> onNavigateToAddons()
+        }
+    }
 
     LaunchedEffect(uiState.message) {
         val msg = uiState.message
@@ -77,6 +94,93 @@ fun MessagesScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Delivery Card — who actually sends the reminder. This is the first
+            // decision on the screen: the message being written below reaches the
+            // client either from the owner's SIM or from the server.
+            SettingsCard {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(Res.string.reminder_delivery_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(Res.string.reminder_delivery_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    DeliveryOption(
+                        icon = Icons.Rounded.PhoneAndroid,
+                        title = stringResource(Res.string.reminder_delivery_manual_title),
+                        description = stringResource(Res.string.reminder_delivery_manual_description),
+                        selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
+                        locked = false,
+                        onClick = {
+                            viewModel.sendIntent(MessagesIntent.SetDelivery(ReminderDelivery.MANUAL.value))
+                        }
+                    )
+
+                    DeliveryOption(
+                        icon = Icons.Rounded.CloudUpload,
+                        title = stringResource(Res.string.reminder_delivery_panel_title),
+                        description = stringResource(Res.string.reminder_delivery_panel_description),
+                        selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
+                        locked = !uiState.canUsePanelDelivery,
+                        lockedHint = stringResource(Res.string.reminder_delivery_panel_locked),
+                        onClick = {
+                            viewModel.sendIntent(MessagesIntent.SetDelivery(ReminderDelivery.PANEL.value))
+                        },
+                        onUpgrade = {
+                            viewModel.sendIntent(MessagesIntent.UpgradeForPanelDelivery)
+                        }
+                    )
+                }
+            }
+
+            // Lead-time Card — the «{minutes}» in the template used to come from
+            // a preference the owner had no way of seeing from this screen.
+            SettingsCard {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(Res.string.reminder_lead_time_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.reminder_lead_time_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                    ) {
+                        reminderLeadTimeOptions.forEach { minutes ->
+                            FilterChip(
+                                selected = uiState.reminderMinutes == minutes,
+                                onClick = { viewModel.sendIntent(MessagesIntent.SetReminder(minutes)) },
+                                label = { Text("${minutes.toString().toPersianDigits()} دقیقه") },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             // Editor Card — variables + text field together, so it's clear the
             // chips insert into the message being edited.
@@ -203,6 +307,94 @@ private fun SettingsCard(content: @Composable () -> Unit) {
     ) {
         Box(modifier = Modifier.padding(20.dp)) {
             content()
+        }
+    }
+}
+
+/**
+ * One reminder-delivery mode. The description is not optional decoration: the
+ * two modes differ in who pays and who has to remember to press send, and that
+ * is exactly what the labels alone don't say.
+ *
+ * A [locked] option keeps its description (so the owner can see what they'd be
+ * buying) but is not selectable; the upsell button points at the same add-ons
+ * screen the rest of the app uses for paid capabilities.
+ */
+@Composable
+private fun DeliveryOption(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    selected: Boolean,
+    locked: Boolean,
+    onClick: () -> Unit,
+    lockedHint: String? = null,
+    onUpgrade: () -> Unit = {}
+) {
+    val borderColor = when {
+        locked -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+        else Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        onClick = onClick,
+        enabled = !locked
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = selected,
+                    onClick = onClick,
+                    enabled = !locked,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Icon(
+                    imageVector = if (locked) Icons.Rounded.Lock else icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.alpha(if (locked) 0.6f else 1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 34.dp).alpha(if (locked) 0.6f else 1f)
+            )
+            if (locked) {
+                Spacer(modifier = Modifier.height(10.dp))
+                if (lockedHint != null) {
+                    Text(
+                        text = lockedHint,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 34.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+                OutlinedButton(
+                    onClick = onUpgrade,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.padding(start = 34.dp)
+                ) {
+                    Text("فعال‌سازی", style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
     }
 }

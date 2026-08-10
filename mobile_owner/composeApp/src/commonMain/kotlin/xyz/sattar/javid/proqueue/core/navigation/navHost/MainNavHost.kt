@@ -6,10 +6,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -28,30 +25,31 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import xyz.sattar.javid.proqueue.core.navigation.AppScreens
 import xyz.sattar.javid.proqueue.core.navigation.MainTab
 import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
-import xyz.sattar.javid.proqueue.core.network.GlobalError
-import xyz.sattar.javid.proqueue.core.network.GlobalErrorManager
+import xyz.sattar.javid.proqueue.core.navigation.PaymentNavigationManager
+import xyz.sattar.javid.proqueue.core.navigation.PendingVisitorsFilter
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentScreen
 import xyz.sattar.javid.proqueue.feature.createVisitor.CreateVisitorRoute
 import xyz.sattar.javid.proqueue.feature.home.HomeScreen
+import xyz.sattar.javid.proqueue.feature.home.VisitorsNavArgs
 import xyz.sattar.javid.proqueue.feature.lastVisitors.LastVisitorsScreen
 import xyz.sattar.javid.proqueue.feature.messages.MessagesScreen
 import xyz.sattar.javid.proqueue.feature.notifications.NotificationsScreen
 import xyz.sattar.javid.proqueue.feature.profile.PaymentResultScreen
+import xyz.sattar.javid.proqueue.feature.settings.EmergencyNoticeScreen
 import xyz.sattar.javid.proqueue.feature.settings.SettingsScreen
+import xyz.sattar.javid.proqueue.feature.smsReport.SmsReportScreen
 import xyz.sattar.javid.proqueue.feature.visitorDetails.VisitorDetailsScreen
 import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionScreen
 import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
 import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
 import xyz.sattar.javid.proqueue.feature.createBusiness.AdvancedSettingsRoute
-import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
 
 @Composable
@@ -64,6 +62,7 @@ fun MainNavHost(
     val currentDestination = navBackStackEntry?.destination
 
     val notificationEvent by NotificationNavigationManager.navigationEvent.collectAsState()
+    val paymentEvent by PaymentNavigationManager.paymentEvent.collectAsState()
 
     // Shared blur source/target state for the glass top & bottom bars.
     val hazeState = remember { HazeState() }
@@ -79,6 +78,20 @@ fun MainNavHost(
                 navController.navigate(AppScreens.VisitorDetails(event.visitorId, event.openMessageDialog))
                 NotificationNavigationManager.consumeEvent()
             }
+        }
+    }
+
+    LaunchedEffect(paymentEvent) {
+        paymentEvent?.let { event ->
+            navController.navigate(
+                AppScreens.PaymentResult(
+                    success = if (event.success) 1 else 0,
+                    ref = event.ref,
+                    amount = event.amount,
+                    txn = event.txn
+                )
+            )
+            PaymentNavigationManager.consumeEvent()
         }
     }
 
@@ -152,11 +165,31 @@ fun MainNavHost(
                     onNavigateToAddons = {
                         navController.navigate(AppScreens.AddOns)
                     },
+                    onNavigateToVisitors = { args: VisitorsNavArgs ->
+                        // Same call the bottom bar's onTabSelected uses — this
+                        // must land on the one shared MainTab.LastVisitors
+                        // entry, not push a second stacked copy (that copy
+                        // wouldn't match any tab in `tabs`, so shouldShowBottomBar
+                        // would stay false and the bottom bar would vanish).
+                        PendingVisitorsFilter.set(args)
+                        navController.navigate(MainTab.LastVisitors.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                 )
             }
 
             composable<AppScreens.Visitors> {
+                val pending = remember { PendingVisitorsFilter.consume() }
                 LastVisitorsScreen(
+                    initialStatus = pending?.status,
+                    initialTab = pending?.tab,
+                    initialDateFrom = pending?.dateFrom,
+                    initialDateTo = pending?.dateTo,
                     onNavigateToCreateAppointment = {
                         navController.navigate(AppScreens.VisitorSelection(returnResult = false))
                     },
@@ -225,6 +258,12 @@ fun MainNavHost(
                     onNavigateToMessages = {
                         navController.navigate(AppScreens.Messages)
                     },
+                    onNavigateToSmsReport = {
+                        navController.navigate(AppScreens.SmsReport)
+                    },
+                    onNavigateToEmergencyNotice = {
+                        navController.navigate(AppScreens.EmergencyNotice)
+                    },
                     onNavigateToLogin = onNavigateToLogin
                 )
             }
@@ -260,6 +299,19 @@ fun MainNavHost(
 
             composable<AppScreens.Messages> {
                 MessagesScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToAddons = { navController.navigate(AppScreens.AddOns) }
+                )
+            }
+
+            composable<AppScreens.SmsReport> {
+                SmsReportScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable<AppScreens.EmergencyNotice> {
+                EmergencyNoticeScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -307,6 +359,7 @@ fun MainNavHost(
                 val args = backStackEntry.toRoute<AppScreens.Calendar>()
                 CalendarScreen(
                     isPicker = args.isPicker,
+                    excludeAppointmentId = args.excludeAppointmentId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToCreateAppointment = { date, time ->
                         navController.navigate(AppScreens.CreateAppointment(date = date, time = time))
@@ -337,7 +390,9 @@ fun MainNavHost(
                         navController.popBackStack()
                     },
                     onNavigateToCalendar = {
-                        navController.navigate(AppScreens.Calendar(isPicker = true))
+                        navController.navigate(
+                            AppScreens.Calendar(isPicker = true, excludeAppointmentId = args.appointmentId)
+                        )
                     },
                     onNavigateToVisitorSelection = {
                         navController.navigate(AppScreens.VisitorSelection(returnResult = true))
@@ -364,16 +419,17 @@ fun MainNavHost(
                 )
             }
 
+            // No `deepLinks` here on purpose — the noobatyar://payment/result
+            // deep link is parsed once in MainActivity and routed through
+            // PaymentNavigationManager (see the LaunchedEffect above). Letting
+            // Navigation-Compose auto-handle the Activity intent itself would
+            // re-trigger this dialog every time a fresh NavHostController sets
+            // its graph, e.g. after a business switch recreates MainNavHost.
             dialog<AppScreens.PaymentResult>(
                 dialogProperties = DialogProperties(
                     dismissOnBackPress = false,
                     dismissOnClickOutside = false,
                     usePlatformDefaultWidth = false
-                ),
-                deepLinks = listOf(
-                    navDeepLink {
-                        uriPattern = "noobatyar://payment/result?success={success}&ref={ref}&amount={amount}&txn={txn}"
-                    }
                 )
             ) { backStackEntry ->
                 val args = backStackEntry.toRoute<AppScreens.PaymentResult>()

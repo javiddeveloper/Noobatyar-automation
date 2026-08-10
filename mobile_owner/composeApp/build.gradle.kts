@@ -16,11 +16,23 @@ plugins {
 }
 
 
+// Two Android product flavors pick which server this build talks to (see
+// docs/ENVIRONMENTS.md). "prod" is the safe default returned by defaultConfigs,
+// so anything that isn't explicitly built as the "local" flavor (iOS included,
+// which has no flavor concept) still points at the real server.
 buildkonfig {
     packageName = "xyz.sattar.javid.proqueue"
     defaultConfigs {
         buildConfigField(STRING, "BASE_URL", "https://api.noobatyar.ir")
         buildConfigField(STRING, "BOOKING_BASE_URL", "https://app.noobatyar.ir")
+    }
+    defaultConfigs("local") {
+        // 10.0.2.2 is the Android emulator's alias for the host machine's
+        // loopback interface — this is where `python manage.py runserver`
+        // listens per docs/ENVIRONMENTS.md. On a real device on the same LAN,
+        // override with your machine's IP instead (adb won't route 10.0.2.2).
+        buildConfigField(STRING, "BASE_URL", "http://10.0.2.2:8000")
+        buildConfigField(STRING, "BOOKING_BASE_URL", "http://10.0.2.2:3000")
     }
 }
 
@@ -119,6 +131,22 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "100").toInt()
         versionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0.0"
+    }
+
+    // "prod" talks to the real server and is what release builds/CI use by
+    // default. "local" talks to a Django dev server on this machine (see
+    // docs/ENVIRONMENTS.md) and gets its own applicationId suffix so both
+    // variants can be installed on the same emulator/device side by side.
+    flavorDimensions += "env"
+    productFlavors {
+        create("prod") {
+            dimension = "env"
+        }
+        create("local") {
+            dimension = "env"
+            applicationIdSuffix = ".local"
+            versionNameSuffix = "-local"
+        }
     }
     packaging {
         resources {

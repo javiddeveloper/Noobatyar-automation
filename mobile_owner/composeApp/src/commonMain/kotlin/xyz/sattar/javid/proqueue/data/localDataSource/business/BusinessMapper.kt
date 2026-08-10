@@ -5,6 +5,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusi
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
 import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 
 fun BusinessEntity.toDomain() = Business(
     id = id,
@@ -36,7 +37,12 @@ fun BusinessEntity.toDomain() = Business(
     moderationStatusDisplay = moderationStatusDisplay,
     moderationNote = moderationNote,
     moderationSubmittedAt = moderationSubmittedAt,
-    isLocked = isLocked
+    isLocked = isLocked,
+    noticeEnabled = noticeEnabled,
+    noticeMessage = noticeMessage,
+    reminderDelivery = reminderDelivery,
+    services = services.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+    allowClientAddService = allowClientAddService
 )
 
 fun Business.toEntity() = BusinessEntity(
@@ -69,7 +75,12 @@ fun Business.toEntity() = BusinessEntity(
     moderationStatusDisplay = moderationStatusDisplay,
     moderationNote = moderationNote,
     moderationSubmittedAt = moderationSubmittedAt,
-    isLocked = isLocked
+    isLocked = isLocked,
+    noticeEnabled = noticeEnabled,
+    noticeMessage = noticeMessage,
+    reminderDelivery = reminderDelivery,
+    services = services.joinToString(","),
+    allowClientAddService = allowClientAddService
 )
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
@@ -93,7 +104,12 @@ fun Business.toRequestDto() = CreateBusinessRequestDto(
     paymentLink = paymentLink,
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
-    bio = bio
+    bio = bio,
+    noticeEnabled = noticeEnabled,
+    noticeMessage = noticeMessage,
+    reminderDelivery = reminderDelivery,
+    services = services,
+    allowClientAddService = allowClientAddService
 )
 
 fun BusinessDto.toEntity(): BusinessEntity {
@@ -132,6 +148,11 @@ fun BusinessDto.toEntity(): BusinessEntity {
         moderationSubmittedAt = moderationSubmittedAt
             ?.let { xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(it) }
             ?: 0L,
-        isLocked = isLocked
+        isLocked = isLocked,
+        noticeEnabled = noticeEnabled,
+        noticeMessage = noticeMessage ?: "",
+        reminderDelivery = reminderDelivery ?: ReminderDelivery.MANUAL.value,
+        services = services.joinToString(","),
+        allowClientAddService = allowClientAddService
     )
 }

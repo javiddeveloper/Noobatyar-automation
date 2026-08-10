@@ -39,7 +39,12 @@ data class AppointmentEntity(
     val serviceDuration: Int? = null, // null = استفاده از defaultServiceDuration
     val status: String = "WAITING", // WAITING, IN_PROGRESS, CONFIRMED, NO_SHOW, CANCELLED
     val description: String? = null,
+    /** Comma-separated service-catalog names picked as chips, e.g. "رنگ مو,کوتاهی". */
+    val selectedServices: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
-    val paymentReceipt: String? = null
+    val paymentReceipt: String? = null,
+    val trackingCode: String? = null,
+    val paymentReference: String? = null,
+    val depositPaymentMethod: String? = null
 )

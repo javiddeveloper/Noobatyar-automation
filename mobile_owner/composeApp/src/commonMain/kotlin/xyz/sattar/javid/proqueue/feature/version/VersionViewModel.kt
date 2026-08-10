@@ -40,7 +40,7 @@ class VersionViewModel(
                 emit(VersionPartialState.Loading(true))
                 emit(VersionPartialState.NetworkError(false))
                 try {
-                    when (val result = checkVersionUseCase(AppInfo.versionName)) {
+                    when (val result = checkVersionUseCase(AppInfo.versionCode)) {
                         is ApiResponse.Success -> {
                             val serverVersion = result.data.latestVersion.versionCode
                             val currentVersion = AppInfo.versionCode

@@ -1,6 +1,7 @@
 package xyz.sattar.javid.proqueue.feature.home
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,14 +28,17 @@ import androidx.compose.ui.unit.dp
 fun NeonLineChart(
     counts: List<Int>,
     modifier: Modifier = Modifier,
-    title: String = "روند نوبت‌های ۷ روز اخیر"
+    title: String = "روند نوبت‌های ۷ روز اخیر",
+    onClick: (() -> Unit)? = null
 ) {
     val lineColor = MaterialTheme.colorScheme.primary
     val today = counts.lastOrNull() ?: 0
     val peak = counts.maxOrNull() ?: 0
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().let {
+            if (onClick != null) it.clickable(onClick = onClick) else it
+        },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh

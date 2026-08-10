@@ -57,14 +57,57 @@ class Business(models.Model):
     )
 
     # ── Client-facing notice & booking control ────────────────────────────
-    notice_message = models.TextField(
+    # The notice ("پیام اضطراری") and the booking switch are deliberately
+    # independent: the common case is a shop that is still taking bookings but
+    # needs to warn today's clients about something ("آب قطع است، با تاخیر
+    # بیایید"). Tying the notice to booking_enabled would have forced the owner
+    # to close their calendar just to say a sentence.
+    notice_enabled = models.BooleanField(
+        default=False,
+        help_text="If True, notice_message is shown to clients on the booking page"
+    )
+    # CharField, not TextField: this is rendered inside a fixed banner on the
+    # booking page and an unbounded text field let an owner paste an essay that
+    # pushed the booking button off-screen. 300 chars is enforced here and again
+    # at the serializer layer so every write path (owner app, admin) is capped.
+    notice_message = models.CharField(
+        max_length=300,
         blank=True,
         default='',
-        help_text="A short notice shown to clients on the booking page (e.g. vacation, holiday)"
+        help_text="A short notice shown to clients on the booking page (max 300 chars)"
     )
     booking_enabled = models.BooleanField(
         default=True,
         help_text="If False, clients cannot create new appointments"
+    )
+
+    # ── Service menu ──────────────────────────────────────────────────────
+    # The list of services THIS business actually offers ("لیست خدمات من"),
+    # picked by the owner in the business-definition screen from the
+    # category-wide ServiceCatalogItem chips (plus anything they add).
+    #
+    # Deliberately a JSON list of names on the business rather than a
+    # many-to-many to ServiceCatalogItem: the catalog is a shared vocabulary,
+    # not an inventory. What matters downstream (appointment.selected_services)
+    # is the *name*, and copying it here means an owner's menu is unaffected
+    # when some other business in the category renames or adds a chip.
+    #
+    # Read by the public booking page too: a client picking "رنگ مو" from the
+    # owner's own menu is the whole point — it turns an unparseable free-text
+    # note into something the owner can plan the slot length around.
+    services = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Service names this business offers, e.g. ['کوتاهی مو', 'رنگ مو']"
+    )
+    # Off by default: the owner's menu is what makes a client's answer usable,
+    # and a free "+" for clients quietly reintroduces the free-text mess this
+    # feature exists to remove. Owners who genuinely take custom requests can
+    # turn it on. A name a client adds this way is stored on that appointment
+    # only — it never edits the owner's menu.
+    allow_client_add_service = models.BooleanField(
+        default=False,
+        help_text="If True, clients may add a service name that is not on the business's menu"
     )
 
     # ── Payment configuration ─────────────────────────────────────────────
@@ -151,12 +194,33 @@ class Business(models.Model):
         help_text="Allow sending promotional/marketing SMS to clients"
     )
     notify_owner_by_sms = models.BooleanField(
-        default=True,
+        default=False,
         help_text=(
-            "Text the owner when a client books. Billed to the owner's own SMS "
-            "quota, so it is switchable — an owner who watches the app does not "
-            "have to pay for a message telling them what the app already shows."
+            "Text the owner when a client books. Off by default: the owner is "
+            "meant to learn about a booking from the app's own notification, "
+            "not from an SMS billed to their own quota. Left switchable for "
+            "owners who explicitly want to pay for it."
         )
+    )
+
+    # ── Reminder delivery channel ─────────────────────────────────────────
+    # Two very different cost models, so this is a server-side setting rather
+    # than a client preference: MANUAL costs nothing (the owner app opens the
+    # phone's own SMS composer and the message leaves the owner's SIM), while
+    # PANEL bills every reminder to the owner's plan quota through Melipayamak.
+    # PANEL is therefore gated behind FEATURE_AUTO_REMINDER_SMS
+    # (accounting/permissions.py) and MANUAL is the default so that nobody is
+    # silently charged. The reminder cron only ever looks at PANEL businesses;
+    # MANUAL ones are driven entirely from the owner app.
+    REMINDER_DELIVERY_CHOICES = [
+        ('MANUAL', 'ارسال دستی از سیم‌کارت اونر'),
+        ('PANEL', 'ارسال خودکار از پنل پیامکی'),
+    ]
+    reminder_delivery = models.CharField(
+        max_length=10,
+        choices=REMINDER_DELIVERY_CHOICES,
+        default='MANUAL',
+        help_text="How appointment reminders reach clients: owner's SIM (free) or SMS panel (paid)"
     )
 
     # ── Content moderation ────────────────────────────────────────────────
@@ -400,3 +464,46 @@ class ContentReport(models.Model):
 
     def __str__(self):
         return f"گزارش {self.get_reason_display()} برای {self.business_id}"
+
+
+class ServiceCatalogItem(models.Model):
+    """
+    A pickable "service received" name, scoped to a business CATEGORY rather
+    than to a single Business.
+
+    The whole point of this table is cross-business sharing within a
+    category: when a hairdresser adds "رنگ ابرو" while booking a client, that
+    name becomes a selectable chip for every other BEAUTY_SALON business too
+    — not just the one that typed it. Owners were previously typing the same
+    handful of service names into a free-text field over and over, with every
+    typo and phrasing variant treated as a different service.
+
+    Deliberately not gated/moderated: get_or_create on (category, name) is
+    the whole write path (see ServiceCatalogView.post). A bad or duplicate-ish
+    entry costs nothing to leave in place, and blocking on review would have
+    defeated the "just add it inline while booking" UX this exists for.
+    """
+    category = models.CharField(
+        max_length=50,
+        choices=Business.CATEGORY_CHOICES,
+        db_index=True,
+        help_text="Shared across every business in this category"
+    )
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'business_service_catalog_item'
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['category', 'name'],
+                name='uniq_service_catalog_category_name'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['category', 'name']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.category})"

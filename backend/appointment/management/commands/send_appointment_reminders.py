@@ -9,6 +9,11 @@ never received a reminder. This command closes that gap: for every upcoming
 appointment whose reminder window has opened, it sends one SMS and stamps
 ``reminder_sent_at`` so the same appointment is never reminded twice.
 
+Scope: only businesses with ``reminder_delivery='PANEL'`` — the paid, automatic
+channel gated behind ``auto_reminder_sms``. ``MANUAL`` businesses (the default)
+send their reminders from the owner's own SIM inside the owner app; this job
+must send nothing and charge nothing for them.
+
 Options:
     --dry-run   report what would be sent without sending or stamping anything.
 """
@@ -81,10 +86,20 @@ class Command(BaseCommand):
         the widest possible window and the exact per-business cutoff is applied
         in Python. The candidate set is only "appointments starting soon", so
         this stays small.
+
+        ``reminder_delivery`` is part of the filter, not just a display setting:
+        a MANUAL business sends its reminders from the owner's own SIM through
+        the owner app, so anything this job did for one would be a duplicate
+        message *and* a charge against a quota the owner deliberately chose not
+        to spend. Only PANEL businesses are the panel's to send.
         """
         widest = (
             Business.objects
-            .filter(enable_reminder_sms=True, notification_enabled=True)
+            .filter(
+                enable_reminder_sms=True,
+                notification_enabled=True,
+                reminder_delivery='PANEL',
+            )
             .aggregate(m=Max('notification_minutes_before'))['m']
         )
         if not widest:
@@ -99,6 +114,7 @@ class Command(BaseCommand):
                 appointment_date__lte=now + timedelta(minutes=widest),
                 business__enable_reminder_sms=True,
                 business__notification_enabled=True,
+                business__reminder_delivery='PANEL',
             )
             .select_related('business', 'visitor')
             .order_by('appointment_date')
@@ -123,17 +139,24 @@ class Command(BaseCommand):
             return 'skipped'
 
         owner_id = appointment.business.user_id
+        message = signed(
+            f"⏰ یادآوری نوبت شما در {appointment.business.title}\n"
+            f"تاریخ: {format_datetime(appointment.appointment_date)}"
+        )
+
         receipt = usage.consume_sms(owner_id)
         if not receipt:
             self.stderr.write(
                 f"#{appointment.id}: اعتبار پیامک کسب‌وکار {appointment.business_id} تمام شده است"
             )
+            SmsLog.objects.create(
+                business_id=appointment.business_id,
+                visitor_id=appointment.visitor_id,
+                message_text=message,
+                status='SKIPPED_QUOTA',
+                error_detail="اعتبار پیامک این ماه تمام شده است",
+            )
             return 'skipped'
-
-        message = signed(
-            f"⏰ یادآوری نوبت شما در {appointment.business.title}\n"
-            f"تاریخ: {format_datetime(appointment.appointment_date)}"
-        )
 
         ok, err = send_sms(phone, message)
         if not ok:

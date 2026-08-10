@@ -17,7 +17,7 @@ export const SUPPORT_CHANNELS: SupportChannel[] = [
   { key: 'bale', label: 'بله', href: 'https://ble.ir/noobatyar', glyph: '💬', tint: '#e0f2fe' },
   { key: 'eitaa', label: 'ایتا', href: 'https://eitaa.com/noobatyar', glyph: '📨', tint: '#fef3c7' },
   { key: 'rubika', label: 'روبیکا', href: 'https://rubika.ir/noobatyar', glyph: '📩', tint: '#ede9fe' },
-  { key: 'instagram', label: 'اینستاگرام', href: 'https://instagram.com/ajviddev', glyph: '📷', tint: '#fce7f3' },
+  { key: 'instagram', label: 'اینستاگرام', href: 'https://instagram.com/javiddev', glyph: '📷', tint: '#fce7f3' },
   { key: 'website', label: 'سایت', href: 'https://noobatyar.ir', glyph: '🌐', tint: '#dcfce7' },
 ];
 

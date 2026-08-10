@@ -36,7 +36,7 @@ fun VersionHandler(
             versionInfo = state.updateInfo!!,
             onDismiss = { viewModel.sendIntent(VersionIntent.DismissDialog) },
             onUpdateClick = {
-                openUrl("https://cafebazaar.ir/developer/nice_javid")
+                openUrl("https://noobatyar.ir")
             }
         )
     }

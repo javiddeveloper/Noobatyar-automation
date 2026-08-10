@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayStatsUseCase
@@ -20,11 +21,15 @@ import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.sortedForBanner
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import org.jetbrains.compose.resources.getString
+import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.home_sms_quota_exhausted_warning
 
 
 class HomeViewModel(
@@ -43,6 +48,9 @@ class HomeViewModel(
 ) : BaseViewModel<HomeState, HomeState.PartialState, HomeEvent, HomeIntent>(
     initialState = HomeState()
 ) {
+    /** Business id the SMS-quota-exhausted warning was last shown for this session. */
+    private var smsQuotaWarningShownFor: Long? = null
+
     init {
         viewModelScope.launch {
             BusinessStateHolder.selectedBusiness.collectLatest {
@@ -60,6 +68,7 @@ class HomeViewModel(
             is HomeIntent.MarkAppointmentNoShow -> markNoShow(intent.appointmentId)
             is HomeIntent.SendMessage -> sendMessage(intent.appointmentId, intent.type, intent.content, intent.businessTitle)
             is HomeIntent.PurchasePlan -> purchasePlan(intent.planId)
+            HomeIntent.ClearMessage -> flow { emit(HomeState.PartialState.ClearMessage) }
         }
     }
 
@@ -87,8 +96,6 @@ class HomeViewModel(
                 currentState.copy(stats = partialState.stats, statsLoaded = true)
             is HomeState.PartialState.LoadPlans ->
                 currentState.copy(plans = partialState.plans, plansLoaded = true)
-            is HomeState.PartialState.ShowPaymentResult ->
-                currentState.copy(paymentResult = partialState.info)
             is HomeState.PartialState.LoadSubscription ->
                 currentState.copy(subscription = partialState.subscription)
             is HomeState.PartialState.LoadEntitlements ->
@@ -98,11 +105,13 @@ class HomeViewModel(
                 )
             is HomeState.PartialState.LoadDailyCounts ->
                 currentState.copy(dailyCounts = partialState.counts, chartLoaded = true)
+            HomeState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
         }
     }
 
     override fun createErrorState(message: String): HomeState.PartialState =
-        HomeState.PartialState.ShowMessage(message)
+        HomeState.PartialState.ShowMessage(UiMessage.error(message))
 
     /**
      * بار گذاری کامل: پلن‌ها + اشتراک + entitlements + queue + stats + chart
@@ -115,9 +124,10 @@ class HomeViewModel(
         emit(HomeState.PartialState.LoadBusinessName(business))
 
         // پلن‌ها — فقط اگر قبلاً نگرفتیم یا لیست خالی بود
+        // ترتیب نمایش: ابتدا پلن آزمایشی، سپس بقیه به ترتیب صعودی مدت.
         try {
             when (val plansResponse = getPlansUseCase()) {
-                is ApiResponse.Success -> emit(HomeState.PartialState.LoadPlans(plansResponse.data))
+                is ApiResponse.Success -> emit(HomeState.PartialState.LoadPlans(plansResponse.data.sortedForBanner()))
                 is ApiResponse.Error -> emit(HomeState.PartialState.LoadPlans(emptyList()))
             }
         } catch (e: Exception) {
@@ -135,7 +145,28 @@ class HomeViewModel(
         // Entitlements
         try {
             when (val entResponse = getMyEntitlementsUseCase()) {
-                is ApiResponse.Success -> emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
+                is ApiResponse.Success -> {
+                    emit(HomeState.PartialState.LoadEntitlements(entResponse.data))
+                    val skipped = entResponse.data.usage.sms.skippedThisMonth
+                    // Real count of messages the server actually skipped this month
+                    // (SmsLog rows written with status SKIPPED_QUOTA) — not a guess
+                    // from monthlyRemaining hitting zero. Shown once per business
+                    // per app session so it doesn't repeat on every pull-to-refresh.
+                    val business = BusinessStateHolder.selectedBusiness.value
+                    if (skipped > 0 && business != null && smsQuotaWarningShownFor != business.id) {
+                        smsQuotaWarningShownFor = business.id
+                        emit(
+                            HomeState.PartialState.ShowMessage(
+                                UiMessage.warning(
+                                    getString(
+                                        Res.string.home_sms_quota_exhausted_warning,
+                                        skipped
+                                    )
+                                )
+                            )
+                        )
+                    }
+                }
                 is ApiResponse.Error -> emit(HomeState.PartialState.LoadEntitlements(null))
             }
         } catch (e: Exception) {
@@ -160,17 +191,28 @@ class HomeViewModel(
                 syncAppointmentsUseCase(business.id, date = today)
 
                 val queue = getWaitingQueueUseCase(business.id, today)
+                // BaseViewModel's intent pipeline uses flatMapMerge (concurrent,
+                // not cancelling superseded work), so if the user switches to a
+                // different business while this business's network calls are
+                // still in flight, its results can otherwise land *after* the
+                // newer business's and silently overwrite the stats/queue with
+                // stale numbers from the business that's no longer selected.
+                // Re-check right before each emit and drop stale results.
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadQueue(calculateQueueTimes(queue)))
 
                 val stats = getTodayStatsUseCase(business.id)
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadStats(stats))
 
                 val daily = getDailyCountsUseCase(business.id, 7)
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadDailyCounts(daily))
             } catch (e: Exception) {
+                if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadStats(DashboardStats()))
                 emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
-                emit(HomeState.PartialState.ShowMessage(e.message ?: "خطا در بارگذاری"))
+                emit(HomeState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در بارگذاری")))
             }
         } else {
             emit(HomeState.PartialState.LoadStats(DashboardStats()))

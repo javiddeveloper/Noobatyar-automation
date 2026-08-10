@@ -2,8 +2,95 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.phone import is_iran_phone, normalize_phone
+from visitor.models import SmsLog
 
-from .models import Business
+from .models import Business, ServiceCatalogItem
+
+# Shown to clients when the owner still has booking_enabled=True but their plan
+# quota / subscription can no longer pay for a new appointment.
+BOOKING_BLOCKED_NOTICE = "پذیرش نوبت جدید برای این کسب‌وکار موقتاً غیرفعال است."
+
+# Caps on Business.services. The menu is a picker on a phone screen, not a
+# catalogue: past a few dozen chips it stops being usable for the client it
+# exists to help, and the field is stored as JSON on the business row.
+MAX_SERVICE_NAME_LENGTH = 100
+MAX_SERVICES_PER_BUSINESS = 60
+
+
+def normalize_service_names(value):
+    """Clean a list of service names into the canonical form we store.
+
+    Trims, drops blanks, and de-duplicates while preserving the owner's
+    ordering — the same normalisation has to run on the owner's menu and on the
+    ``selected_services`` a client sends back, or a name would fail to match
+    itself over a stray space.
+
+    Raises ``ValidationError`` (Persian, client-facing) on anything unusable.
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        # Multipart/form posts send a comma-separated string; JSON sends a list.
+        value = [part for part in value.split(',')]
+    if not isinstance(value, list):
+        raise serializers.ValidationError("لیست خدمات باید یک آرایه باشد")
+
+    cleaned = []
+    for item in value:
+        if not isinstance(item, str):
+            raise serializers.ValidationError("نام خدمت باید متن باشد")
+        # Commas are the separator in Appointment.selected_services, so a name
+        # containing one would come back as two services. Folded to a space
+        # rather than rejected — the owner typed a fine name, just not one this
+        # storage format can round-trip.
+        name = item.replace(',', ' ').strip()
+        if not name:
+            continue
+        if len(name) > MAX_SERVICE_NAME_LENGTH:
+            raise serializers.ValidationError(
+                "نام خدمت نباید بیشتر از ۱۰۰ کاراکتر باشد"
+            )
+        if name not in cleaned:
+            cleaned.append(name)
+
+    if len(cleaned) > MAX_SERVICES_PER_BUSINESS:
+        raise serializers.ValidationError("حداکثر ۶۰ خدمت می‌توانید ثبت کنید")
+    return cleaned
+
+
+def apply_notice_rules(data, instance):
+    """Normalise the client-facing notice + booking flags on an outgoing payload.
+
+    Two rules, both about never leaking state the client should not act on:
+
+    1. ``notice_enabled=False`` ⇒ ``notice_message`` is returned as an empty
+       string, never the stored text. An owner who switches the notice off
+       expects it to disappear; keeping the text in the payload meant a client
+       that rendered the message without also checking the flag (and every
+       client did, before the flag existed) kept showing a stale "امروز تعطیلیم"
+       days later.
+    2. The subscription-driven booking block still fills a default notice, but
+       it now also turns ``notice_enabled`` on — the payload has to stay
+       self-consistent with rule 1, otherwise the one notice we actually need
+       the client to display would be the one it is told to hide.
+
+    Note that the two are independent in the other direction on purpose: an
+    owner posting a notice does not close their calendar.
+    """
+    if not getattr(instance, 'notice_enabled', False):
+        data['notice_message'] = ''
+        if 'notice_enabled' in data:
+            data['notice_enabled'] = False
+
+    from accounting.usage import can_book_appointment
+    if data.get('booking_enabled') and not can_book_appointment(instance.user_id):
+        data['booking_enabled'] = False
+        if not data.get('notice_message'):
+            data['notice_message'] = BOOKING_BLOCKED_NOTICE
+        if 'notice_enabled' in data:
+            data['notice_enabled'] = True
+
+    return data
 
 
 class BusinessSerializer(serializers.ModelSerializer):
@@ -37,10 +124,14 @@ class BusinessSerializer(serializers.ModelSerializer):
             'payment_link', 'card_number', 'card_owner_name',
             # SMS preferences
             'enable_reminder_sms', 'enable_promotional_sms', 'notify_owner_by_sms',
+            'reminder_delivery',
+            # Service menu shown to the owner when booking and to clients on the
+            # public booking page
+            'services', 'allow_client_add_service',
             # Misc
             'allow_anonymous_view', 'bio', 'created_at', 'updated_at',
-            # Booking control
-            'notice_message', 'booking_enabled',
+            # Booking control + emergency notice
+            'notice_message', 'notice_enabled', 'booking_enabled',
             # Subscription lock (graceful downgrade) — read-only status flag
             'is_locked',
             # Advanced capacity & deposit settings. These were validated by
@@ -63,6 +154,13 @@ class BusinessSerializer(serializers.ModelSerializer):
             'moderation_status', 'moderation_status_display',
             'moderation_note', 'moderation_submitted_at',
         ]
+        extra_kwargs = {
+            # Restated even though the model field is already CharField(300):
+            # the cap is part of the API contract the owner app validates
+            # against, and stating it here keeps it true if the model column is
+            # ever widened for some unrelated reason.
+            'notice_message': {'max_length': 300, 'allow_blank': True},
+        }
 
     def validate_phone(self, value):
         """Normalise and check the business contact number.
@@ -85,6 +183,9 @@ class BusinessSerializer(serializers.ModelSerializer):
             )
         return normalized
 
+    def validate_services(self, value):
+        return normalize_service_names(value)
+
     def validate_work_start_hour(self, value):
         if not 0 <= value <= 23:
             raise serializers.ValidationError("Must be between 0-23")
@@ -102,7 +203,7 @@ class BusinessSerializer(serializers.ModelSerializer):
         # Since the mobile app doesn't send some boolean fields during creation,
         # we remove them from validated data if they weren't explicitly provided,
         # so the model defaults (e.g. True) take effect.
-        for field in ['booking_enabled', 'enable_reminder_sms', 'enable_promotional_sms', 'allow_anonymous_view', 'notification_enabled', 'notify_owner_by_sms']:
+        for field in ['booking_enabled', 'enable_reminder_sms', 'enable_promotional_sms', 'allow_anonymous_view', 'notification_enabled', 'notify_owner_by_sms', 'notice_enabled', 'allow_client_add_service']:
             if field not in data and field in ret:
                 ret.pop(field)
                 
@@ -153,6 +254,36 @@ class BusinessSerializer(serializers.ModelSerializer):
         return value
 
 
+class ServiceCatalogItemSerializer(serializers.ModelSerializer):
+    """A single pickable service-name chip, shared across a category."""
+    class Meta:
+        model = ServiceCatalogItem
+        fields = ['id', 'category', 'name']
+        read_only_fields = ['id']
+
+
+class SmsLogVisitorSerializer(serializers.Serializer):
+    """The recipient shown next to a logged SMS.
+
+    Nested rather than flattened because the field is nullable: owner
+    notifications are logged with ``visitor=None`` (they are billed to the same
+    quota, so they belong in the report), and a null object says "this one went
+    to you" far more clearly than three independently-null columns.
+    """
+    id = serializers.IntegerField()
+    full_name = serializers.CharField()
+    phone_number = serializers.CharField()
+
+
+class SmsLogSerializer(serializers.ModelSerializer):
+    visitor = SmsLogVisitorSerializer(read_only=True)
+
+    class Meta:
+        model = SmsLog
+        fields = ['id', 'message_text', 'status', 'error_detail', 'sent_at', 'visitor']
+        read_only_fields = fields
+
+
 class PublicBusinessSerializer(serializers.ModelSerializer):
     """
     STRICTLY ISOLATED public-facing serializer.
@@ -192,8 +323,14 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
             'payment_link',
             'bio',
             'booking_enabled',
+            'notice_enabled',
             'notice_message',
             'allow_anonymous_view',
+            # The owner's service menu, so the booking page can ask "what do you
+            # want done?" as chips instead of a free-text box. Safe to expose:
+            # these are the same service names the business advertises.
+            'services',
+            'allow_client_add_service',
         ]
         # All fields are read-only for this serializer
         read_only_fields = fields
@@ -209,14 +346,8 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
             data['phone'] = None
             data['address'] = None
 
-        # Dynamically block booking if the owner has no active quota/subscription
-        from accounting.usage import can_book_appointment
-        if data.get('booking_enabled') and not can_book_appointment(instance.user_id):
-            data['booking_enabled'] = False
-            if not data.get('notice_message'):
-                data['notice_message'] = "پذیرش نوبت جدید برای این کسب‌وکار موقتاً غیرفعال است."
-
-        return data
+        # Emergency-notice gating + the subscription-driven booking block.
+        return apply_notice_rules(data, instance)
 
 
 class ClientBusinessSerializer(serializers.ModelSerializer):
@@ -243,11 +374,12 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
             'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             'allow_anonymous_view',
-            'notice_message', 'booking_enabled',
+            'notice_message', 'notice_enabled', 'booking_enabled',
             'payment_method', 'accepted_payment_methods',
             'deposit_mode', 'deposit_amount',
             'card_number', 'card_owner_name', 'payment_link',
             'online_gateway_enabled',
+            'services', 'allow_client_add_service',
         ]
 
     def get_online_gateway_enabled(self, obj) -> bool:
@@ -266,11 +398,5 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
             data['phone'] = None
             data['address'] = None
 
-        # Dynamically block booking if the owner has no active quota/subscription
-        from accounting.usage import can_book_appointment
-        if data.get('booking_enabled') and not can_book_appointment(instance.user_id):
-            data['booking_enabled'] = False
-            if not data.get('notice_message'):
-                data['notice_message'] = "پذیرش نوبت جدید برای این کسب‌وکار موقتاً غیرفعال است."
-
-        return data
+        # Emergency-notice gating + the subscription-driven booking block.
+        return apply_notice_rules(data, instance)

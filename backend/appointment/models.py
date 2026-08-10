@@ -70,6 +70,11 @@ class Appointment(models.Model):
         db_index=True
     )
     description = models.TextField(blank=True, null=True)
+    # Comma-separated names picked from the business-category's service
+    # catalog (business.models.ServiceCatalogItem) — additive to
+    # `description`, not a replacement: description stays free text, this is
+    # the structured "what did they actually get" chips the owner tapped.
+    selected_services = models.CharField(max_length=500, blank=True, default='')
 
     # ── Slot-lock fields (Red Line #2) ────────────────────────────────────
     locked_at = models.DateTimeField(
@@ -103,6 +108,20 @@ class Appointment(models.Model):
         blank=True,
         null=True,
         help_text="Uploaded receipt image for card-to-card payment"
+    )
+
+    DEPOSIT_METHOD_CHOICES = [
+        ('NONE',    'بدون بیعانه'),
+        ('CARD',    'کارت به کارت'),
+        ('GATEWAY', 'درگاه پرداخت آنلاین'),
+    ]
+    deposit_payment_method = models.CharField(
+        max_length=10,
+        choices=DEPOSIT_METHOD_CHOICES,
+        default='NONE',
+        help_text="How the deposit (if any) was paid — so an owner seeing the "
+                  "client in person for the remainder knows a deposit was "
+                  "already collected, and through which channel."
     )
 
     quota_source = models.CharField(

@@ -16,6 +16,11 @@ data class CreateAppointmentState(
     val appointmentCreated: Boolean = false,
     val serviceDuration: Int? = null,
     val description: String? = null,
+    /** Service-catalog chip names picked for this appointment (category-scoped). */
+    val selectedServices: List<String> = emptyList(),
+    /** Existing chips for the business's category, loaded for the picker sheet. */
+    val serviceCatalog: List<String> = emptyList(),
+    val isServiceCatalogLoading: Boolean = false,
     val editingAppointmentId: Long? = null,
     val showConflictDialog: Boolean = false,
     val conflictingVisitorName: String? = null,
@@ -34,8 +39,12 @@ data class CreateAppointmentState(
             val appointmentDate: Long,
             val serviceDuration: Int?,
             val description: String?,
+            val selectedServices: List<String>,
             val appointmentId: Long
         ) : PartialState()
+        data class LoadServiceCatalog(val items: List<String>) : PartialState()
+        data class ServiceCatalogLoading(val isLoading: Boolean) : PartialState()
+        data class UpdateSelectedServices(val services: List<String>) : PartialState()
         data object AppointmentCreated : PartialState()
         data class ShowConflictDialog(val visitorName: String) : PartialState()
         data object DismissConflictDialog : PartialState()

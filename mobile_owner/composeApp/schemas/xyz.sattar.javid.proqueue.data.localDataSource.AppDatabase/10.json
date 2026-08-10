@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "b9164183c9730df94f157199b2403c19",
+    "identityHash": "435e24e85ef79734bc45386d679627af",
     "entities": [
       {
         "tableName": "Business",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `logoPath` TEXT NOT NULL, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `allowAnonymousView` INTEGER NOT NULL, `notifyOwnerBySms` INTEGER NOT NULL, `paymentMethod` TEXT, `acceptedPaymentMethods` TEXT NOT NULL, `maxAppointmentsPerHour` INTEGER, `depositMode` TEXT, `depositAmount` INTEGER, `merchantId` TEXT NOT NULL, `paymentLink` TEXT NOT NULL, `cardNumber` TEXT NOT NULL, `cardOwnerName` TEXT NOT NULL, `bio` TEXT NOT NULL, `moderationStatus` TEXT, `moderationStatusDisplay` TEXT NOT NULL, `moderationNote` TEXT NOT NULL, `moderationSubmittedAt` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `logoPath` TEXT NOT NULL, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `allowAnonymousView` INTEGER NOT NULL, `notifyOwnerBySms` INTEGER NOT NULL, `paymentMethod` TEXT, `acceptedPaymentMethods` TEXT NOT NULL, `maxAppointmentsPerHour` INTEGER, `depositMode` TEXT, `depositAmount` INTEGER, `merchantId` TEXT NOT NULL, `paymentLink` TEXT NOT NULL, `cardNumber` TEXT NOT NULL, `cardOwnerName` TEXT NOT NULL, `bio` TEXT NOT NULL, `noticeEnabled` INTEGER NOT NULL, `noticeMessage` TEXT NOT NULL, `reminderDelivery` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -159,26 +159,21 @@
             "notNull": true
           },
           {
-            "fieldPath": "moderationStatus",
-            "columnName": "moderationStatus",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "moderationStatusDisplay",
-            "columnName": "moderationStatusDisplay",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "moderationNote",
-            "columnName": "moderationNote",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "moderationSubmittedAt",
-            "columnName": "moderationSubmittedAt",
+            "fieldPath": "noticeEnabled",
+            "columnName": "noticeEnabled",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "noticeMessage",
+            "columnName": "noticeMessage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reminderDelivery",
+            "columnName": "reminderDelivery",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -529,7 +524,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b9164183c9730df94f157199b2403c19')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '435e24e85ef79734bc45386d679627af')"
     ]
   }
 }

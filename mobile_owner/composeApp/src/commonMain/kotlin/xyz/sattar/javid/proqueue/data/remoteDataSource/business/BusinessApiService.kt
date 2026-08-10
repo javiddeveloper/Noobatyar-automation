@@ -15,6 +15,10 @@ import xyz.sattar.javid.proqueue.core.network.toApiResponse
 import xyz.sattar.javid.proqueue.core.network.toDirectApiResponse
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.AddServiceCatalogItemRequestDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.ServiceCatalogItemDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 
 class BusinessApiService(private val httpClient: HttpClient) {
@@ -68,7 +72,16 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 append("card_number", business.cardNumber)
                 append("card_owner_name", business.cardOwnerName)
                 append("bio", business.bio)
-                
+                // Same JSON-array-in-a-multipart-field trick as
+                // accepted_payment_methods above: DRF's JSONField parses a
+                // string value when the request came in as form data.
+                append("services", business.services.toJsonArrayString())
+                append("allow_client_add_service", business.allowClientAddService.toString())
+                append("notice_enabled", business.noticeEnabled.toString())
+                append("notice_message", business.noticeMessage)
+                append("reminder_delivery", business.reminderDelivery)
+
+
                 if (business.logoBytes != null) {
                     append("logo", business.logoBytes, io.ktor.http.Headers.build {
                         append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
@@ -79,9 +92,69 @@ class BusinessApiService(private val httpClient: HttpClient) {
         )
     }
 
+    /**
+     * Serialises a list of *owner-typed* strings as a JSON array literal for a
+     * multipart field. Unlike the fixed enum values in
+     * accepted_payment_methods, a service name is free text, so quotes and
+     * backslashes have to be escaped or the whole payload stops being JSON and
+     * the field is silently rejected.
+     */
+    private fun List<String>.toJsonArrayString(): String =
+        joinToString(separator = ",", prefix = "[", postfix = "]") { name ->
+            val escaped = name.replace("\\", "\\\\").replace("\"", "\\\"")
+            "\"$escaped\""
+        }
+
+    // These two endpoints deliberately return DRF's bare pagination shape
+    // ({count, next, previous, results}), not the app-wide {status, code,
+    // message, data} envelope — so they go through toDirectApiResponse(),
+    // not toApiResponse(). Using the wrapped parser here fails on the
+    // missing "status" field and the report can never load.
+    suspend fun getSmsLogs(
+        businessId: Long,
+        page: Int,
+        pageSize: Int,
+        status: String? = null,
+        search: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
+    ): ApiResponse<SmsLogPageDto> {
+        return httpClient.get("business/$businessId/sms-logs/") {
+            contentType(ContentType.Application.Json)
+            parameter("page", page)
+            parameter("page_size", pageSize)
+            if (status != null) parameter("status", status)
+            if (!search.isNullOrBlank()) parameter("search", search)
+            if (dateFrom != null) parameter("date_from", dateFrom)
+            if (dateTo != null) parameter("date_to", dateTo)
+        }.toDirectApiResponse()
+    }
+
+    suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto> {
+        return httpClient.get("business/$businessId/sms-logs/summary/") {
+            contentType(ContentType.Application.Json)
+        }.toDirectApiResponse()
+    }
+
     suspend fun deleteBusiness(id: Long): ApiResponse<Unit> {
         return httpClient.delete("business/$id/") {
             contentType(ContentType.Application.Json)
+        }.toApiResponse()
+    }
+
+    // Category-scoped, not business-scoped: every business sharing a
+    // category sees and contributes to the same list of service chips.
+    suspend fun getServiceCatalog(category: String): ApiResponse<List<ServiceCatalogItemDto>> {
+        return httpClient.get("business/service-catalog/") {
+            contentType(ContentType.Application.Json)
+            parameter("category", category)
+        }.toApiResponse()
+    }
+
+    suspend fun addServiceCatalogItem(category: String, name: String): ApiResponse<ServiceCatalogItemDto> {
+        return httpClient.post("business/service-catalog/") {
+            contentType(ContentType.Application.Json)
+            setBody(AddServiceCatalogItemRequestDto(category = category, name = name))
         }.toApiResponse()
     }
 }

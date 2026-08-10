@@ -20,7 +20,8 @@ class CreateAppointmentUseCase(
         visitorId: Long,
         appointmentDate: Long,
         serviceDuration: Int?,
-        description: String?
+        description: String?,
+        selectedServices: String? = null
     ): Long {
         val now = Clock.System.now().toEpochMilliseconds()
         val appointment = Appointment(
@@ -31,6 +32,7 @@ class CreateAppointmentUseCase(
             serviceDuration = serviceDuration,
             status = "WAITING",
             description = description,
+            selectedServices = selectedServices,
             createdAt = now,
             updatedAt = now
         )

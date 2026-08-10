@@ -13,9 +13,13 @@ fun AppointmentEntity.toDomain() = Appointment(
     serviceDuration = serviceDuration,
     status = status,
     description = description,
+    selectedServices = selectedServices,
     createdAt = createdAt,
     updatedAt = updatedAt,
     paymentReceipt = paymentReceipt,
+    trackingCode = trackingCode,
+    paymentReference = paymentReference,
+    depositPaymentMethod = depositPaymentMethod,
 )
 
 fun Appointment.toEntity() = AppointmentEntity(
@@ -26,9 +30,13 @@ fun Appointment.toEntity() = AppointmentEntity(
     serviceDuration = serviceDuration,
     status = status,
     description = description,
+    selectedServices = selectedServices,
     createdAt = createdAt,
     updatedAt = updatedAt,
     paymentReceipt = paymentReceipt,
+    trackingCode = trackingCode,
+    paymentReference = paymentReference,
+    depositPaymentMethod = depositPaymentMethod,
 )
 
 fun AppointmentWithDetailsEntity.toDomain() = AppointmentWithDetails(

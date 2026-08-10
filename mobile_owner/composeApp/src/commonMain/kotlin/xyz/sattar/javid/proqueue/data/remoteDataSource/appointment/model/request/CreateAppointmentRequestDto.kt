@@ -9,5 +9,6 @@ data class CreateAppointmentRequestDto(
     @SerialName("visitor_id") val visitorId: Long,
     @SerialName("appointment_date") val appointmentDate: Long,
     @SerialName("service_duration") val serviceDuration: Int? = null,
-    val description: String? = null
+    val description: String? = null,
+    @SerialName("selected_services") val selectedServices: String? = null
 )

@@ -39,6 +39,7 @@ import proqueue.composeapp.generated.resources.delete_appointment
 import proqueue.composeapp.generated.resources.edit_appointment
 import proqueue.composeapp.generated.resources.no
 import proqueue.composeapp.generated.resources.select_visitor
+import proqueue.composeapp.generated.resources.service_catalog_title
 import proqueue.composeapp.generated.resources.service_duration_error
 import proqueue.composeapp.generated.resources.service_duration_minutes
 import proqueue.composeapp.generated.resources.yes_force_create
@@ -46,6 +47,8 @@ import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.core.ui.components.AppointmentsListBottomSheet
+import xyz.sattar.javid.proqueue.core.ui.components.SelectedServiceChipsRow
+import xyz.sattar.javid.proqueue.core.ui.components.ServiceCatalogBottomSheet
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.time.ExperimentalTime
@@ -111,6 +114,14 @@ fun CreateAppointmentScreenContent(
     var showAppointmentsList by remember { mutableStateOf(false) }
     var description by remember { mutableStateOf(uiState.description ?: "") }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showServiceCatalogSheet by remember { mutableStateOf(false) }
+
+    // Loaded once per screen visit, scoped to the current business's
+    // category — see ServiceCatalogBottomSheet's doc for why this list is
+    // shared across every business in that category, not just this one.
+    LaunchedEffect(Unit) {
+        onIntent(CreateAppointmentIntent.LoadServiceCatalog)
+    }
 
     LaunchedEffect(initialDate, initialTime) {
         onIntent(CreateAppointmentIntent.UpdateDateTime(initialDate, initialTime))
@@ -211,7 +222,8 @@ fun CreateAppointmentScreenContent(
                                             selectedTime
                                         ),
                                         serviceDuration = duration,
-                                        description = description.ifEmpty { null }
+                                        description = description.ifEmpty { null },
+                                        selectedServices = uiState.selectedServices
                                     )
                                 )
                             }
@@ -471,6 +483,66 @@ fun CreateAppointmentScreenContent(
                         },
                         enabled = !uiState.isLoading,
                     )
+
+                    // Service catalog chips — additive to the free-text
+                    // description above, not a replacement for it. The list
+                    // offered here is scoped to the current business's
+                    // category and shared with every other business in that
+                    // category (see ServiceCatalogBottomSheet's doc).
+                    Text(
+                        text = stringResource(Res.string.service_catalog_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showServiceCatalogSheet = true },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (uiState.selectedServices.isEmpty())
+                                    "انتخاب خدمات از فهرست"
+                                else
+                                    "${uiState.selectedServices.size} خدمت انتخاب شده",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (uiState.selectedServices.isEmpty())
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    SelectedServiceChipsRow(
+                        selected = uiState.selectedServices,
+                        onRemove = { name ->
+                            onIntent(
+                                CreateAppointmentIntent.UpdateSelectedServices(
+                                    uiState.selectedServices - name
+                                )
+                            )
+                        }
+                    )
                     // Button moved to bottomBar
                 }
             }
@@ -479,6 +551,26 @@ fun CreateAppointmentScreenContent(
                 AppointmentsListBottomSheet(
                     appointments = uiState.dailyAppointments,
                     onDismiss = { showAppointmentsList = false }
+                )
+            }
+
+            if (showServiceCatalogSheet) {
+                ServiceCatalogBottomSheet(
+                    catalog = uiState.serviceCatalog,
+                    selected = uiState.selectedServices,
+                    isLoading = uiState.isServiceCatalogLoading,
+                    onToggle = { name ->
+                        val updated = if (uiState.selectedServices.contains(name)) {
+                            uiState.selectedServices - name
+                        } else {
+                            uiState.selectedServices + name
+                        }
+                        onIntent(CreateAppointmentIntent.UpdateSelectedServices(updated))
+                    },
+                    onAddNew = { name ->
+                        onIntent(CreateAppointmentIntent.AddServiceCatalogItem(name))
+                    },
+                    onDismiss = { showServiceCatalogSheet = false }
                 )
             }
 
@@ -545,6 +637,7 @@ fun CreateAppointmentScreenContent(
                                             ),
                                             serviceDuration = duration,
                                             description = description.ifEmpty { null },
+                                            selectedServices = uiState.selectedServices,
                                             force = true
                                         )
                                     )

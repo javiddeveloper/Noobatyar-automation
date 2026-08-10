@@ -29,9 +29,8 @@ class UserRepositoryImpl(
     private val userDao: UserDao
 ) : UserRepository {
 
-    override suspend fun checkVersion(versionName: String): ApiResponse<VersionInfo> {
-        val versionInt = versionName.replace(".", "").toIntOrNull() ?: 0
-        return userApiService.checkVersion(CheckVersionRequestDto(versionCode = versionInt))
+    override suspend fun checkVersion(versionCode: Int): ApiResponse<VersionInfo> {
+        return userApiService.checkVersion(CheckVersionRequestDto(versionCode = versionCode))
     }
 
     override suspend fun register(

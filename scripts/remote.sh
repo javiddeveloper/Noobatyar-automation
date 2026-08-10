@@ -40,6 +40,7 @@ if [ -n "${DEPLOY_PASSWORD:-}" ]; then
   }
   # The password reaches expect through the environment, never argv (argv is
   # world-readable via ps).
+  export PORT="$PORT" USER_NAME="$USER_NAME" HOST="$HOST" REMOTE_CMD="$REMOTE_CMD"
   expect -c '
     set timeout 300
     log_user 0

@@ -65,6 +65,11 @@ class SmsLog(models.Model):
     STATUS_CHOICES = [
         ('SENT', 'Sent'),
         ('FAILED', 'Failed'),
+        # Never attempted — the owner's SMS quota (monthly allowance + wallet)
+        # was already exhausted when this message would have gone out. Logged
+        # instead of just dropped so it's visible in the SMS report and
+        # countable for the Home-screen quota warning.
+        ('SKIPPED_QUOTA', 'Skipped (quota exhausted)'),
     ]
     
     business = models.ForeignKey('business.Business', on_delete=models.CASCADE, related_name='sms_logs')

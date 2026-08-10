@@ -79,8 +79,13 @@ import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.core.ui.components.ImageCropperDialog
 import xyz.sattar.javid.proqueue.core.ui.components.ModerationBanner
+import xyz.sattar.javid.proqueue.core.ui.components.SelectedServiceChipsRow
+import xyz.sattar.javid.proqueue.core.ui.components.ServiceCatalogBottomSheet
+import xyz.sattar.javid.proqueue.core.ui.components.ServiceDurationBottomSheet
+import xyz.sattar.javid.proqueue.core.ui.components.formatServiceDuration
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
 import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.String
@@ -115,6 +120,8 @@ fun CreateBusinessRoute(
     var allowAnonymousView by remember { mutableStateOf(false) }
     var notifyOwnerBySms by remember { mutableStateOf(true) }
     var bio by remember { mutableStateOf("") }
+    var services by remember { mutableStateOf<List<String>>(emptyList()) }
+    var allowClientAddService by remember { mutableStateOf(false) }
     var logoBytes by remember { mutableStateOf<ByteArray?>(null) }
     var maxAppointmentsPerHour by remember { mutableStateOf("") }
     var depositMode by remember { mutableStateOf(DepositMode.NONE.value) }
@@ -146,6 +153,12 @@ fun CreateBusinessRoute(
         viewModel.sendIntent(CreateBusinessIntent.LoadEntitlements)
     }
 
+    // The pickable chips are category-scoped, so they reload whenever the
+    // owner switches category — a salon must not be offered clinic services.
+    LaunchedEffect(category) {
+        viewModel.sendIntent(CreateBusinessIntent.LoadServiceCatalog(category))
+    }
+
     LaunchedEffect(uiState.business) {
         uiState.business?.let {
             title = it.title
@@ -166,6 +179,8 @@ fun CreateBusinessRoute(
             merchantId = it.merchantId
             paymentLink = it.paymentLink
             bio = it.bio
+            services = it.services
+            allowClientAddService = it.allowClientAddService
             logoBytes = it.logoBytes
         }
     }
@@ -237,6 +252,20 @@ fun CreateBusinessRoute(
         onAllowAnonymousView = { allowAnonymousView = it },
         onNotifyOwnerBySms = { notifyOwnerBySms = it },
         onBio = { bio = it },
+        services = services,
+        allowClientAddService = allowClientAddService,
+        onToggleService = { name ->
+            services = if (services.contains(name)) services - name else services + name
+        },
+        onAddService = { name ->
+            // Selected locally right away rather than waiting for the catalog
+            // round-trip: the owner just typed it, so it is obviously wanted on
+            // their own menu. The intent adds it to the shared category catalog
+            // so other businesses can pick it too.
+            if (!services.contains(name)) services = services + name
+            viewModel.sendIntent(CreateBusinessIntent.AddServiceCatalogItem(category, name))
+        },
+        onAllowClientAddService = { allowClientAddService = it },
         onLogoBytes = { logoBytes = it },
         titleError = titleError,
         phoneError = phoneError,
@@ -277,6 +306,11 @@ fun CreateBusinessScreen(
     bio: String,
     logoBytes: ByteArray?,
     onBio: (String) -> Unit,
+    services: List<String>,
+    allowClientAddService: Boolean,
+    onToggleService: (String) -> Unit,
+    onAddService: (String) -> Unit,
+    onAllowClientAddService: (Boolean) -> Unit,
     onLogoBytes: (ByteArray?) -> Unit,
     maxAppointmentsPerHour: String,
     depositMode: String,
@@ -308,6 +342,8 @@ fun CreateBusinessScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showCategorySheet by remember { mutableStateOf(false) }
+    var showDurationSheet by remember { mutableStateOf(false) }
+    var showServicesSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // Save action parked behind the "this goes back for review" confirmation.
@@ -409,7 +445,9 @@ fun CreateBusinessScreen(
 
                             val titleInvalid = t.length < 3 || t.length > 50
                             val phoneInvalid = p.length < 7
-                            val defaultInvalid = d.isNotEmpty() && d.toIntOrNull() == null
+                            // The duration now comes from a fixed list, so the
+                            // only way it can be wrong is not having been picked.
+                            val defaultInvalid = d.toIntOrNull() == null
                             val wsInt = ws.toIntOrNull()
                             val weInt = we.toIntOrNull()
                             val hoursInvalid =
@@ -419,7 +457,7 @@ fun CreateBusinessScreen(
                             onTitleErrorUpdate(if (titleInvalid) "نام باید بین ۳ تا ۵۰ کاراکتر باشد" else null)
                             onPhoneErrorUpdate(if (phoneInvalid) "شماره تلفن صحیح نیست" else null)
                             onAddressErrorUpdate(if (a.isEmpty()) "آدرس الزامی است" else if (a.length > 300) "آدرس نباید بیشتر از ۳۰۰ کاراکتر باشد" else null)
-                            onDefaultProgressErrorUpdate(if (defaultInvalid) "مدت زمان سرویس باید عدد باشد" else null)
+                            onDefaultProgressErrorUpdate(if (defaultInvalid) "مدت زمان سرویس را انتخاب کنید" else null)
                             onWorkHoursErrorUpdate(if (hoursInvalid) "ساعات کاری معتبر نیستند" else null)
 
                             if (!titleInvalid && !phoneInvalid && !defaultInvalid && !hoursInvalid && !addressInvalid) {
@@ -443,7 +481,20 @@ fun CreateBusinessScreen(
                                         cardNumber = cardNumber,
                                         cardOwnerName = cardOwnerName,
                                         merchantId = merchantId,
-                                        paymentLink = paymentLink
+                                        paymentLink = paymentLink,
+                                        // Owned by the dedicated emergency-notice
+                                        // screen (Settings); pass the loaded
+                                        // value straight through so editing the
+                                        // business never resets it.
+                                        noticeEnabled = uiState.business?.noticeEnabled ?: false,
+                                        noticeMessage = uiState.business?.noticeMessage ?: "",
+                                        // Owned by the reminder-messages screen;
+                                        // pass the loaded value straight through
+                                        // so editing the business never resets it.
+                                        reminderDelivery = uiState.business?.reminderDelivery
+                                            ?: ReminderDelivery.MANUAL.value,
+                                        services = services,
+                                        allowClientAddService = allowClientAddService
                                     )
 
                                 // Editing title/bio/address/logo on an approved
@@ -647,25 +698,107 @@ fun CreateBusinessScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            AppTextField(
-                enabled = !uiState.isLoading,
-                maxLength = 3,
-                value = defaultProgress,
-                onValueChange = onDefaultProgress,
-                label = stringResource(Res.string.default_time_service),
-                isError = defaultProgressError != null,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+            // Duration is picked from a fixed 5-minute ladder rather than typed:
+            // free text let owners save slots the calendar can't lay out.
+            Box(modifier = Modifier.fillMaxWidth().clickable {
+                if (!uiState.isLoading) showDurationSheet = true
+            }) {
+                AppTextField(
+                    value = defaultProgress.toIntOrNull()?.let { formatServiceDuration(it) } ?: "",
+                    onValueChange = {},
+                    label = stringResource(Res.string.default_time_service),
+                    isError = defaultProgressError != null,
+                    errorMessage = defaultProgressError,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false, // Disable to act just as a clickable button
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Service menu ──
+            // Defined once here, then reused everywhere a service has to be
+            // named: the owner's own booking screen, and the client's public
+            // booking page. A client who picks "رنگ مو" instead of typing a
+            // sentence is a slot the owner can actually plan — which is the
+            // whole reason this moved out of the free-text description.
+            Box(modifier = Modifier.fillMaxWidth().clickable {
+                if (!uiState.isLoading) showServicesSheet = true
+            }) {
+                AppTextField(
+                    value = if (services.isEmpty()) "" else "${services.size} خدمت انتخاب شده",
+                    onValueChange = {},
+                    label = "لیست خدمات",
+                    placeholder = "خدماتی که ارائه می‌دهید را انتخاب کنید",
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Category,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false, // Disable to act just as a clickable button
+                )
+            }
+
+            if (services.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                SelectedServiceChipsRow(
+                    selected = services,
+                    onRemove = onToggleService
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { onAllowClientAddService(!allowClientAddService) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "مشتری بتواند خدمت خارج از لیست اضافه کند",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f)
                     )
-                },
-                errorMessage = defaultProgressError,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardType = KeyboardType.Number
-            )
+                    androidx.compose.material3.Switch(
+                        checked = allowClientAddService,
+                        onCheckedChange = { onAllowClientAddService(it) }
+                    )
+                }
+                Text(
+                    text = "اگر خاموش باشد، مشتری هنگام رزرو فقط از همین لیست " +
+                            "انتخاب می‌کند و نمی‌تواند خدمت جدیدی بنویسد.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -810,6 +943,11 @@ fun CreateBusinessScreen(
                 )
             }
 
+            // Emergency notice is configured on its own screen, reachable from
+            // Settings (feature/settings/EmergencyNoticeScreen.kt) — not shown
+            // here anymore. Its value is still loaded and saved above so
+            // editing the business from this screen doesn't drop it.
+
             // Advanced settings (payment / capacity / reminders) now live on a
             // separate screen, reachable from the profile. The values are still
             // loaded and saved here so editing the business doesn't drop them.
@@ -868,6 +1006,32 @@ fun CreateBusinessScreen(
                     Text(stringResource(Res.string.confirm))
                 }
             }
+        )
+    }
+
+    if (showServicesSheet) {
+        ServiceCatalogBottomSheet(
+            // The owner's own picks stay visible even if the shared catalog
+            // hasn't loaded (or no longer contains a name they added earlier),
+            // so opening the sheet can never silently drop their menu.
+            catalog = (uiState.serviceCatalog + services).distinct(),
+            selected = services,
+            isLoading = uiState.isServiceCatalogLoading,
+            onToggle = onToggleService,
+            onAddNew = onAddService,
+            onDismiss = { showServicesSheet = false }
+        )
+    }
+
+    if (showDurationSheet) {
+        ServiceDurationBottomSheet(
+            selectedMinutes = defaultProgress.toIntOrNull(),
+            onDurationSelected = { minutes ->
+                onDefaultProgress(minutes.toString())
+                onDefaultProgressErrorUpdate(null)
+                showDurationSheet = false
+            },
+            onDismiss = { showDurationSheet = false }
         )
     }
 
@@ -988,6 +1152,11 @@ fun PreviewDashboardScreen() {
             bio = "",
             logoBytes = null,
             onBio = {},
+            services = emptyList(),
+            allowClientAddService = false,
+            onToggleService = {},
+            onAddService = {},
+            onAllowClientAddService = {},
             onLogoBytes = {},
             titleError = null,
             phoneError = null,

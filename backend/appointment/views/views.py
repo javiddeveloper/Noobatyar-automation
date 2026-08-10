@@ -112,6 +112,7 @@ class AppointmentView(APIView):
             appointment_date = request.data.get('appointment_date')
             service_duration = request.data.get('service_duration', 30)
             description = request.data.get('description', '')
+            selected_services = request.data.get('selected_services', '')
 
             if not all([business_id, visitor_id, appointment_date]):
                 logger.warning(
@@ -181,6 +182,7 @@ class AppointmentView(APIView):
                 appointment_date=appointment_datetime,
                 service_duration=service_duration,
                 description=description,
+                selected_services=selected_services,
                 request_id=request_id,
                 user = user
             )
@@ -244,7 +246,7 @@ class AppointmentView(APIView):
             is_status_only = 'status' in update_fields and len(update_fields) == 1
             is_details_update = any(
                 field in update_fields
-                for field in ['appointment_date', 'service_duration', 'description']
+                for field in ['appointment_date', 'service_duration', 'description', 'selected_services']
             )
 
             if is_status_only:
@@ -329,6 +331,7 @@ class AppointmentView(APIView):
             'service_duration': appointment.service_duration,
             'status': appointment.status,
             'description': appointment.description,
+            'selected_services': appointment.selected_services,
             # 'created_at': appointment.created_at.isoformat(),
             # 'updated_at': appointment.updated_at.isoformat(),
         }
@@ -444,7 +447,7 @@ class AppointmentView(APIView):
             service_duration: int,
             description: str,
             request_id: str
-    , user=None) -> Appointment:
+    , user=None, selected_services: str = '') -> Appointment:
         """Create appointment within atomic transaction"""
         appointment = Appointment(
             business=business,
@@ -452,6 +455,7 @@ class AppointmentView(APIView):
             appointment_date=appointment_date,
             service_duration=service_duration,
             description=description,
+            selected_services=selected_services,
             status='WAITING',
             user = user
         )
@@ -578,6 +582,7 @@ class AppointmentView(APIView):
         new_date_str = data.get('appointment_date')
         new_duration = data.get('service_duration')
         new_description = data.get('description')
+        new_selected_services = data.get('selected_services')
 
         # Parse new date from Unix epoch milliseconds if provided
         new_date = None
@@ -639,6 +644,9 @@ class AppointmentView(APIView):
         if new_description is not None:
             appointment.description = new_description
             updated_fields.append('description')
+        if new_selected_services is not None:
+            appointment.selected_services = new_selected_services
+            updated_fields.append('selected_services')
 
         # Validate and save
         try:
@@ -794,6 +802,13 @@ def _send_client_sms(phone, message, business_id, visitor_id):
         receipt = usage.consume_sms(owner_id) if owner_id is not None else None
         if owner_id is not None and not receipt:
             logger.warning(f"SMS→client skipped for business {business_id}: SMS quota exhausted")
+            SmsLog.objects.create(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                message_text=message,
+                status='SKIPPED_QUOTA',
+                error_detail="اعتبار پیامک این ماه تمام شده است",
+            )
             return
         ok, err = send_sms(phone, message)
         if not ok:

@@ -1,5 +1,6 @@
 package xyz.sattar.javid.proqueue.feature.lastVisitors
 
+import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.AppointmentRepository
+import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentOrdering
 import xyz.sattar.javid.proqueue.domain.usecase.GenerateReminderMessageUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentCompletedUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.MarkAppointmentNoShowUseCase
@@ -82,11 +84,18 @@ class LastVisitorsViewModel(
                         content = intent.content,
                         businessTitle = intent.businessTitle
                     )
-                    if (!success) emit(LastVisitorsState.PartialState.ShowMessage("خطا در ثبت پیام"))
+                    // Previously this had no success path at all — sending a
+                    // reminder either failed loudly or succeeded completely
+                    // silently, with nothing to tell them it actually went out.
+                    emit(
+                        if (success) LastVisitorsState.PartialState.ShowMessage(UiMessage.success("پیام ارسال شد"))
+                        else LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در ثبت پیام"))
+                    )
                 } catch (e: Exception) {
-                    emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در ثبت پیام"))
+                    emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در ثبت پیام")))
                 }
             }
+            LastVisitorsIntent.ClearMessage -> flow { emit(LastVisitorsState.PartialState.ClearMessage) }
         }
     }
 
@@ -116,11 +125,13 @@ class LastVisitorsViewModel(
                 currentState.copy(filter = partialState.filter)
             is LastVisitorsState.PartialState.ShowFilterSheet ->
                 currentState.copy(showFilterSheet = partialState.show)
+            LastVisitorsState.PartialState.ClearMessage ->
+                currentState.copy(message = null)
         }
     }
 
     override fun createErrorState(message: String): LastVisitorsState.PartialState =
-        LastVisitorsState.PartialState.ShowMessage(message)
+        LastVisitorsState.PartialState.ShowMessage(UiMessage.error(message))
 
     fun generateReminderMessage(
         businessId: Long,
@@ -148,36 +159,62 @@ class LastVisitorsViewModel(
         try {
             val business = BusinessStateHolder.selectedBusiness.value
             if (business != null) {
+                // این تب باید فقط ۷ روز آینده را نشان دهد. وقتی فیلتر کاربر نه
+                // یک روز خاص (filter.date) و نه بازه‌ی تاریخ صریحی (مثلاً از
+                // نمودار روند) مشخص کرده، پیش‌فرض را به [امروز, امروز+۷روز]
+                // محدود می‌کنیم — قبلاً بدون این پیش‌فرض همه‌ی نوبت‌های
+                // گذشته/آینده بارگذاری می‌شدند.
+                val effectiveDateFrom: Long?
+                val effectiveDateTo: Long?
+                if (filter.date != null) {
+                    effectiveDateFrom = filter.dateFrom
+                    effectiveDateTo = filter.dateTo
+                } else {
+                    effectiveDateFrom = filter.dateFrom ?: DateTimeUtils.startOfTodayMillis()
+                    effectiveDateTo = filter.dateTo ?: (DateTimeUtils.startOfTodayMillis() + 7L * 24 * 60 * 60 * 1000L)
+                }
+
                 // Sync with server using filters
                 syncAppointmentsUseCase(
                     businessId = business.id,
                     status = filter.status,
                     date = filter.date,
-                    dateFrom = filter.dateFrom,
-                    dateTo = filter.dateTo,
+                    dateFrom = effectiveDateFrom,
+                    dateTo = effectiveDateTo,
                     ordering = filter.ordering
                 )
 
-                // Load from DB
+                // Load from DB. getAllAppointmentsForBusiness always returns rows
+                // ordered by appointmentDate DESC (its DAO query is hardcoded), so
+                // date-range and ordering can't be left to it — both are applied
+                // here, on top of the status/date filters that already worked.
                 val appointments = appointmentRepository.getAllAppointmentsForBusiness(business.id)
-                
-                // Locally apply filter
+
                 val filtered = appointments.filter { app ->
                     (filter.status == null || app.appointment.status == filter.status) &&
-                    (filter.date == null || DateTimeUtils.isSameDay(app.appointment.appointmentDate, filter.date))
+                    (filter.date == null || DateTimeUtils.isSameDay(app.appointment.appointmentDate, filter.date)) &&
+                    (effectiveDateFrom == null || app.appointment.appointmentDate >= effectiveDateFrom) &&
+                    (effectiveDateTo == null || app.appointment.appointmentDate <= effectiveDateTo)
+                }
+
+                val ordered = when (filter.ordering) {
+                    AppointmentOrdering.DATE_ASC -> filtered.sortedBy { it.appointment.appointmentDate }
+                    AppointmentOrdering.DATE_DESC -> filtered.sortedByDescending { it.appointment.appointmentDate }
+                    AppointmentOrdering.CREATED_AT_ASC -> filtered.sortedBy { it.appointment.createdAt }
+                    AppointmentOrdering.CREATED_AT_DESC -> filtered.sortedByDescending { it.appointment.createdAt }
                 }
 
                 emit(
                     LastVisitorsState.PartialState.LoadAppointments(
-                        appointments = filtered,
-                        totalCount = filtered.size
+                        appointments = ordered,
+                        totalCount = ordered.size
                     )
                 )
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("لطفاً ابتدا یک کسب‌وکار انتخاب کنید"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("لطفاً ابتدا یک کسب‌وکار انتخاب کنید")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در بارگذاری نوبت‌ها"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در بارگذاری نوبت‌ها")))
         } finally {
             emit(LastVisitorsState.PartialState.IsLoading(false))
         }
@@ -188,12 +225,13 @@ class LastVisitorsViewModel(
             val success = removeAppointmentUseCase(appointmentId)
             if (success) {
                 emit(LastVisitorsState.PartialState.ShowOptionsDialog(null))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success("نوبت حذف شد")))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در حذف نوبت"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در حذف نوبت")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در حذف نوبت"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در حذف نوبت")))
         }
     }
 
@@ -201,12 +239,13 @@ class LastVisitorsViewModel(
         try {
             val success = markAppointmentCompletedUseCase(appointmentId)
             if (success) {
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success("نوبت تکمیل شد")))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در تکمیل نوبت"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در تکمیل نوبت")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در تکمیل نوبت"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در تکمیل نوبت")))
         }
     }
 
@@ -214,12 +253,13 @@ class LastVisitorsViewModel(
         try {
             val success = markAppointmentNoShowUseCase(appointmentId)
             if (success) {
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success("عدم حضور ثبت شد")))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در ثبت عدم مراجعه"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در ثبت عدم مراجعه")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در ثبت عدم مراجعه"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در ثبت عدم مراجعه")))
         }
     }
 
@@ -227,12 +267,14 @@ class LastVisitorsViewModel(
         try {
             val success = appointmentRepository.updateAppointmentStatus(appointmentId, status)
             if (success) {
+                val confirmation = if (status == "CANCELLED") "درخواست رد شد" else "درخواست تأیید شد"
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.success(confirmation)))
                 emitAll(loadAppointments())
             } else {
-                emit(LastVisitorsState.PartialState.ShowMessage("خطا در تغییر وضعیت نوبت"))
+                emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error("خطا در تغییر وضعیت نوبت")))
             }
         } catch (e: Exception) {
-            emit(LastVisitorsState.PartialState.ShowMessage(e.message ?: "خطا در تغییر وضعیت نوبت"))
+            emit(LastVisitorsState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در تغییر وضعیت نوبت")))
         }
     }
 }

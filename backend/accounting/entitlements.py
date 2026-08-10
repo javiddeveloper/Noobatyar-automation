@@ -31,6 +31,7 @@ FEATURE_ADVANCED_REPORTS = "advanced_reports"   # گزارش‌های پیشرف
 FEATURE_MULTI_CHANNEL    = "multi_channel"      # واتساپ/تلگرام
 FEATURE_BRANDED_PAGE     = "branded_page"       # صفحه‌ی نوبت‌دهی برندشده
 FEATURE_PRIORITY_SUPPORT = "priority_support"   # پشتیبانی اولویت‌دار
+FEATURE_AUTO_REMINDER_SMS = "auto_reminder_sms" # یادآوری خودکار از پنل پیامکی
 
 # ── Quotas (ints; UNLIMITED = -1) ─────────────────────────────────────────────
 QUOTA_MAX_BUSINESSES       = "max_businesses"
@@ -42,9 +43,21 @@ UNLIMITED = -1
 FEATURE_KEYS = (
     FEATURE_ONLINE_GATEWAY, FEATURE_DEPOSIT, FEATURE_PROMOTIONAL_SMS,
     FEATURE_CAPACITY_CONTROL, FEATURE_ADVANCED_REPORTS, FEATURE_MULTI_CHANNEL,
-    FEATURE_BRANDED_PAGE, FEATURE_PRIORITY_SUPPORT,
+    FEATURE_BRANDED_PAGE, FEATURE_PRIORITY_SUPPORT, FEATURE_AUTO_REMINDER_SMS,
 )
 QUOTA_KEYS = (QUOTA_MAX_BUSINESSES, QUOTA_MONTHLY_APPOINTMENTS, QUOTA_MONTHLY_SMS)
+
+# Features that are sold in a plan but that no code path actually implements yet.
+# They stay in the bundles (so the pricing table and any already-sold plan keep
+# their shape) but every client is told, in the entitlements payload, to render
+# them as disabled/"coming soon" — otherwise an owner on the ۶ ماهه plan taps a
+# switch that resolves to True and then waits for a WhatsApp message that no
+# part of this backend has ever been able to send. Delete a key from here the
+# moment its feature ships; this list is the single source of truth.
+COMING_SOON_FEATURES = (
+    FEATURE_PROMOTIONAL_SMS,
+    FEATURE_MULTI_CHANNEL,
+)
 
 # Human-readable labels (used in error messages / API output).
 FEATURE_LABELS = {
@@ -56,6 +69,7 @@ FEATURE_LABELS = {
     FEATURE_MULTI_CHANNEL:    "اعلان واتساپ/تلگرام",
     FEATURE_BRANDED_PAGE:     "صفحه‌ی نوبت‌دهی برندشده",
     FEATURE_PRIORITY_SUPPORT: "پشتیبانی اولویت‌دار",
+    FEATURE_AUTO_REMINDER_SMS: "ارسال خودکار یادآوری از پنل پیامکی",
 }
 
 
@@ -72,6 +86,7 @@ DEFAULT_ENTITLEMENTS = {
     FEATURE_MULTI_CHANNEL:      False,
     FEATURE_BRANDED_PAGE:       False,
     FEATURE_PRIORITY_SUPPORT:   False,
+    FEATURE_AUTO_REMINDER_SMS:  False,
 }
 
 
@@ -89,6 +104,7 @@ BUNDLE_TRIAL = {
     FEATURE_MULTI_CHANNEL:      False,
     FEATURE_BRANDED_PAGE:       False,
     FEATURE_PRIORITY_SUPPORT:   False,
+    FEATURE_AUTO_REMINDER_SMS:  False,
 }
 
 # ۱ ماهه «شروع»
@@ -104,6 +120,7 @@ BUNDLE_1M = {
     FEATURE_MULTI_CHANNEL:      False,
     FEATURE_BRANDED_PAGE:       False,
     FEATURE_PRIORITY_SUPPORT:   False,
+    FEATURE_AUTO_REMINDER_SMS:  False,
 }
 
 # ۳ ماهه «حرفه‌ای»
@@ -119,6 +136,7 @@ BUNDLE_3M = {
     FEATURE_MULTI_CHANNEL:      False,
     FEATURE_BRANDED_PAGE:       True,
     FEATURE_PRIORITY_SUPPORT:   True,
+    FEATURE_AUTO_REMINDER_SMS:  True,
 }
 
 # ۶ ماهه «ویژه»
@@ -134,6 +152,7 @@ BUNDLE_6M = {
     FEATURE_MULTI_CHANNEL:      True,
     FEATURE_BRANDED_PAGE:       True,
     FEATURE_PRIORITY_SUPPORT:   True,
+    FEATURE_AUTO_REMINDER_SMS:  True,
 }
 
 # ۱۲ ماهه — بالاترین سطح، مثل ۶ ماهه با سقف نوبت و پیامک بیشتر

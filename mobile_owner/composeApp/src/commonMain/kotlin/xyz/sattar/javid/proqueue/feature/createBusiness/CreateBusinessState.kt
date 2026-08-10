@@ -15,7 +15,10 @@ data class CreateBusinessState (
     val logoBytes: ByteArray? = null,
     // Commitment-ladder gating for the "advanced settings" tabs.
     val entitlements: EntitlementsResponseDto? = null,
-    val plans: List<PlanDto> = emptyList()
+    val plans: List<PlanDto> = emptyList(),
+    // Category-wide chips the owner picks their own service menu from.
+    val serviceCatalog: List<String> = emptyList(),
+    val isServiceCatalogLoading: Boolean = false
 ){
     sealed class PartialState{
         data class IsLoading(val isLoading: Boolean): PartialState()
@@ -26,5 +29,7 @@ data class CreateBusinessState (
         data class BusinessLoaded(val business: Business): PartialState()
         data class LoadEntitlements(val entitlements: EntitlementsResponseDto?): PartialState()
         data class LoadPlans(val plans: List<PlanDto>): PartialState()
+        data class LoadServiceCatalog(val items: List<String>): PartialState()
+        data class ServiceCatalogLoading(val isLoading: Boolean): PartialState()
     }
 }

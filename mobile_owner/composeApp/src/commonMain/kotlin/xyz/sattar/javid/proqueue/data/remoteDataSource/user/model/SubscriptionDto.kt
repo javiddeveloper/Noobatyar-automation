@@ -28,3 +28,25 @@ data class PlanDto(
     // Capabilities/quotas unlocked by this plan (see accounting/entitlements.py).
     val features: Map<String, JsonElement> = emptyMap()
 )
+
+/** آیا این پلن، پلن آزمایشی است؟ همان الگویی که در SubscriptionCard استفاده می‌شود. */
+val PlanDto.isTrialPlan: Boolean
+    get() = name.contains("آزمایشی")
+
+/**
+ * مدت پلن بر حسب روز، برای مرتب‌سازی صعودی.
+ *
+ * سرور `duration_display` را همیشه به شکل "«عدد» روز" یا "«عدد» ماه" برمی‌گرداند
+ * (accounting/serializers.py::PlanSerializer.get_duration_display) و خودِ بک‌اند هم
+ * هر ماه را معادل ۳۰ روز حساب می‌کند (accounting/models.py::Plan.expiration date)،
+ * پس این تبدیل با منطق سرور هم‌خوان است.
+ */
+val PlanDto.durationInDays: Int
+    get() {
+        val value = durationDisplay.trim().takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+        return if ("ماه" in durationDisplay) value * 30 else value
+    }
+
+/** پلن‌ها را به ترتیب مورد نظر UI مرتب می‌کند: ابتدا پلن آزمایشی، سپس بقیه به ترتیب صعودی مدت. */
+fun List<PlanDto>.sortedForBanner(): List<PlanDto> =
+    sortedWith(compareByDescending<PlanDto> { it.isTrialPlan }.thenBy { it.durationInDays })

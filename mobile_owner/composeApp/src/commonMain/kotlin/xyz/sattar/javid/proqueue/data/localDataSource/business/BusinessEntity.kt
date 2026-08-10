@@ -36,5 +36,11 @@ data class BusinessEntity(
     val moderationStatusDisplay: String = "",
     val moderationNote: String = "",
     val moderationSubmittedAt: Long = 0,
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    val noticeEnabled: Boolean = false,
+    val noticeMessage: String = "",
+    val reminderDelivery: String = "MANUAL",
+    /** Comma-separated, same encoding as [acceptedPaymentMethods]. */
+    val services: String = "",
+    val allowClientAddService: Boolean = false
 )

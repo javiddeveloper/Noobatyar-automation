@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { categoryLabel, type Business } from '@/lib/api';
+import BusinessNotice from '@/app/components/BusinessNotice';
 
 interface Props {
   business: Business;
@@ -98,6 +99,9 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         )}
       </div>
 
+      {/* ── Owner notice — first thing under the hero, before any detail ── */}
+      <BusinessNotice business={business} style={{ paddingTop: 16 }} />
+
       {/* ── Stats strip ── */}
       <div className="section" style={{ paddingTop: 20, paddingBottom: 8 }}>
         <div className="stat-grid">
@@ -138,17 +142,12 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         </div>
       )}
 
-      {/* ── Notice Banner (dynamic from backend) ── */}
-      {business.notice_message && (
-        <div className="section" style={{ paddingTop: 8, paddingBottom: 8 }}>
-          <div className="notice-banner">
-            <span>⏱ </span>
-            {business.notice_message}
-          </div>
-        </div>
-      )}
-
-      {/* ── Booking Disabled Banner ── */}
+      {/* ── Booking Disabled Banner ──
+          Stays down here, next to the CTA it explains, rather than next to the
+          notice at the top: the two say different things (one is the owner's
+          message, one is the state of the button) and separating them keeps a
+          business that is both closed *and* running late from stacking two
+          near-identical boxes above the fold. */}
       {!bookingEnabled && (
         <div className="section" style={{ paddingTop: 8, paddingBottom: 8 }}>
           <div style={{

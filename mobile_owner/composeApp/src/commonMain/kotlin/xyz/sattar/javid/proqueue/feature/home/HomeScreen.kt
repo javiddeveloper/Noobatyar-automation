@@ -1,57 +1,100 @@
 package xyz.sattar.javid.proqueue.feature.home
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.Cancel
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DataUsage
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.EventBusy
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Sms
+import androidx.compose.material.icons.rounded.Stars
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.buildAnnotatedString
-import coil3.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
-import proqueue.composeapp.generated.resources.*
-import proqueue.composeapp.generated.resources.Res
-import proqueue.composeapp.generated.resources.address
-import proqueue.composeapp.generated.resources.home_menu_item
-import proqueue.composeapp.generated.resources.phone
-import proqueue.composeapp.generated.resources.welcome_to_proqueue
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
-import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
 import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomePlanBannerShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeUsageShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
+import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
+import xyz.sattar.javid.proqueue.core.ui.components.ToastyType
+import xyz.sattar.javid.proqueue.core.ui.components.showToasty
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
-import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
@@ -61,7 +104,8 @@ fun HomeScreen(
     onNavigateToCalendar: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onChangeBusiness: () -> Unit = {},
-    onNavigateToAddons: () -> Unit = {}
+    onNavigateToAddons: () -> Unit = {},
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -84,9 +128,21 @@ fun HomeScreen(
         onNavigateToCalendar = onNavigateToCalendar,
         onNavigateToLogin = onNavigateToLogin,
         onChangeBusiness = onChangeBusiness,
-        onNavigateToAddons = onNavigateToAddons
+        onNavigateToAddons = onNavigateToAddons,
+        onNavigateToVisitors = onNavigateToVisitors
     )
 }
+
+/**
+ * Arguments for jumping into the visitors/appointments tab pre-filtered —
+ * used when tapping a Home stat card, the queue row, or the 7-day chart.
+ */
+data class VisitorsNavArgs(
+    val status: String? = null,
+    val tab: Int? = null,
+    val dateFrom: Long? = null,
+    val dateTo: Long? = null
+)
 
 @Composable
 fun HomeScreenContent(
@@ -97,7 +153,8 @@ fun HomeScreenContent(
     onNavigateToCalendar: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onChangeBusiness: () -> Unit = {},
-    onNavigateToAddons: () -> Unit = {}
+    onNavigateToAddons: () -> Unit = {},
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -107,7 +164,8 @@ fun HomeScreenContent(
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showToasty(it)
+            onIntent(HomeIntent.ClearMessage)
         }
     }
 
@@ -121,8 +179,6 @@ fun HomeScreenContent(
                 onNavigateToLogin = onNavigateToLogin,
                 onChangeBusiness = onChangeBusiness,
                 actions = {
-                    // دکمه بروزرسانی حذف شد — جایش pull-to-refresh آمده است.
-                    // دکمه تقویم
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
@@ -162,7 +218,7 @@ fun HomeScreenContent(
             contentPadding = PaddingValues(top = paddingValues.calculateTopPadding()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز)
+            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز) + تعداد نوبت‌های امروز
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -170,11 +226,13 @@ fun HomeScreenContent(
                         animationSpec = tween(500, delayMillis = 150)
                     )
                 ) {
-                    DateHeader()
+                    DateHeader(
+                        todayAppointmentsCount = uiState.stats.totalAppointments.takeIf { uiState.statsLoaded }
+                    )
                 }
             }
 
-            // ۲. آمار داشبورد امروز
+            // ۲. آمار داشبورد امروز (۴ مستطیل + یک سطر کامل برای صف)
             item {
                 AnimatedVisibility(
                     visible = visible,
@@ -184,7 +242,15 @@ fun HomeScreenContent(
                 ) {
                     when {
                         !uiState.statsLoaded -> HomeDashboardShimmer()
-                        else -> DashboardStatsSection(stats = uiState.stats)
+                        else -> DashboardStatsSection(
+                            stats = uiState.stats,
+                            peopleInQueue = uiState.queue.size,
+                            // tab = 0 (مراجعین/history) explicitly — LastVisitorsState
+                            // defaults selectedTab to 1 (صف/queue), where a status
+                            // filter like "cancelled" has nothing to show.
+                            onStatClick = { status -> onNavigateToVisitors(VisitorsNavArgs(status = status, tab = 0)) },
+                            onQueueClick = { onNavigateToVisitors(VisitorsNavArgs(tab = 1)) }
+                        )
                     }
                 }
             }
@@ -200,7 +266,20 @@ fun HomeScreenContent(
                     if (!uiState.chartLoaded) {
                         HomeChartShimmer()
                     } else if (uiState.dailyCounts.isNotEmpty()) {
-                        NeonLineChart(counts = uiState.dailyCounts.map { it.count })
+                        // نمودار «۷ روز اخیر» است (گذشته)، پس با تپ روی آن به تب
+                        // مراجعین با همان بازه‌ی گذشته می‌رویم تا داده‌ی نمایش داده
+                        // شده با مقصد ناوبری همخوانی داشته باشد (نه بازه‌ی پیش‌فرض
+                        // «۷ روز آینده» آن تب).
+                        NeonLineChart(
+                            counts = uiState.dailyCounts.map { it.count },
+                            onClick = {
+                                val today = DateTimeUtils.startOfTodayMillis()
+                                val sevenDaysAgo = today - 6L * 24 * 60 * 60 * 1000L
+                                onNavigateToVisitors(
+                                    VisitorsNavArgs(dateFrom = sevenDaysAgo, dateTo = DateTimeUtils.systemCurrentMilliseconds())
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -274,34 +353,57 @@ fun PlanBannerSection(
 ) {
     val pagerState = rememberPagerState(pageCount = { plans.size })
 
-    // چرخش خودکار بنرها هر ۵ ثانیه
-    LaunchedEffect(plans) {
-        if (plans.isNotEmpty()) {
-            while (true) {
-                delay(5000)
-                if (pagerState.pageCount > 0) {
-                    val nextPage = (pagerState.currentPage + 1) % plans.size
-                    pagerState.animateScrollToPage(nextPage)
-                }
-            }
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
+        // contentPadding عمداً بیشتر از 4dp است: هر صفحه کمی باریک‌تر از عرض
+        // صفحه می‌شود تا لبه‌ی بنر بعدی/قبلی دیده شود و کاربر بفهمد می‌تواند
+        // آن‌ها را دستی swipe کند (دیگر چرخش خودکار نداریم).
+        //
+        // ارتفاع همه‌ی صفحات باید یکسان باشد، حتی اگر محتوای پلن‌ها متفاوت
+        // باشد. قبلاً این کار با SubcomposeLayout انجام می‌شد، اما آن رویکرد
+        // HorizontalPager را داخل یک subcomposition جدا قرار می‌داد و
+        // gesture drag اصلاً به Pager نمی‌رسید — یعنی swipe کاملاً از کار
+        // می‌افتاد (تأیید شده روی امولاتور واقعی). به‌جایش با
+        // onSizeChanged روی هر صفحه، بلندترین ارتفاع دیده‌شده را ردیابی
+        // می‌کنیم و به‌عنوان ارتفاع ثابت Pager می‌دهیم — Pager همچنان یک
+        // composable معمولی می‌ماند و drag درست کار می‌کند.
+        val pagerContentPadding = 28.dp
+        val density = LocalDensity.current
+        var maxCardHeight by remember(plans) { mutableStateOf(0.dp) }
+
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            pageSpacing = 8.dp
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (maxCardHeight > 0.dp) Modifier.height(maxCardHeight) else Modifier),
+            contentPadding = PaddingValues(horizontal = pagerContentPadding),
+            pageSpacing = 10.dp
         ) { page ->
             val plan = plans[page]
             PlanBannerItem(
                 plan = plan,
-                onClick = { onPlanClick(plan) }
+                onClick = { onPlanClick(plan) },
+                modifier = Modifier
+                    .let { if (maxCardHeight > 0.dp) it.height(maxCardHeight) else it }
+                    .onSizeChanged { size ->
+                        val heightDp = with(density) { size.height.toDp() }
+                        if (heightDp > maxCardHeight) maxCardHeight = heightDp
+                    }
+            )
+        }
+
+        if (plans.size > 1) {
+            Text(
+                text = "برای مشاهده‌ی سایر طرح‌ها بکشید ⟷",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
 
@@ -341,7 +443,8 @@ fun PlanBannerSection(
 @Composable
 fun PlanBannerItem(
     plan: PlanDto,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val (gradientColors, badgeLabel) = when {
         plan.name.contains("پرو پلاس") -> Pair(
@@ -369,7 +472,7 @@ fun PlanBannerItem(
     val gradient = Brush.linearGradient(colors = gradientColors)
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
@@ -377,7 +480,7 @@ fun PlanBannerItem(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(gradient)
         ) {
             // آیکون تزئینی پس‌زمینه
@@ -556,10 +659,9 @@ fun PlanBannerItem(
 }
 
 @Composable
-fun DateHeader(modifier: Modifier = Modifier) {
+fun DateHeader(modifier: Modifier = Modifier, todayAppointmentsCount: Int? = null) {
     val currentTime = DateTimeUtils.systemCurrentMilliseconds()
     val formattedDate = DateTimeUtils.formatDate(currentTime)
-    val formattedTime = DateTimeUtils.formatTime(currentTime)
 
     Row(
         modifier = modifier
@@ -584,25 +686,51 @@ fun DateHeader(modifier: Modifier = Modifier) {
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "امروز، $formattedDate",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "ساعت فعلی: $formattedTime",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Text(
+                text = "امروز، $formattedDate",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        // تعداد نوبت‌های امروز — قبلاً یک مستطیل جدا بود («نوبت‌های امروز»)،
+        // حالا کنار هدر تاریخ به‌صورت یک بج کوچک نمایش داده می‌شود.
+        if (todayAppointmentsCount != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Event,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "$todayAppointmentsCount نوبت",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun DashboardStatsSection(stats: DashboardStats) {
+fun DashboardStatsSection(
+    stats: DashboardStats,
+    peopleInQueue: Int = 0,
+    onStatClick: (status: String?) -> Unit = {},
+    onQueueClick: () -> Unit = {}
+) {
     val isDark = !MaterialTheme.colorScheme.surface.let { color ->
         (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
     }
@@ -610,25 +738,29 @@ fun DashboardStatsSection(stats: DashboardStats) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // ۴ مستطیل آمار (۲×۲) — «نوبت‌های امروز» حذف شد چون تعدادش کنار هدر
+        // تاریخ نمایش داده می‌شود.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "نوبت‌های امروز",
-                value = stats.totalAppointments.toString(),
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                icon = Icons.Rounded.Event
-            )
-            StatCard(
-                modifier = Modifier.weight(1f),
                 title = "تکمیل شده",
                 value = stats.completedAppointments.toString(),
                 containerColor = if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9),
                 contentColor = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32),
-                icon = Icons.Rounded.CheckCircle
+                icon = Icons.Rounded.CheckCircle,
+                onClick = { onStatClick("COMPLETED") }
+            )
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "کل مراجعین",
+                value = stats.totalVisitors.toString(),
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                icon = Icons.Rounded.People,
+                onClick = { onStatClick(null) }
             )
         }
         Row(
@@ -641,15 +773,67 @@ fun DashboardStatsSection(stats: DashboardStats) {
                 value = stats.noShowAppointments.toString(),
                 containerColor = if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
                 contentColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828),
-                icon = Icons.Rounded.Cancel
+                icon = Icons.Rounded.Cancel,
+                onClick = { onStatClick("NO_SHOW") }
             )
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "کل مراجعین",
-                value = stats.totalVisitors.toString(),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                icon = Icons.Rounded.People
+                title = "لغو شده",
+                value = stats.cancelledAppointments.toString(),
+                containerColor = if (isDark) Color(0xFF4A148C).copy(alpha = 0.4f) else Color(0xFFF3E5F5),
+                contentColor = if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A),
+                icon = Icons.Rounded.EventBusy,
+                onClick = { onStatClick("CANCELLED") }
+            )
+        }
+
+        // سطر کامل: افراد در حال حاضر در صف (امروز، در انتظار)
+        QueueStatRow(count = peopleInQueue, onClick = onQueueClick)
+    }
+}
+
+@Composable
+fun QueueStatRow(count: Int, onClick: () -> Unit = {}) {
+    val isDark = !MaterialTheme.colorScheme.surface.let { color ->
+        (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
+    }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) Color(0xFF01579B).copy(alpha = 0.35f) else Color(0xFFE1F5FE)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.Timer,
+                    contentDescription = null,
+                    tint = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "افراد در صف",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
+                )
+            }
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black,
+                color = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
             )
         }
     }
@@ -662,10 +846,11 @@ fun StatCard(
     value: String,
     containerColor: Color,
     contentColor: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -963,7 +1148,7 @@ fun HandleEvents(
                 uriHandler.openUri(event.url)
             }
             is HomeEvent.ShowError -> {
-                snackbarHostState.showSnackbar(event.message)
+                snackbarHostState.showToasty(event.message, ToastyType.Error)
             }
         }
     }

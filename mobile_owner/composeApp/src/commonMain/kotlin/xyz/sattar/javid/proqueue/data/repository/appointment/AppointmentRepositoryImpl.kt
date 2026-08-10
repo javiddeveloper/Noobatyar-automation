@@ -47,7 +47,8 @@ class AppointmentRepositoryImpl(
                 visitorId = appointment.visitorId,
                 appointmentDate = appointment.appointmentDate,
                 serviceDuration = appointment.serviceDuration,
-                description = appointment.description
+                description = appointment.description,
+                selectedServices = appointment.selectedServices
             )
             val response = appointmentApiService.createAppointment(request)
             if (response is ApiResponse.Success) {
@@ -60,7 +61,11 @@ class AppointmentRepositoryImpl(
                     serviceDuration = dto.serviceDuration,
                     status = dto.status,
                     description = dto.description,
+                    selectedServices = dto.selectedServices,
                     paymentReceipt = dto.paymentReceipt,
+                    trackingCode = dto.trackingCode,
+                    paymentReference = dto.paymentReference,
+                    depositPaymentMethod = dto.depositPaymentMethod,
                     createdAt = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(dto.createdAt),
                     updatedAt = xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(dto.updatedAt)
                 )
@@ -120,12 +125,13 @@ class AppointmentRepositoryImpl(
     }
 
     @OptIn(ExperimentalTime::class)
-    override suspend fun updateAppointment(appointmentId: Long, date: Long, duration: Int?, description: String?): Boolean {
+    override suspend fun updateAppointment(appointmentId: Long, date: Long, duration: Int?, description: String?, selectedServices: String?): Boolean {
         return try {
             val request = xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.model.request.UpdateAppointmentRequestDto(
                 appointmentDate = date,
                 serviceDuration = duration,
-                description = description
+                description = description,
+                selectedServices = selectedServices
             )
             val response = appointmentApiService.updateAppointment(appointmentId, request)
             if (response is ApiResponse.Success) {
@@ -134,6 +140,7 @@ class AppointmentRepositoryImpl(
                     date,
                     duration,
                     description,
+                    selectedServices,
                     Clock.System.now().toEpochMilliseconds()
                 )
                 true
@@ -315,10 +322,14 @@ class AppointmentRepositoryImpl(
                         serviceDuration = dto.serviceDuration,
                         status = dto.status,
                         description = dto.description,
+                        selectedServices = dto.selectedServices,
                         // Without this the inline receipt preview on the queue
                         // card never has anything to show: the API returns it,
                         // but sync dropped it before it reached the DB.
                         paymentReceipt = dto.paymentReceipt,
+                    trackingCode = dto.trackingCode,
+                    paymentReference = dto.paymentReference,
+                    depositPaymentMethod = dto.depositPaymentMethod,
                         createdAt = DateTimeUtils.parseIsoToEpochMillis(dto.createdAt),
                         updatedAt = DateTimeUtils.parseIsoToEpochMillis(dto.updatedAt)
                     )

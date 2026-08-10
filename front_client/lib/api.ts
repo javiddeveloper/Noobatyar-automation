@@ -21,6 +21,13 @@ export interface Business {
   work_start_hour: number;
   work_end_hour: number;
   allow_anonymous_view: boolean;
+  /** Owner-posted advisory (closure, emergency, running late) is live.
+   *  Independent of `booking_enabled`: a business can post a notice and still
+   *  take bookings. */
+  notice_enabled: boolean;
+  /** The advisory text, max 300 chars. The backend sends an empty string
+   *  whenever `notice_enabled` is false, so stale text never reaches us.
+   *  Still nullable here to tolerate older payloads. */
   notice_message: string | null;
   booking_enabled: boolean;
   deposit_mode?: string;
@@ -34,6 +41,15 @@ export interface Business {
   /** True when the business has a Zibal merchant, so checkout can redirect to a
    *  real gateway instead of the manual link + tracking-number flow. */
   online_gateway_enabled?: boolean;
+  /** The services this business offers, defined by the owner in the app. Shown
+   *  as chips at booking time so "what are you coming for?" is an answer the
+   *  owner can plan a slot length around instead of free text. Optional here to
+   *  tolerate older payloads. */
+  services?: string[];
+  /** Whether the client may add a service that isn't on `services`. Off unless
+   *  the owner turned it on in their business settings — the backend rejects
+   *  off-menu names either way, so this only decides whether we offer the box. */
+  allow_client_add_service?: boolean;
 }
 
 export interface TimeSlot {
@@ -244,7 +260,8 @@ export async function bookAppointment(
   appointmentDate: number,
   serviceDuration?: number,
   description?: string,
-  token?: string
+  token?: string,
+  selectedServices?: string[]
 ) {
   return apiFetch<{ id: number; requires_payment?: boolean }>('/api/client/appointments/', {
     method: 'POST',
@@ -254,6 +271,7 @@ export async function bookAppointment(
       appointment_date: appointmentDate,
       ...(serviceDuration && { service_duration: serviceDuration }),
       ...(description && { description }),
+      ...(selectedServices?.length && { selected_services: selectedServices }),
     }),
   });
 }
