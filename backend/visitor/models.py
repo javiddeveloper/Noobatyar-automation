@@ -17,6 +17,20 @@ class Visitor(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='visitors', null=True, blank=True)
     full_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20, unique=True)
+    # Platform-wide marketing consent — distinct from Business.enable_promotional_sms,
+    # which only governs whether *a given business* may send promotional SMS to its
+    # own clients. This flag is the one that matters to core/segments.py: the audience
+    # segment builder queries Visitor rows across every business on the platform, and
+    # until this field existed nothing let a visitor opt out of *that*. Defaults to
+    # False (opted in) to match today's actual behaviour — this field only makes an
+    # already-existing gap opt-out-able, it does not change who could be contacted
+    # before it shipped.
+    marketing_opt_out = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="اگر فعال باشد، این مراجع در فهرست‌های بازاریابی پلتفرم (خارج از پیامک‌های "
+                  "خودِ کسب‌وکار) قرار نمی‌گیرد.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

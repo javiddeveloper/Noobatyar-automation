@@ -30,7 +30,16 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --save 60 1 --maxmemory 256mb --maxmemory-policy allkeys-lru
+    # volatile-lru, NOT allkeys-lru: accounting/usage.py stores paid credit
+    # (`sms_wallet:{user_id}`, `appt_wallet:{user_id}`) with timeout=None, i.e.
+    # no TTL. Under allkeys-lru Redis is free to evict those keys the moment it
+    # hits maxmemory, silently destroying credit the user paid money for and
+    # which has no other source of truth. volatile-lru restricts eviction to
+    # keys that carry a TTL — the monthly usage counters
+    # (`usage:{user_id}:{metric}:{YYYY-MM}`, ~62d TTL), OTP codes and throttle
+    # buckets — all of which are cheap to lose. If memory does fill up, we would
+    # rather get an OOM error on new writes than lose wallets.
+    command: redis-server --save 60 1 --maxmemory 256mb --maxmemory-policy volatile-lru
     volumes:
       - redis_data:/data
     restart: always
@@ -63,6 +72,13 @@ services:
       - SITE_URL=${SITE_URL}
       - MELIPAYAMAK_OTP_TOKEN=${MELIPAYAMAK_OTP_TOKEN}
       - MELIPAYAMAK_FROM=${MELIPAYAMAK_FROM}
+      # Path the Django admin is mounted at. Defaults to admin/ when unset.
+      # WARNING: nginx/nginx.conf proxies to this service with
+      #   location ~ ^/(api|admin|plans|my-subscription|payment-result)
+      # so moving the admin off the default REQUIRES adding the new prefix to
+      # that regex in both server blocks — otherwise nginx serves the frontend
+      # (404) and the panel is simply unreachable from outside.
+      - ADMIN_URL=${ADMIN_URL:-admin/}
     depends_on:
       - db
       - pgbouncer

@@ -26,6 +26,13 @@
 ## ۲. تنظیمات دیتابیس و جنگو
 فایل `core/settings.py` تغییر پیدا کرد تا تنظیمات زیر رو از طریق متغیرهای محیطی (Environment Variables) دریافت کنه:
 - اتصال به دیتابیس PostgreSQL به جای SQLite (از طریق `pgbouncer`).
+
+> **نکته توسعه لوکال:** فایل `backend/db.sqlite3` در `.gitignore` است و بین برنچ‌ها اشتراکی نیست. اگر بین برنچ‌هایی جابجا بشید که تاریخچه‌ی migration متفاوتی دارن (مثلاً برنچی که یک migration اضافه/حذف شده روش اعمال شده)، اسکیمای این فایل لوکال می‌تونه از migrationهای برنچ فعلی عقب بمونه و روی `manage.py runserver` با خطای `IntegrityError` / `NOT NULL constraint failed` یا ستون‌های اضافی مواجه بشید (تست‌ها متاثر نمی‌شن چون `manage.py test` دیتابیس رو از صفر از روی migrationها می‌سازه). ساده‌ترین راه‌حل rebuild از صفر است:
+> ```bash
+> rm backend/db.sqlite3
+> python manage.py migrate
+> ```
+> اگر داده‌های لوکال مهمی دارید که نمی‌خواید از دست بره، به‌جای حذف فایل می‌تونید اسکیمای واقعی جدول رو با `PRAGMA table_info(<table>)` با مدل/migrationِ برنچ فعلی مقایسه کنید و ستون‌های اضافه/کم را به‌صورت دستی با `ALTER TABLE ... DROP/ADD COLUMN` اصلاح کنید (و ردیف متناظر را در جدول `django_migrations` هم به‌روز کنید).
 - کلیدهای `SECRET_KEY` و `DEBUG` و `ALLOWED_HOSTS`.
 - **کش Redis** (`CACHES` با `django-redis`) — سرویس OTP و throttling روی این کش مشترک کار می‌کنند. بدون این، پیش‌فرض جنگو `LocMemCache` (مخصوص همان پروسه) بود و در حالت چند-worker باعث می‌شد کد OTP بین workerها گم شود.
 - **کانکشن دیتابیس**: `CONN_MAX_AGE` (پیش‌فرض `0`، چون pooling را به `pgbouncer` سپرده‌ایم) و `CONN_HEALTH_CHECKS`.

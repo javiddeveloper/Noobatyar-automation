@@ -12,6 +12,12 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd backend && source .venv/bin/activate && python manage.py runserver 0.0.0.0:8000"],
       "port": 8000
+    },
+    {
+      "name": "backend_admin",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set DEBUG=True&& set PYTHONIOENCODING=utf-8&& backend\\.venv\\Scripts\\python.exe backend\\manage.py runserver 8010"],
+      "port": 8010
     }
   ]
 }

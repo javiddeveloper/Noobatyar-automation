@@ -4,10 +4,12 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.utils import timezone
 import logging
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from . import services
 from .models import Business, ServiceCatalogItem
 from .serializers import (
     BusinessSerializer,
@@ -85,6 +87,15 @@ class BusinessView(APIView):
         quota = entitlements.get_quota(user, entitlements.QUOTA_MAX_BUSINESSES)
         if entitlements.is_unlimited(quota):
             return None
+        # Businesses awaiting moderation count against the quota. The argument
+        # for excluding them is that the owner gets no value from a business the
+        # public cannot see, so charging a slot for it feels like billing for
+        # nothing. It loses to the abuse case: not counting them lets anyone
+        # exceed their plan indefinitely by parking businesses in review, and
+        # every one of those is a real row a human reviewer has to work through.
+        # The slot is consumed the moment the record exists, so `is_locked` (the
+        # billing flag) stays the only filter here — moderation state is
+        # editorial and deliberately not mixed into a quota decision.
         current = Business.objects.filter(user=user, is_locked=False).count()
         if current >= quota:
             return (
@@ -110,11 +121,22 @@ class BusinessView(APIView):
 
         try:
             if await sync_to_async(serializer.is_valid)(raise_exception=True):
-                await sync_to_async(serializer.save)(user=user)
+                # moderation_status already defaults to PENDING, but
+                # moderation_submitted_at defaults to null and the review queue
+                # orders by it — a null leaves brand-new businesses sorted
+                # unpredictably against ones that were resubmitted, so the
+                # oldest-waiting-first rule quietly stops holding. Creating the
+                # business *is* the submission, so stamp it here.
+                await sync_to_async(serializer.save)(
+                    user=user, moderation_submitted_at=timezone.now()
+                )
                 logger.info(f"Business created: {serializer.data['id']} by user {user.id}")
                 return APIResponse.success(
                     data=serializer.data,
-                    message="کسب و کار با موفقیت ایجاد شد",
+                    message=(
+                        "کسب و کار با موفقیت ایجاد شد و برای بررسی ارسال شد؛ "
+                        "پس از تأیید برای مشتریان نمایش داده می‌شود"
+                    ),
                     status=201
                 )
         except ValidationError as e:
@@ -142,10 +164,40 @@ class BusinessView(APIView):
 
         serializer = BusinessSerializer(business, data=request.data, partial=True)
 
+        # Snapshot the publicly-visible copy *before* the save: once the
+        # serializer has written the instance the old values are gone, and
+        # without them there is no way to tell a real edit from a form that
+        # posted the whole object back unchanged.
+        before = services.moderated_snapshot(business)
+
         try:
             if await sync_to_async(serializer.is_valid)(raise_exception=True):
-                await sync_to_async(serializer.save)()
+                # save() and the re-queue check run as one transaction (see
+                # save_and_maybe_requeue's docstring): two separate sync_to_async
+                # hops would leave a window where an edited, unreviewed business
+                # is committed and still APPROVED.
+                requeued = await sync_to_async(services.save_and_maybe_requeue)(
+                    serializer, business, before
+                )
                 logger.info(f"Business updated: {business_id} by user {user.id}")
+
+                if requeued:
+                    # Re-serialise from the row rather than reusing the cached
+                    # representation: submit_for_review moved the status and the
+                    # submitted-at stamp after the serializer rendered, and the
+                    # owner has to see that this edit took them off the public
+                    # listing — that is the whole point of telling them.
+                    business = await Business.objects.aget(id=business_id, user=user)
+                    data = BusinessSerializer(business).data
+                    return APIResponse.success(
+                        data=data,
+                        message=(
+                            "تغییرات ذخیره شد؛ چون اطلاعات نمایش‌داده‌شده تغییر کرده، "
+                            "کسب و کار دوباره برای بررسی ارسال شد و تا تأیید مجدد "
+                            "برای مشتریان نمایش داده نمی‌شود"
+                        )
+                    )
+
                 return APIResponse.success(
                     data=serializer.data,
                     message="کسب و کار با موفقیت بروزرسانی شد"

@@ -1,0 +1,182 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  SMS operations report for staff holding `visitor.view_smslog`.
+
+  Reachable from the SmsLog changelist's "گزارش عملیات پیامک" object-tool
+  button (visitor/templates/admin/visitor/smslog/change_list.html) and guarded
+  independently in SmsLogAdmin.sms_report_view() — a role without the
+  permission hitting this URL directly gets a real 403, not just a missing
+  nav link. Styling mirrors accounting/templates/admin/accounting/financial_report.html
+  (same class-name prefix convention, swapped to `sr-`) — no new stylesheet.
+
+  Deliberately no message-content column anywhere on this page — see
+  visitor/reports.py's docstring, "PII discipline".
+--------------------------------------------------------------------------- #}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .sr-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:end;
+                margin-block-end:20px; padding:14px; background:#f8f8f8;
+                border:1px solid #e3e3e3; border-radius:8px; }
+  .sr-filters label { display:flex; flex-direction:column; gap:4px;
+                       font-size:12px; color:#555; }
+  .sr-filters input[type=text], .sr-filters select { padding:6px 8px;
+      border:1px solid #ccc; border-radius:4px; font-family:inherit; }
+  .sr-filters input[type=text] { direction:ltr; text-align:end; width:110px; }
+  .sr-filters .button { align-self:end; }
+  .sr-meta { font-size:12px; color:#777; margin-inline-start:auto; align-self:center; }
+  .sr-section { margin-block-end:28px; }
+  .sr-section h3 { margin-block-end:10px; }
+  .sr-cards { display:flex; flex-wrap:wrap; gap:14px; }
+  .sr-card { border:1px solid #ddd; border-radius:8px; padding:14px 16px;
+             min-width:150px; background:#fff; }
+  .sr-card-title { font-size:12px; color:#666; margin-block-end:6px; }
+  .sr-card-value { font-size:22px; font-weight:700; direction:ltr; text-align:end; }
+  .sr-table { width:100%; border-collapse:collapse; background:#fff; }
+  .sr-table th, .sr-table td { border:1px solid #e6e6e6; padding:7px 10px; font-size:13px; }
+  .sr-table th { background:#fafafa; text-align:start; }
+  .sr-table td.num { direction:ltr; text-align:end; }
+  .sr-table td.err { max-width:420px; overflow-wrap:anywhere; color:#8b1a1a; }
+  .sr-note { font-size:12px; color:#666; margin-block-start:8px; }
+  .sr-empty { padding:16px; text-align:center; color:#888; border:1px dashed #ddd; border-radius:8px; }
+  .sr-error { color:#8b1a1a; }
+  .sr-badge-failed { color:#8b1a1a; font-weight:600; }
+  .sr-badge-sent { color:#0b6b34; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <form method="get" class="sr-filters">
+    <label>از تاریخ (شمسی)
+      <input type="text" name="from" value="{{ date_from }}" placeholder="۱۴۰۴/۰۱/۰۱">
+    </label>
+    <label>تا تاریخ (شمسی)
+      <input type="text" name="to" value="{{ date_to }}" placeholder="۱۴۰۴/۰۱/۳۰">
+    </label>
+    <label>کسب‌وکار
+      <select name="business">
+        <option value="">همه</option>
+        {% if report %}
+          {% for biz in report.businesses %}
+            <option value="{{ biz.id }}" {% if business_id == biz.id|stringformat:"s" %}selected{% endif %}>{{ biz.title }}</option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </label>
+    <label>وضعیت
+      <select name="status">
+        <option value="" {% if not status %}selected{% endif %}>همه</option>
+        <option value="FAILED" {% if status == "FAILED" %}selected{% endif %}>ناموفق</option>
+        <option value="SENT" {% if status == "SENT" %}selected{% endif %}>ارسال‌شده</option>
+      </select>
+    </label>
+    <button type="submit" class="button">اعمال فیلتر</button>
+    {% if report %}
+      <a class="button" href="{% url 'admin:visitor_smslog_report_csv' %}?from={{ date_from|urlencode }}&to={{ date_to|urlencode }}&business={{ business_id|urlencode }}&status={{ status|urlencode }}">
+        خروجی CSV
+      </a>
+    {% endif %}
+    {% if report %}
+      <span class="sr-meta">محاسبه‌شده در: {{ report.generated_at }}</span>
+    {% endif %}
+  </form>
+
+  {% if error %}
+    <p class="errornote sr-error">{{ error }}</p>
+  {% endif %}
+
+  {% if report %}
+    <p class="sr-note">
+      بازه‌ی گزارش: {{ report.range.from_jalali }} تا {{ report.range.to_jalali }}
+      (شامل هر دو روز، بر اساس نیمه‌شب تهران)
+    </p>
+
+    <div class="sr-section">
+      <h3>خلاصه</h3>
+      <div class="sr-cards">
+        <div class="sr-card">
+          <div class="sr-card-title">ارسال‌شده</div>
+          <div class="sr-card-value">{{ report.summary.sent }}</div>
+        </div>
+        <div class="sr-card">
+          <div class="sr-card-title">ناموفق</div>
+          <div class="sr-card-value">{{ report.summary.failed }}</div>
+        </div>
+        <div class="sr-card">
+          <div class="sr-card-title">جمع</div>
+          <div class="sr-card-value">{{ report.summary.total }}</div>
+        </div>
+        <div class="sr-card">
+          <div class="sr-card-title">نرخ شکست</div>
+          <div class="sr-card-value">
+            {% if report.summary.failure_rate_pct != None %}
+              {{ report.summary.failure_rate_pct }}٪
+            {% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+      <p class="sr-note">
+        متن پیامک‌ها (message_text) هرگز در این گزارش نمایش یا خروجی گرفته نمی‌شود — ممکن است
+        شامل نام و اطلاعات نوبت مراجع باشد. فقط جزئیات خطای سمت پروایدر (error_detail) نمایش داده می‌شود.
+      </p>
+    </div>
+
+    <div class="sr-section">
+      <h3>ناموفق‌ها به تفکیک کسب‌وکار</h3>
+      {% if report.by_business %}
+        <table class="sr-table">
+          <thead><tr><th>کسب‌وکار</th><th>ناموفق</th><th>ارسال‌شده</th><th>جمع</th><th>نرخ شکست</th></tr></thead>
+          <tbody>
+            {% for row in report.by_business %}
+              <tr>
+                <td>{{ row.business }}</td>
+                <td class="num">{{ row.failed }}</td>
+                <td class="num">{{ row.sent }}</td>
+                <td class="num">{{ row.total }}</td>
+                <td class="num">
+                  {% if row.failure_rate_pct != None %}{{ row.failure_rate_pct }}٪{% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="sr-empty">در این بازه هیچ پیامکی ثبت نشده است.</div>
+      {% endif %}
+    </div>
+
+    <div class="sr-section">
+      <h3>موارد اخیر</h3>
+      {% if report.recent_logs %}
+        <table class="sr-table">
+          <thead><tr><th>کسب‌وکار</th><th>وضعیت</th><th>زمان</th><th>جزئیات خطا</th></tr></thead>
+          <tbody>
+            {% for row in report.recent_logs %}
+              <tr>
+                <td>{{ row.business }}</td>
+                <td>
+                  {% if row.status == "FAILED" %}
+                    <span class="sr-badge-failed">ناموفق</span>
+                  {% else %}
+                    <span class="sr-badge-sent">ارسال‌شده</span>
+                  {% endif %}
+                </td>
+                <td>{{ row.sent_at }}</td>
+                <td class="err">{{ row.error_detail|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <p class="sr-note">حداکثر {{ report.recent_logs|length }} ردیف نمایش داده می‌شود؛ بازه یا فیلتر را برای دیدن موارد بیشتر محدودتر کنید.</p>
+      {% else %}
+        <div class="sr-empty">موردی در این بازه/فیلتر یافت نشد.</div>
+      {% endif %}
+    </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}

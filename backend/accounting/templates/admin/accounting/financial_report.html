@@ -1,0 +1,229 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  Financial reporting page for the Finance/Superadmin roles.
+
+  Reachable from the Transaction changelist's "گزارش مالی" object-tool button
+  (accounting/templates/admin/accounting/transaction/change_list.html) and
+  guarded independently in TransactionAdmin.financial_report_view() — a
+  Moderator/Support account hitting this URL directly gets a real 403 from
+  admin_view() + has_view_permission(), not just a missing nav link.
+
+  Styling stays close to the moderation queue's inline <style> block
+  (business/templates/admin/business/moderation_queue.html): logical
+  properties (inline-start/end) so RTL is free, no new stylesheet.
+--------------------------------------------------------------------------- #}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .fr-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:end;
+                margin-block-end:20px; padding:14px; background:#f8f8f8;
+                border:1px solid #e3e3e3; border-radius:8px; }
+  .fr-filters label { display:flex; flex-direction:column; gap:4px;
+                       font-size:12px; color:#555; }
+  .fr-filters input[type=text] { padding:6px 8px; border:1px solid #ccc;
+                                  border-radius:4px; font-family:inherit;
+                                  direction:ltr; text-align:end; width:110px; }
+  .fr-filters .button { align-self:end; }
+  .fr-meta { font-size:12px; color:#777; margin-inline-start:auto;
+             align-self:center; }
+  .fr-section { margin-block-end:28px; }
+  .fr-section h3 { margin-block-end:10px; }
+  .fr-cards { display:flex; flex-wrap:wrap; gap:14px; }
+  .fr-card { border:1px solid #ddd; border-radius:8px; padding:14px 16px;
+             min-width:170px; background:#fff; }
+  .fr-card-title { font-size:12px; color:#666; margin-block-end:6px; }
+  .fr-card-value { font-size:22px; font-weight:700; direction:ltr;
+                    text-align:end; }
+  .fr-card-unit { font-size:12px; color:#888; margin-inline-start:4px; }
+  .fr-table { width:100%; border-collapse:collapse; background:#fff; }
+  .fr-table th, .fr-table td { border:1px solid #e6e6e6; padding:7px 10px;
+                                font-size:13px; }
+  .fr-table th { background:#fafafa; text-align:start; }
+  .fr-table td.num { direction:ltr; text-align:end; }
+  .fr-note { font-size:12px; color:#666; margin-block-start:8px; }
+  .fr-deposit { border:1px solid #e0a800; background:#fff8e6; border-radius:8px;
+                padding:14px 16px; }
+  .fr-deposit h3 { margin-block-start:0; color:#7a5c00; }
+  .fr-empty { padding:16px; text-align:center; color:#888; border:1px dashed #ddd;
+              border-radius:8px; }
+  .fr-error { color:#8b1a1a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <form method="get" class="fr-filters">
+    <label>از تاریخ (شمسی)
+      <input type="text" name="from" value="{{ date_from }}" placeholder="۱۴۰۴/۰۱/۰۱">
+    </label>
+    <label>تا تاریخ (شمسی)
+      <input type="text" name="to" value="{{ date_to }}" placeholder="۱۴۰۴/۰۱/۳۰">
+    </label>
+    <button type="submit" class="button">اعمال بازه</button>
+    {% if report %}
+      <a class="button" href="{% url 'admin:accounting_financial_report_csv' %}?from={{ date_from|urlencode }}&to={{ date_to|urlencode }}">
+        خروجی CSV
+      </a>
+    {% endif %}
+    {% if report %}
+      <span class="fr-meta">محاسبه‌شده در: {{ report.generated_at }}</span>
+    {% endif %}
+  </form>
+
+  {% if error %}
+    <p class="errornote fr-error">{{ error }}</p>
+  {% endif %}
+
+  {% if report %}
+    <p class="fr-note">
+      بازه‌ی گزارش: {{ report.range.from_jalali }} تا {{ report.range.to_jalali }}
+      (شامل هر دو روز، بر اساس نیمه‌شب تهران)
+    </p>
+
+    <div class="fr-section">
+      <h3>درآمد بر اساس منبع</h3>
+      <div class="fr-cards">
+        <div class="fr-card">
+          <div class="fr-card-title">جمع کل</div>
+          <div class="fr-card-value">{{ report.revenue.total|floatformat:0 }}<span class="fr-card-unit">تومان</span></div>
+        </div>
+        <div class="fr-card">
+          <div class="fr-card-title">اشتراک‌ها</div>
+          <div class="fr-card-value">{{ report.revenue.subscription|floatformat:0 }}<span class="fr-card-unit">تومان</span></div>
+        </div>
+        <div class="fr-card">
+          <div class="fr-card-title">بسته‌ی پیامک</div>
+          <div class="fr-card-value">{{ report.revenue.sms_pack|floatformat:0 }}<span class="fr-card-unit">تومان</span></div>
+        </div>
+        <div class="fr-card">
+          <div class="fr-card-title">بسته‌ی نوبت</div>
+          <div class="fr-card-value">{{ report.revenue.appointment_pack|floatformat:0 }}<span class="fr-card-unit">تومان</span></div>
+        </div>
+        {% if report.revenue.feature_pack %}
+        <div class="fr-card">
+          <div class="fr-card-title">قابلیت موقت (بایگانی)</div>
+          <div class="fr-card-value">{{ report.revenue.feature_pack|floatformat:0 }}<span class="fr-card-unit">تومان</span></div>
+        </div>
+        {% endif %}
+      </div>
+      <p class="fr-note">
+        فقط پرداخت‌های <strong>موفق</strong> شمرده می‌شوند. بیعانه‌ی نوبت‌ها در این ارقام نیست —
+        به بخش «گردش مالی بیعانه» در پایین صفحه نگاه کنید.
+      </p>
+
+      {% if report.revenue.series.rows %}
+        <table class="fr-table" style="margin-block-start:12px">
+          <thead>
+            <tr><th>روز</th><th>اشتراک</th><th>افزودنی</th><th>جمع</th></tr>
+          </thead>
+          <tbody>
+            {% for row in report.revenue.series.rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td class="num">{{ row.subscription }}</td>
+                <td class="num">{{ row.addon }}</td>
+                <td class="num">{{ row.total }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </div>
+
+    <div class="fr-section">
+      <h3>فروش بر اساس پلن</h3>
+      {% if report.plans %}
+        <table class="fr-table">
+          <thead><tr><th>پلن</th><th>تعداد فروش</th><th>درآمد (تومان)</th></tr></thead>
+          <tbody>
+            {% for row in report.plans %}
+              <tr>
+                <td>{{ row.plan }}</td>
+                <td class="num">{{ row.count }}</td>
+                <td class="num">{{ row.revenue }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="fr-empty">در این بازه هیچ اشتراک موفقی ثبت نشده است.</div>
+      {% endif %}
+    </div>
+
+    <div class="fr-section">
+      <h3>نرخ موفقیت پرداخت</h3>
+      <table class="fr-table">
+        <thead><tr><th>نوع</th><th>موفق</th><th>در انتظار</th><th>ناموفق/لغوشده</th><th>جمع</th><th>نرخ موفقیت</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>اشتراک (Transaction)</td>
+            <td class="num">{{ report.conversion.transaction.counts.success }}</td>
+            <td class="num">{{ report.conversion.transaction.counts.pending }}</td>
+            <td class="num">{{ report.conversion.transaction.counts.failed|add:report.conversion.transaction.counts.cancelled }}</td>
+            <td class="num">{{ report.conversion.transaction.total }}</td>
+            <td class="num">
+              {% if report.conversion.transaction.rate_pct != None %}
+                {{ report.conversion.transaction.rate_pct }}٪
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>بسته‌ی افزودنی (AddOnPurchase)</td>
+            <td class="num">{{ report.conversion.addon_purchase.counts.success }}</td>
+            <td class="num">{{ report.conversion.addon_purchase.counts.pending }}</td>
+            <td class="num">{{ report.conversion.addon_purchase.counts.failed }}</td>
+            <td class="num">{{ report.conversion.addon_purchase.total }}</td>
+            <td class="num">
+              {% if report.conversion.addon_purchase.rate_pct != None %}
+                {{ report.conversion.addon_purchase.rate_pct }}٪
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="fr-section">
+      <h3>MRR / ARPU / نرخ ریزش</h3>
+      <div class="fr-cards">
+        <div class="fr-card">
+          <div class="fr-card-title">MRR (درآمد ماهانه‌ی تکرارشونده)</div>
+          <div class="fr-card-value">{{ report.mrr }}<span class="fr-card-unit">تومان</span></div>
+        </div>
+        <div class="fr-card">
+          <div class="fr-card-title">ARPU (میانگین درآمد به‌ازای هر کاربر)</div>
+          <div class="fr-card-value">
+            {% if report.arpu.arpu != None %}{{ report.arpu.arpu|floatformat:0 }}{% else %}—{% endif %}
+            <span class="fr-card-unit">تومان</span>
+          </div>
+        </div>
+        <div class="fr-card">
+          <div class="fr-card-title">کاربران پرداخت‌کننده</div>
+          <div class="fr-card-value">{{ report.arpu.paying_users }}</div>
+        </div>
+        <div class="fr-card">
+          <div class="fr-card-title">نرخ ریزش (Churn)</div>
+          <div class="fr-card-value">
+            {% if report.churn.rate_pct != None %}{{ report.churn.rate_pct }}٪{% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+      <p class="fr-note">
+        ریزش: {{ report.churn.churned }} اشتراک منقضی‌شده و تمدیدنشده از {{ report.churn.lapsed }} مورد منقضی‌شده در بازه،
+        نسبت به {{ report.churn.active_at_start }} اشتراک فعال در ابتدای بازه.
+        تمدید یعنی همان کاربر اشتراک جدیدی حداکثر تا چند روز پس از پایان اشتراک قبلی ثبت کرده باشد
+        (همان مهلت گریسفولِ چرخه‌ی عمر اشتراک).
+      </p>
+    </div>
+
+    <div class="fr-deposit">
+      <h3>گردش مالی بیعانه</h3>
+      <p>{{ report.deposit_note }}</p>
+    </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}

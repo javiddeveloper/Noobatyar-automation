@@ -297,6 +297,24 @@ fun BusinessItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                // Moderation state, so the owner can tell at a glance which of
+                // their businesses clients can actually see.
+                val moderationStatus = business.moderationStatus
+                if (moderationStatus != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    xyz.sattar.javid.proqueue.core.ui.components.ModerationBadge(business = business)
+                    // Checks both moderation AND the billing lock — a business can be
+                    // APPROVED but still invisible to clients because the plan lapsed,
+                    // and moderationStatus.isPubliclyVisible alone would miss that.
+                    if (!business.isPubliclyVisible) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "برای مراجعین نمایش داده نمی‌شود",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Box {

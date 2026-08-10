@@ -1,0 +1,217 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  User 360 page (core.admin_site.NobatyarAdminSite.user_detail_view).
+
+  Every section below is conditional on `detail.can.*`
+  (core/detail_views.permissions_for_user) — a viewer missing one accounting
+  permission loses that one card, never the whole page. Styling follows the
+  financial report / moderation queue's own inline <style> convention:
+  logical properties for RTL, no new stylesheet.
+--------------------------------------------------------------------------- #}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .ud-head { display:flex; flex-wrap:wrap; gap:18px; align-items:baseline;
+             margin-block-end:18px; }
+  .ud-head h2 { margin:0; }
+  .ud-head .ud-meta { font-size:13px; color:#666; }
+  .ud-section { margin-block-end:26px; }
+  .ud-section h3 { margin-block-end:10px; }
+  .ud-table { width:100%; border-collapse:collapse; background:#fff; }
+  .ud-table th, .ud-table td { border:1px solid #e6e6e6; padding:7px 10px; font-size:13px; }
+  .ud-table th { background:#fafafa; text-align:start; }
+  .ud-table td.num { direction:ltr; text-align:end; }
+  .ud-empty { padding:14px; text-align:center; color:#888; border:1px dashed #ddd; border-radius:8px; }
+  .ud-cards { display:flex; flex-wrap:wrap; gap:14px; }
+  .ud-card { border:1px solid #ddd; border-radius:8px; padding:12px 16px; min-width:150px; background:#fff; }
+  .ud-card-title { font-size:12px; color:#666; margin-block-end:6px; }
+  .ud-card-value { font-size:18px; font-weight:700; direction:ltr; text-align:end; }
+  .ud-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .ud-b-approved { background:#d9f2e3; color:#0b6b34; }
+  .ud-b-pending  { background:#fff3cd; color:#7a5c00; }
+  .ud-b-rejected { background:#fbdddd; color:#8b1a1a; }
+  .ud-b-suspended{ background:#e4e4e4; color:#3d3d3d; }
+  .ud-b-locked   { background:#fbdddd; color:#8b1a1a; }
+  .ud-note { font-size:12px; color:#666; margin-block-start:6px; }
+  a.ud-link { text-decoration:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <div class="ud-head">
+    <h2>{{ detail.overview.name }}</h2>
+    <span class="ud-meta" style="direction:ltr">{{ detail.overview.phone }}</span>
+    <span class="ud-meta">{{ detail.overview.role }}</span>
+    <span class="ud-meta">عضویت: {{ detail.overview.joined_at }}</span>
+    {% if not detail.overview.is_active %}<span class="ud-badge ud-b-rejected">غیرفعال</span>{% endif %}
+    {% if detail.overview.is_staff %}<span class="ud-badge ud-b-approved">عضو تیم</span>{% endif %}
+  </div>
+
+  {% if detail.can.wallet %}
+  <div class="ud-section">
+    <h3>سهمیه / کیف‌پول فعلی</h3>
+    <p class="ud-note">این ارقام وضعیت لحظه‌ای Redis هستند (accounting/usage.py) — هیچ تاریخچه‌ای ندارند، فقط مانده‌ی الان.</p>
+    <div class="ud-cards">
+      <div class="ud-card"><div class="ud-card-title">سقف ماهانه نوبت</div>
+        <div class="ud-card-value">{% if detail.wallet.appointments.quota == -1 %}نامحدود{% else %}{{ detail.wallet.appointments.quota }}{% endif %}</div></div>
+      <div class="ud-card"><div class="ud-card-title">باقی‌مانده ماهانه نوبت</div>
+        <div class="ud-card-value">{% if detail.wallet.appointments.monthly_remaining == -1 %}نامحدود{% else %}{{ detail.wallet.appointments.monthly_remaining }}{% endif %}</div></div>
+      <div class="ud-card"><div class="ud-card-title">کیف‌پول نوبت</div>
+        <div class="ud-card-value">{{ detail.wallet.appointments.wallet }}</div></div>
+      <div class="ud-card"><div class="ud-card-title">سقف ماهانه پیامک</div>
+        <div class="ud-card-value">{% if detail.wallet.sms.quota == -1 %}نامحدود{% else %}{{ detail.wallet.sms.quota }}{% endif %}</div></div>
+      <div class="ud-card"><div class="ud-card-title">باقی‌مانده ماهانه پیامک</div>
+        <div class="ud-card-value">{% if detail.wallet.sms.monthly_remaining == -1 %}نامحدود{% else %}{{ detail.wallet.sms.monthly_remaining }}{% endif %}</div></div>
+      <div class="ud-card"><div class="ud-card-title">کیف‌پول پیامک</div>
+        <div class="ud-card-value">{{ detail.wallet.sms.wallet }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if detail.can.credit_ledger %}
+  <div class="ud-section">
+    <h3>تاریخچه‌ی اعتبار (آخرین رویدادها)</h3>
+    <p class="ud-note">
+      برخلاف بخش بالا که وضعیت لحظه‌ای Redis است، این ردیف‌ها تاریخچه‌ی واقعی هستند —
+      هر تغییر در سهمیه/کیف‌پول این کاربر با دلیل و مانده‌ی پس از آن ثبت می‌شود
+      (accounting.CreditLedger). فهرست کامل و فیلترپذیر در پنل «CreditLedger» موجود است.
+    </p>
+    {% if detail.credit_ledger %}
+      <table class="ud-table">
+        <thead><tr><th>معیار</th><th>تغییر</th><th>مانده پس از آن</th><th>دلیل</th><th>تاریخ</th></tr></thead>
+        <tbody>
+          {% for row in detail.credit_ledger %}
+            <tr><td>{{ row.get_metric_display }}</td>
+                <td class="num">{{ row.delta }}</td>
+                <td class="num">{{ row.balance_after }}</td>
+                <td>{{ row.reason }}</td>
+                <td class="num">{{ row.created_at|date:"Y-m-d H:i" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">هنوز رویدادی در تاریخچه‌ی اعتبار ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if detail.can.businesses %}
+  <div class="ud-section">
+    <h3>کسب‌وکارها</h3>
+    {% if detail.businesses %}
+      <table class="ud-table">
+        <thead><tr><th>عنوان</th><th>دسته</th><th>وضعیت بررسی</th><th>قفل</th><th></th></tr></thead>
+        <tbody>
+          {% for biz in detail.businesses %}
+            <tr>
+              <td>{{ biz.title }}</td>
+              <td>{{ biz.get_category_display }}</td>
+              <td>
+                {% if biz.moderation_status == 'APPROVED' %}<span class="ud-badge ud-b-approved">تأیید شده</span>
+                {% elif biz.moderation_status == 'PENDING' %}<span class="ud-badge ud-b-pending">در انتظار</span>
+                {% elif biz.moderation_status == 'SUSPENDED' %}<span class="ud-badge ud-b-suspended">معلق</span>
+                {% else %}<span class="ud-badge ud-b-rejected">رد شده</span>{% endif %}
+              </td>
+              <td>{% if biz.is_locked %}<span class="ud-badge ud-b-locked">قفل</span>{% else %}—{% endif %}</td>
+              <td><a class="ud-link" href="{% url 'admin:core_business_detail' biz.id %}">جزئیات ←</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">این کاربر کسب‌وکاری ندارد.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if detail.can.subscriptions %}
+  <div class="ud-section">
+    <h3>تاریخچه‌ی اشتراک</h3>
+    {% if detail.subscriptions %}
+      <table class="ud-table">
+        <thead><tr><th>پلن</th><th>وضعیت</th><th>شروع</th><th>پایان</th></tr></thead>
+        <tbody>
+          {% for sub in detail.subscriptions %}
+            <tr><td>{{ sub.plan.name }}</td><td>{{ sub.get_status_display }}</td>
+                <td class="num">{{ sub.started_at|date:"Y-m-d" }}</td>
+                <td class="num">{{ sub.ends_at|date:"Y-m-d" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">اشتراکی ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if detail.can.transactions %}
+  <div class="ud-section">
+    <h3>پرداخت‌های اشتراک</h3>
+    {% if detail.transactions %}
+      <table class="ud-table">
+        <thead><tr><th>پلن</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
+        <tbody>
+          {% for tx in detail.transactions %}
+            <tr><td>{{ tx.plan.name }}</td><td class="num">{{ tx.amount }}</td>
+                <td>{{ tx.get_status_display }}</td>
+                <td class="num">{{ tx.created_at|date:"Y-m-d H:i" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">پرداخت اشتراکی ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if detail.can.addon_purchases %}
+  <div class="ud-section">
+    <h3>خرید بسته‌های افزودنی</h3>
+    {% if detail.addon_purchases %}
+      <table class="ud-table">
+        <thead><tr><th>بسته</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
+        <tbody>
+          {% for row in detail.addon_purchases %}
+            <tr><td>{{ row.pack.name }}</td><td class="num">{{ row.amount }}</td>
+                <td>{{ row.get_status_display }}</td>
+                <td class="num">{{ row.created_at|date:"Y-m-d H:i" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">بسته‌ی افزودنی‌ای خریداری نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if detail.can.activity %}
+  <div class="ud-section">
+    <h3>فعالیت‌های اخیر (فقط اقدامات این کاربر روی مراجعان)</h3>
+    <p class="ud-note">
+      این تنها ردیابی سمت-مالک موجود در سیستم است: VisitorActivity رویدادهای مربوط به
+      «مراجع» را ثبت می‌کند، نه یک لاگ فعالیت کامل برای صاحب کسب‌وکار (ورود به سیستم، تغییر
+      تنظیمات و…) — چنین لاگی امروز در این کدبیس وجود ندارد.
+    </p>
+    {% if detail.activity %}
+      <table class="ud-table">
+        <thead><tr><th>اقدام</th><th>مراجع</th><th>کسب‌وکار</th><th>تاریخ</th></tr></thead>
+        <tbody>
+          {% for row in detail.activity %}
+            <tr><td>{{ row.get_action_display }}</td>
+                <td>{{ row.visitor.full_name }}</td>
+                <td>{{ row.business.title|default:"—" }}</td>
+                <td class="num">{{ row.created_at|date:"Y-m-d H:i" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ud-empty">فعالیتی ثبت نشده است.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

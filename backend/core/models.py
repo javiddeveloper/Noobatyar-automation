@@ -1,0 +1,116 @@
+# core/models.py
+"""
+Models owned directly by the `core` app: artefacts of the admin panel itself
+(saved audience segments, the PII-export audit trail) rather than domain
+models — those belong to `visitor`, `business`, `accounting`, etc.
+
+`core` was installed only for management commands until this phase (see
+core/apps.py's CoreConfig docstring) and had no models.py or migrations. This
+is its first model, hence the first migration under core/migrations/.
+"""
+
+from django.conf import settings
+from django.db import models
+
+
+class AudienceSegment(models.Model):
+    """A saved, named audience filter for the segment builder (core/segments.py).
+
+    This is a **saved query, not a snapshot**. `definition` is the JSON filter
+    spec core/segments.py knows how to evaluate; re-running a saved segment
+    (see NobatyarAdminSite.segment_run_view) re-executes every filter against
+    current data. A visitor who stops booking after the segment is saved
+    silently drops out of a "hasn't booked in N days" segment the next time
+    someone opens it, and a low-wallet owner filter drifts the moment the
+    owner buys an SMS pack — see core/segments.py's module docstring for why
+    this can't be a snapshot (the wallet balance it can read from lives only
+    in Redis, with no history at all). Every template that renders a saved
+    segment repeats this so nobody mistakes "saved" for "frozen".
+    """
+
+    KIND_VISITOR = 'visitor'
+    KIND_OWNER = 'owner'
+    KIND_CHOICES = [
+        (KIND_VISITOR, 'مراجع'),
+        (KIND_OWNER, 'صاحب کسب‌وکار'),
+    ]
+
+    name = models.CharField(max_length=200, verbose_name='نام')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, verbose_name='نوع مخاطب')
+    # The filter spec core.segments.build_queryset()/count_segment() consume.
+    # Shape documented in core/segments.py; not modelled as real columns
+    # because the filter set is still evolving and a JSON blob lets this
+    # model stay stable while core/segments.py grows new filter keys.
+    definition = models.JSONField(default=dict, blank=True, verbose_name='فیلترها')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='audience_segments', verbose_name='ساخته‌شده توسط',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ساخت')
+    last_run_at = models.DateTimeField(null=True, blank=True, verbose_name='آخرین اجرا')
+
+    class Meta:
+        db_table = 'core_audience_segment'
+        ordering = ['-created_at']
+        verbose_name = 'گروه مخاطب'
+        verbose_name_plural = 'گروه‌های مخاطب'
+        permissions = [
+            # No existing role (Superadmin/Moderator/Support/Finance — see
+            # core/management/commands/setup_admin_roles.py) is the right fit
+            # for "may export a phone-number list for marketing": Support is
+            # read-only on Visitor for support lookups, not bulk export;
+            # Finance never touches user/visitor data at all; Moderator is
+            # content-only. Rather than quietly overload one of those, this
+            # is a standalone permission that starts granted to nobody but
+            # Superadmin (which holds every permission that exists) until a
+            # human decides who else should get it — see
+            # NobatyarAdminSite.segment_export_view()'s comment for the gate
+            # itself, and the phase report for why this was left unresolved
+            # rather than picked for the requester.
+            ('export_pii', 'می‌تواند خروجی شماره‌تلفن/فهرست مخاطب بگیرد'),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class AudienceSegmentExport(models.Model):
+    """Audit trail for every PII export the segment builder produces.
+
+    Written unconditionally by NobatyarAdminSite.segment_export_view() before
+    the CSV response is returned — a phone-number list is the single most
+    sensitive artefact this admin panel can produce, and if one leaks this
+    table is the only way to know who pulled it, on what filter, how many
+    rows, and when. Deliberately its own queryable model rather than a log
+    line: "queryable later" is the whole point of an audit trail.
+
+    `definition` is copied from the segment (or the ad-hoc filter, if the
+    export was run without saving first) at export time rather than only
+    referenced via `segment`, so the record stays fully self-explaining even
+    after a saved segment's filters are edited or the segment itself is
+    deleted (hence SET_NULL, not CASCADE — the audit row must outlive the
+    segment).
+    """
+
+    segment = models.ForeignKey(
+        AudienceSegment, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='exports', verbose_name='گروه مخاطب',
+    )
+    kind = models.CharField(max_length=10, choices=AudienceSegment.KIND_CHOICES, verbose_name='نوع مخاطب')
+    definition = models.JSONField(default=dict, blank=True, verbose_name='فیلترهای اجراشده')
+    exported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='audience_segment_exports', verbose_name='گرفته‌شده توسط',
+    )
+    row_count = models.PositiveIntegerField(verbose_name='تعداد ردیف')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='زمان خروجی')
+
+    class Meta:
+        db_table = 'core_audience_segment_export'
+        ordering = ['-created_at']
+        verbose_name = 'خروجی گروه مخاطب'
+        verbose_name_plural = 'خروجی‌های گروه مخاطب'
+
+    def __str__(self):
+        who = self.exported_by.phone if self.exported_by_id else '—'
+        return f'{self.get_kind_display()} — {self.row_count} ردیف — {who}'

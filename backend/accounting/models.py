@@ -168,3 +168,87 @@ class AddOnPurchase(models.Model):
 
     def __str__(self):
         return f"AddOn {self.order_id} - {self.status}"
+
+
+class CreditLedger(models.Model):
+    """
+    Append-only audit trail underneath ``accounting/usage.py``'s Redis-backed
+    wallets/counters.
+
+    Redis (via ``usage.py``) remains the *fast path* that actually gates
+    booking/SMS behaviour — this table never gates anything, matching the
+    fail-open philosophy of the system it backs (see ``usage.py``'s module
+    docstring). What this table adds is history: Redis has no memory of how a
+    balance got to its current value, and a no-TTL wallet key that is bought
+    with real money has no way to be reconstructed if it is ever lost (a
+    botched migration, a ``FLUSHDB``, a misconfigured replica promotion). Every
+    row here is one state-changing event against one of the four buckets
+    ``usage.py`` tracks, so ``rebuild_wallets_from_ledger`` can replay them
+    back into Redis and an operator can answer "how did this balance get to
+    zero" without guessing.
+
+    ``metric`` covers both monthly counters (which reset every calendar month
+    in Redis, but are never rewritten in the ledger — the ledger is the one
+    place a past month's activity is still visible) and the two persistent,
+    no-TTL wallets bought via add-on packs.
+
+    ``delta`` / ``balance_after`` convention — read carefully, it is *not*
+    "positive always means the user gained credit":
+
+      * For the two wallet metrics (``sms_wallet`` / ``appointment_wallet``),
+        the Redis key IS the balance (credit remaining), so delta and
+        balance_after behave exactly as intuition suggests: positive delta =
+        credit granted, negative = credit spent, balance_after = wallet
+        balance after the event.
+
+      * For the two monthly metrics (``sms_monthly`` / ``appointment_monthly``),
+        the underlying Redis key is a *consumed-this-month counter*, not a
+        remaining balance (see ``usage.py``'s ``get_usage``/``add_usage``). To
+        keep ``balance_after`` a literal, trustworthy mirror of "what belongs
+        in that Redis key right now" — which is exactly what lets
+        ``rebuild_wallets_from_ledger`` restore Redis by writing the most
+        recent row's ``balance_after`` straight back, with no arithmetic and
+        no risk of silently drifting from cache reality — ``delta`` for these
+        two metrics mirrors the counter's own movement: a booking/SMS send
+        (consumption) increments the counter, so it is recorded as a
+        *positive* delta; a cancellation/refund decrements it, so it is a
+        *negative* delta. This is the one place "positive/negative" flips
+        from the intuitive credit-granted/credit-spent reading — documented
+        here so it is never mistaken for a bug.
+
+    ``ref_type`` / ``ref_id`` are a plain, ungated pointer to whatever caused
+    the event (an ``AddOnPurchase`` id, an ``Appointment`` id, a ``SmsLog`` id,
+    an admin username for a manual grant) — not a real ``GenericForeignKey``,
+    since nothing here ever needs to traverse back into the referenced object,
+    only display "what caused this" next to the row.
+    """
+
+    METRIC_SMS_MONTHLY = 'sms_monthly'
+    METRIC_SMS_WALLET = 'sms_wallet'
+    METRIC_APPOINTMENT_MONTHLY = 'appointment_monthly'
+    METRIC_APPOINTMENT_WALLET = 'appointment_wallet'
+    METRIC_CHOICES = [
+        (METRIC_SMS_MONTHLY, 'پیامک — سهمیه ماهانه'),
+        (METRIC_SMS_WALLET, 'پیامک — کیف‌پول'),
+        (METRIC_APPOINTMENT_MONTHLY, 'نوبت — سهمیه ماهانه'),
+        (METRIC_APPOINTMENT_WALLET, 'نوبت — کیف‌پول'),
+    ]
+
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='credit_ledger_entries')
+    metric = models.CharField(max_length=20, choices=METRIC_CHOICES)
+    delta = models.IntegerField(help_text="تغییر (می‌تواند منفی باشد) — به کنوانسیون در docstring مدل توجه کنید")
+    balance_after = models.IntegerField(help_text="مقدار دقیقی که باید بلافاصله پس از این رویداد در Redis باشد")
+    reason = models.CharField(max_length=50, help_text="کد ماشین‌خوان، مثل booking / sms_send / addon_purchase")
+    ref_type = models.CharField(max_length=50, blank=True, default='')
+    ref_id = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'metric', 'created_at']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} {self.metric} {self.delta:+d} ({self.reason})"

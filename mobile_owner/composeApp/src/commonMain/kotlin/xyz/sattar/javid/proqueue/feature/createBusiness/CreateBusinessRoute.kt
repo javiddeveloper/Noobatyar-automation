@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Factory
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +65,7 @@ import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.accept
 import proqueue.composeapp.generated.resources.address
 import proqueue.composeapp.generated.resources.business_name
+import proqueue.composeapp.generated.resources.cancel
 import proqueue.composeapp.generated.resources.confirm
 import proqueue.composeapp.generated.resources.create_business
 import proqueue.composeapp.generated.resources.default_time_service
@@ -76,11 +78,13 @@ import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.core.ui.components.ImageCropperDialog
+import xyz.sattar.javid.proqueue.core.ui.components.ModerationBanner
 import xyz.sattar.javid.proqueue.core.ui.components.SelectedServiceChipsRow
 import xyz.sattar.javid.proqueue.core.ui.components.ServiceCatalogBottomSheet
 import xyz.sattar.javid.proqueue.core.ui.components.ServiceDurationBottomSheet
 import xyz.sattar.javid.proqueue.core.ui.components.formatServiceDuration
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
@@ -341,6 +345,9 @@ fun CreateBusinessScreen(
     var showDurationSheet by remember { mutableStateOf(false) }
     var showServicesSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    // Save action parked behind the "this goes back for review" confirmation.
+    var pendingSubmit by remember { mutableStateOf<(() -> Unit)?>(null) }
     
     // Photo waiting to be cropped: the picker hands over the raw file, and the
     // cropper turns it into the square logo that actually gets uploaded.
@@ -454,7 +461,7 @@ fun CreateBusinessScreen(
                             onWorkHoursErrorUpdate(if (hoursInvalid) "ساعات کاری معتبر نیستند" else null)
 
                             if (!titleInvalid && !phoneInvalid && !defaultInvalid && !hoursInvalid && !addressInvalid) {
-                                onIntent(
+                                val intent =
                                     CreateBusinessIntent.CreateBusiness(
                                         title = t,
                                         category = category,
@@ -489,7 +496,35 @@ fun CreateBusinessScreen(
                                         services = services,
                                         allowClientAddService = allowClientAddService
                                     )
-                                )
+
+                                // Editing title/bio/address/logo on an approved
+                                // business sends it back to the review queue and
+                                // drops it out of public listings, so say that
+                                // before the save — not after. Saving anything
+                                // else (hours, payment, switches) goes straight
+                                // through so we don't nag on every change.
+                                // Must track backend/business/models.py's MODERATED_FIELDS
+                                // exactly: title, bio, address, logo, notice_message. This
+                                // screen has no notice_message field yet, so it's absent
+                                // here — but if one is ever added to this or ANY screen
+                                // that saves a Business, it has to be added to this check
+                                // too, or an owner can silently de-list an approved
+                                // business (e.g. via the "temporarily closed" banner) with
+                                // no warning shown.
+                                val saved = uiState.business
+                                val moderatedFieldChanged = saved != null && (
+                                        t != saved.title ||
+                                                bio.trim() != saved.bio ||
+                                                a != saved.address ||
+                                                logoBytes != null
+                                        )
+                                if (saved?.moderationStatus == ModerationStatus.APPROVED &&
+                                    moderatedFieldChanged
+                                ) {
+                                    pendingSubmit = { onIntent(intent) }
+                                } else {
+                                    onIntent(intent)
+                                }
                             }
                         },
                         modifier = Modifier
@@ -511,7 +546,9 @@ fun CreateBusinessScreen(
                     xyz.sattar.javid.proqueue.core.ui.components.ListItemShimmer(height = 88.dp)
                 }
             }
-        } else if (uiState.businessCreated) {
+        } else if (uiState.businessCreated && uiState.businessId != 0L) {
+            // Edit flow: nothing new to explain, leave straight away. A brand
+            // new business gets the "waiting for approval" notice below first.
             onIntent(CreateBusinessIntent.BusinessCreated)
         }
         Column(
@@ -526,6 +563,17 @@ fun CreateBusinessScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Why the owner is here: a rejected/suspended business shows the
+            // reviewer's note right above the fields they need to fix.
+            uiState.business?.let { saved ->
+                ModerationBanner(business = saved)
+                if (saved.moderationStatus != null &&
+                    saved.moderationStatus != ModerationStatus.APPROVED
+                ) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
 
             // Avatar Section
             Box(
@@ -911,6 +959,54 @@ fun CreateBusinessScreen(
                 Text(uiState.business.title)
             }
         }
+    }
+
+    // Re-review warning: only reached when a moderated field of an approved
+    // business actually changed.
+    pendingSubmit?.let { submit ->
+        AlertDialog(
+            onDismissRequest = { pendingSubmit = null },
+            title = { Text("ارسال دوباره برای بررسی") },
+            text = {
+                Text(
+                    "با تغییر نام، معرفی، آدرس یا لوگو، کسب‌وکار شما دوباره به صف " +
+                            "بررسی ادمین می‌رود و تا زمان تأیید، برای مراجعین نمایش داده " +
+                            "نمی‌شود. نوبت‌های ثبت‌شده‌ی فعلی تغییری نمی‌کنند."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingSubmit = null
+                    submit()
+                }) {
+                    Text("ذخیره و ارسال برای بررسی")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSubmit = null }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            }
+        )
+    }
+
+    // Post-create expectation: the business is saved but not live yet.
+    if (uiState.businessCreated && uiState.businessId == 0L) {
+        AlertDialog(
+            onDismissRequest = { onIntent(CreateBusinessIntent.BusinessCreated) },
+            title = { Text("کسب‌وکار شما ثبت شد") },
+            text = {
+                Text(
+                    "کسب‌وکار شما پس از تأیید ادمین منتشر می‌شود. تا آن زمان می‌توانید " +
+                            "تنظیمات را کامل کنید، اما مراجعین آن را نمی‌بینند."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onIntent(CreateBusinessIntent.BusinessCreated) }) {
+                    Text(stringResource(Res.string.confirm))
+                }
+            }
+        )
     }
 
     if (showServicesSheet) {

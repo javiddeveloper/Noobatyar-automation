@@ -4,6 +4,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDt
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 
 fun BusinessEntity.toDomain() = Business(
@@ -32,6 +33,11 @@ fun BusinessEntity.toDomain() = Business(
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
     bio = bio,
+    moderationStatus = ModerationStatus.fromString(moderationStatus),
+    moderationStatusDisplay = moderationStatusDisplay,
+    moderationNote = moderationNote,
+    moderationSubmittedAt = moderationSubmittedAt,
+    isLocked = isLocked,
     noticeEnabled = noticeEnabled,
     noticeMessage = noticeMessage,
     reminderDelivery = reminderDelivery,
@@ -65,6 +71,11 @@ fun Business.toEntity() = BusinessEntity(
     cardNumber = cardNumber,
     cardOwnerName = cardOwnerName,
     bio = bio,
+    moderationStatus = moderationStatus?.value,
+    moderationStatusDisplay = moderationStatusDisplay,
+    moderationNote = moderationNote,
+    moderationSubmittedAt = moderationSubmittedAt,
+    isLocked = isLocked,
     noticeEnabled = noticeEnabled,
     noticeMessage = noticeMessage,
     reminderDelivery = reminderDelivery,
@@ -130,6 +141,14 @@ fun BusinessDto.toEntity(): BusinessEntity {
         cardNumber = cardNumber ?: "",
         cardOwnerName = cardOwnerName ?: "",
         bio = bio ?: "",
+        moderationStatus = moderationStatus,
+        moderationStatusDisplay = moderationStatusDisplay ?: "",
+        moderationNote = moderationNote ?: "",
+        // 0 when absent or unparsable — treated as "unknown" by the UI.
+        moderationSubmittedAt = moderationSubmittedAt
+            ?.let { xyz.sattar.javid.proqueue.core.utils.DateTimeUtils.parseIsoToEpochMillis(it) }
+            ?: 0L,
+        isLocked = isLocked,
         noticeEnabled = noticeEnabled,
         noticeMessage = noticeMessage ?: "",
         reminderDelivery = reminderDelivery ?: ReminderDelivery.MANUAL.value,

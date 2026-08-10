@@ -223,12 +223,90 @@ class Business(models.Model):
         help_text="How appointment reminders reach clients: owner's SIM (free) or SMS panel (paid)"
     )
 
+    # ── Content moderation ────────────────────────────────────────────────
+    # Deliberately separate from `is_locked`. That flag is *billing* state:
+    # sync_locks() drives it from the owner's plan quota. This is *editorial*
+    # state: whether a human reviewer has cleared the business to appear in
+    # public listings. A business can be perfectly paid-up and still not
+    # approved, or approved and locked for non-payment — collapsing the two
+    # into one flag would let a plan renewal silently republish content a
+    # moderator rejected.
+    MODERATION_PENDING = 'PENDING'
+    MODERATION_APPROVED = 'APPROVED'
+    MODERATION_REJECTED = 'REJECTED'
+    MODERATION_SUSPENDED = 'SUSPENDED'
+    MODERATION_STATUS_CHOICES = [
+        (MODERATION_PENDING, 'در انتظار بررسی'),
+        (MODERATION_APPROVED, 'تأیید شده'),
+        (MODERATION_REJECTED, 'رد شده'),
+        (MODERATION_SUSPENDED, 'معلق شده'),
+    ]
+
+    moderation_status = models.CharField(
+        max_length=20,
+        choices=MODERATION_STATUS_CHOICES,
+        default=MODERATION_PENDING,
+        db_index=True,
+        help_text="Editorial review state. Only APPROVED is publicly visible.",
+    )
+    moderation_note = models.TextField(
+        blank=True,
+        default='',
+        help_text="Reviewer's reason for rejection/suspension. Shown to the owner.",
+    )
+    moderation_reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='moderated_businesses',
+        help_text="Staff member who last decided this business's status.",
+    )
+    moderation_reviewed_at = models.DateTimeField(null=True, blank=True)
+    moderation_submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this business last entered the review queue. Drives "
+                  "queue ordering (oldest waiting first).",
+    )
+
     class Meta:
         db_table = 'business'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', '-created_at']),
+            # Serves the public listing gate (is_locked + moderation_status)
+            # and the moderation queue's "oldest pending first" ordering.
+            models.Index(
+                fields=['moderation_status', 'moderation_submitted_at'],
+                name='biz_moderation_queue_idx',
+            ),
         ]
+
+    # Editing any of these changes what the public actually sees, so a change
+    # after approval has to go back through review — otherwise an owner can be
+    # approved with clean copy and then swap in anything they like.
+    MODERATED_FIELDS = ('title', 'bio', 'address', 'logo', 'notice_message')
+
+    @property
+    def is_publicly_visible(self):
+        """The single gate every public/client-facing query must pass through.
+
+        Two independent reasons a business can be hidden — unpaid (`is_locked`)
+        and not editorially cleared (`moderation_status`). Callers must never
+        check just one of them.
+        """
+        return not self.is_locked and self.moderation_status == self.MODERATION_APPROVED
+
+    @staticmethod
+    def public_filter():
+        """Queryset equivalent of :attr:`is_publicly_visible`.
+
+        Use as ``Business.objects.filter(Business.public_filter())`` so the
+        listing and detail paths can never drift apart.
+        """
+        from django.db.models import Q
+        return Q(is_locked=False, moderation_status=Business.MODERATION_APPROVED)
 
     def save(self, *args, **kwargs):
         if not self.unique_code:
@@ -242,6 +320,150 @@ class Business(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.user.phone})"
+
+
+class BusinessModerationLog(models.Model):
+    """Append-only record of every moderation decision.
+
+    Separate from `django.contrib.admin.models.LogEntry` because that only
+    covers changes made through the admin change form, and records them as an
+    opaque message string. A rejection needs to be answerable months later —
+    who decided, on what grounds, and what the business looked like at the time.
+    Nothing here is ever updated or deleted.
+    """
+
+    business = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name='moderation_logs',
+    )
+    from_status = models.CharField(max_length=20, blank=True, default='')
+    to_status = models.CharField(max_length=20)
+    note = models.TextField(blank=True, default='')
+    # SET_NULL, not CASCADE: the decision has to outlive the staff account that
+    # made it, otherwise offboarding a moderator erases the audit trail.
+    actor = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='moderation_actions',
+    )
+    # Snapshot of MODERATED_FIELDS at decision time, so the log still explains
+    # itself after the owner edits the business.
+    snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'business_moderation_log'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['business', '-created_at'], name='biz_mod_log_recent_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.business_id}: {self.from_status or '—'} → {self.to_status}"
+
+
+class BannedKeyword(models.Model):
+    """A term that flags a business for closer review.
+
+    Explicitly advisory: matching a keyword never rejects, hides, or blocks
+    anything on its own. It only highlights the match in the moderation queue so
+    a human looks harder. Automated rejection was ruled out deliberately —
+    Persian morphology and legitimate business names produce far too many false
+    positives to act on without a person in the loop.
+    """
+
+    SEVERITY_LOW = 'LOW'
+    SEVERITY_HIGH = 'HIGH'
+    SEVERITY_CHOICES = [
+        (SEVERITY_LOW, 'کم — فقط نشانه‌گذاری'),
+        (SEVERITY_HIGH, 'زیاد — بررسی فوری'),
+    ]
+
+    term = models.CharField(max_length=100, unique=True, db_index=True)
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default=SEVERITY_LOW)
+    note = models.CharField(max_length=255, blank=True, default='', help_text="چرا این کلمه اضافه شده")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'banned_keyword'
+        ordering = ['term']
+
+    def __str__(self):
+        return self.term
+
+
+class ContentReport(models.Model):
+    """A report of inappropriate content, filed against a business.
+
+    Reporters are not required to have an account — most people who would
+    notice a problem on a public booking page are visitors, not owners — so both
+    `reporter_user` and `reporter_visitor` are optional and `reporter_phone`
+    carries the contact for anonymous reports.
+    """
+
+    REASON_CHOICES = [
+        ('INAPPROPRIATE', 'محتوای نامناسب'),
+        ('MISLEADING', 'اطلاعات گمراه‌کننده'),
+        ('IMPERSONATION', 'جعل هویت'),
+        ('ILLEGAL', 'فعالیت غیرقانونی'),
+        ('SPAM', 'اسپم'),
+        ('OTHER', 'سایر'),
+    ]
+
+    STATUS_NEW = 'NEW'
+    STATUS_REVIEWING = 'REVIEWING'
+    STATUS_ACTIONED = 'ACTIONED'
+    STATUS_DISMISSED = 'DISMISSED'
+    STATUS_CHOICES = [
+        (STATUS_NEW, 'جدید'),
+        (STATUS_REVIEWING, 'در حال بررسی'),
+        (STATUS_ACTIONED, 'اقدام شد'),
+        (STATUS_DISMISSED, 'رد شد'),
+    ]
+
+    business = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name='content_reports',
+    )
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    detail = models.TextField(blank=True, default='')
+    reporter_user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='filed_reports',
+    )
+    reporter_visitor = models.ForeignKey(
+        'visitor.Visitor', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='filed_reports',
+    )
+    reporter_phone = models.CharField(max_length=20, blank=True, default='')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_NEW, db_index=True,
+    )
+    resolution_note = models.TextField(blank=True, default='')
+    resolved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='resolved_reports',
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    # Set only when resolving this report was a side effect of a moderation
+    # decision (suspending/rejecting the business it names) rather than some
+    # other resolution — a warning email, a phone call, dismissal as
+    # unfounded. SET_NULL, not CASCADE: the report should still show it *was*
+    # linked to a decision even if that log row were ever removed, but nothing
+    # here ever deletes a BusinessModerationLog in practice.
+    resulting_moderation_log = models.ForeignKey(
+        BusinessModerationLog, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='resolved_reports',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'content_report'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='content_report_queue_idx'),
+        ]
+
+    def __str__(self):
+        return f"گزارش {self.get_reason_display()} برای {self.business_id}"
 
 
 class ServiceCatalogItem(models.Model):

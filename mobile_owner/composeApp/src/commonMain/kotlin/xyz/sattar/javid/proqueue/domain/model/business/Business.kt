@@ -27,6 +27,16 @@ data class Business(
     val cardNumber: String = "",
     val cardOwnerName: String = "",
     val bio: String = "",
+    // Moderation. Null status = the backend didn't report one (older server),
+    // in which case the UI stays silent about moderation altogether.
+    val moderationStatus: ModerationStatus? = null,
+    val moderationStatusDisplay: String = "",
+    val moderationNote: String = "",
+    val moderationSubmittedAt: Long = 0,
+    // Billing lock (subscription/plan limits) — independent of moderationStatus.
+    // See ModerationStatus's kdoc: the two answer different questions and a
+    // visibility check that only looks at one of them is wrong.
+    val isLocked: Boolean = false,
     val logoBytes: ByteArray? = null,
     /** Emergency notice for the public booking page — hidden while disabled. */
     val noticeEnabled: Boolean = false,
@@ -45,4 +55,8 @@ data class Business(
      * lengths around instead of free text.
      */
     val allowClientAddService: Boolean = false
-)
+) {
+    /** True only when both the content review and the plan/billing state allow it. */
+    val isPubliclyVisible: Boolean
+        get() = moderationStatus?.isPubliclyVisible == true && !isLocked
+}

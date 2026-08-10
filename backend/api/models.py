@@ -35,8 +35,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('ADMIN', 'مدیر'),
     ]
 
-    phone = models.CharField(max_length=11, unique=True, db_index=True)
-    name = models.CharField(max_length=100)
+    # verbose_name matters here beyond cosmetics: USERNAME_FIELD is 'phone', so
+    # this label is what the admin login form renders. Without it the one English
+    # word "Phone:" sits in the middle of an otherwise fully Persian RTL panel.
+    phone = models.CharField(max_length=11, unique=True, db_index=True, verbose_name='شماره موبایل')
+    name = models.CharField(max_length=100, verbose_name='نام')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='CLIENT')
     is_employee = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)

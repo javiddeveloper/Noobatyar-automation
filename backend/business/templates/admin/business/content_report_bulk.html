@@ -1,0 +1,55 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  Confirmation step for the bulk «اقدام شد» / «رد شد» ContentReport actions.
+
+  Mirrors moderation_bulk.html: resolving a report without recording why is an
+  audit gap the next reviewer (or a support ticket three months later) can't
+  recover from, so a note is required the same way it is for reject/suspend.
+  The form posts back to the changelist with `action` and the original
+  `_selected_action` checkboxes, re-entering the action with `apply` set.
+--------------------------------------------------------------------------- #}
+
+{% block content %}
+<div id="content-main">
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    <p>می‌خواهید {{ queryset|length }} گزارش زیر را «{{ verb }}» کنید:</p>
+
+    <ul style="margin-block:12px 18px">
+      {% for report in queryset %}
+        <li>
+          <strong>{{ report.business.title }}</strong>
+          <span style="color:#888">({{ report.get_reason_display }})</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if note_error %}
+      <p class="errornote">{{ note_error }}</p>
+    {% endif %}
+
+    <div style="margin-block-end:16px">
+      <label for="id_resolution_note"><strong>دلیل (الزامی):</strong></label><br>
+      <p class="help" style="margin-block:4px">
+        این متن در سابقهٔ گزارش ثبت می‌شود، پس باید مشخص کند چرا این تصمیم گرفته شد.
+      </p>
+      <textarea id="id_resolution_note" name="resolution_note" rows="4"
+                style="width:100%;max-width:640px" required></textarea>
+    </div>
+
+    {% for pk in selected %}
+      <input type="hidden" name="_selected_action" value="{{ pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+
+    <div class="submit-row">
+      <input type="submit" name="apply" value="تأیید و اعمال" class="default">
+      <a href="{% url 'admin:business_contentreport_changelist' %}" class="button cancel-link">انصراف</a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

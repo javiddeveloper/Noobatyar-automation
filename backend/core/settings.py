@@ -22,7 +22,12 @@ if not DEBUG and SECRET_KEY == 'insecure-dev-key-change-in-production':
     raise RuntimeError('SECRET_KEY must be set via environment in production (DEBUG=False)')
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    # Not 'django.contrib.admin': the custom AdminConfig swaps in
+    # NobatyarAdminSite as the *default* site, so every existing
+    # @admin.register(...) decorator keeps working untouched while the panel
+    # gets Persian branding and a place to hang dashboard views.
+    # See core/apps.py and core/admin_site.py.
+    'core.apps.NobatyarAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -31,6 +36,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    # No models — installed so Django discovers core/management/commands/.
+    'core',
     'api',
     'accounting',
     'versions',
@@ -42,6 +49,16 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # NOTE: django.middleware.locale.LocaleMiddleware is deliberately NOT here.
+    # The admin picks RTL from the *active* language (get_language_bidi() →
+    # dir="rtl" + admin/css/rtl.css), and with no LocaleMiddleware the active
+    # language is always LANGUAGE_CODE — i.e. fa-ir, always RTL, which is what
+    # this Persian-only product wants. Adding LocaleMiddleware makes the panel
+    # follow the browser's Accept-Language instead: a staff laptop set to en-US
+    # then gets an English left-to-right admin, verified in testing. If it is
+    # ever needed for a real API i18n story, pin LANGUAGES = [('fa', ...)] at
+    # the same time, and put it after SessionMiddleware / before
+    # CommonMiddleware.
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -55,7 +72,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -152,6 +169,11 @@ REST_FRAMEWORK = {
         'user': os.getenv('THROTTLE_USER', '300/min'),
         'otp': os.getenv('THROTTLE_OTP', '5/min'),
         'public_slots': os.getenv('THROTTLE_PUBLIC_SLOTS', '120/min'),
+        # Abuse-report submission (business/client_views.py) — an anonymous,
+        # no-account endpoint with no other rate limit on it, so a tighter
+        # scope than the general 'anon' bucket is needed to keep it from
+        # being a spam/DoS vector (see business/client_views.py's docstring).
+        'content_report': os.getenv('THROTTLE_CONTENT_REPORT', '5/hour'),
     },
 }
 
@@ -166,9 +188,31 @@ LANGUAGE_CODE = 'fa-ir'
 TIME_ZONE = 'Asia/Tehran'
 USE_I18N = True
 USE_TZ = True
+
+# ── Static files ──────────────────────────────────────────────────────────────
+# Two distinct directories, deliberately not the same one:
+#
+#   assets/  — *source* files we author (assets/admin_custom/{css,js,fonts}).
+#              Listed in STATICFILES_DIRS so collectstatic picks them up and
+#              runserver serves them in DEBUG.
+#   static/  — the *output* of collectstatic (STATIC_ROOT), mounted into nginx
+#              as the static_volume in docker-compose.
+#
+# They must stay separate: if a STATICFILES_DIRS entry equals STATIC_ROOT,
+# Django raises staticfiles.E002 and collectstatic would otherwise copy files
+# onto themselves.
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'static'
+STATICFILES_DIRS = [BASE_DIR / 'assets']
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Where the Django admin is mounted (see core/urls.py). Moving it off the
+# guessable default cuts most credential-stuffing noise.
+# NOTE: nginx/nginx.conf proxies `location ~ ^/(api|admin|plans|...)` to the web
+# service, so changing ADMIN_URL also requires updating that regex in both
+# server blocks — otherwise the new path never reaches Django.
+ADMIN_URL = os.getenv('ADMIN_URL', 'admin/').strip().strip('/')
+ADMIN_URL = f'{ADMIN_URL}/' if ADMIN_URL else 'admin/'
 
 # CORS: allow all only in DEBUG; in production use an explicit allowlist from env.
 _cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '').strip()

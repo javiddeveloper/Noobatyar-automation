@@ -35,6 +35,18 @@ data class BusinessDto(
     @SerialName("card_number") val cardNumber: String? = null,
     @SerialName("card_owner_name") val cardOwnerName: String? = null,
     @SerialName("bio") val bio: String? = null,
+    // Content moderation (read-only server side). All four are nullable with a
+    // null default so the app keeps working against a backend that predates the
+    // moderation layer — a missing moderation_status simply hides the badges
+    // instead of claiming a business is pending.
+    @SerialName("moderation_status") val moderationStatus: String? = null,
+    @SerialName("moderation_status_display") val moderationStatusDisplay: String? = null,
+    @SerialName("moderation_note") val moderationNote: String? = null,
+    @SerialName("moderation_submitted_at") val moderationSubmittedAt: String? = null,
+    // Billing lock, independent of moderation — the owner's plan lapsed rather
+    // than a content review. False default: an older backend that doesn't send
+    // this yet should never be treated as locked.
+    @SerialName("is_locked") val isLocked: Boolean = false,
     // Emergency notice shown on the public booking page. Public clients only see
     // the message while the switch is on, so both fields travel together.
     @SerialName("notice_enabled") val noticeEnabled: Boolean = false,

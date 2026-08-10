@@ -65,10 +65,17 @@ class ClientAppointmentListView(APIView):
         try:
             business = await Business.objects.aget(id=business_id)
         except Business.DoesNotExist:
-            return APIResponse.error(message="کسب و کار یافت نم‌شد", code=404)
+            return APIResponse.error(message="کسب‌وکار یافت نشد", code=404)
 
-        # A locked business (subscription downgrade) does not accept new bookings.
-        if business.is_locked:
+        # A business that is not publicly visible does not accept new bookings.
+        # Two unrelated causes end up here — the owner's plan lapsed
+        # (`is_locked`) and a moderator rejected/suspended the listing — and they
+        # deliberately share one neutral message: which one applies is the
+        # owner's business, not something to disclose to whoever followed a stale
+        # link. 403 rather than 404 because the client reached this from a real
+        # link and deserves to be told the booking was refused, not that the page
+        # never existed.
+        if not business.is_publicly_visible:
             return APIResponse.error(
                 message="این کسب‌وکار در حال حاضر نوبت جدید نمی‌پذیرد",
                 code=403,

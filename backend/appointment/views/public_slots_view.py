@@ -72,20 +72,28 @@ class PublicAvailableSlotsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── 2. Serve from cache when available (high-traffic public endpoint) ─
-        cache_key = public_slots_key(business_id, query_date)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached, status=status.HTTP_200_OK)
-
-        # ── 3. Resolve business ───────────────────────────────────────────
+        # ── 2. Resolve business (gate first, then cache) ───────────────────
         try:
-            business = Business.objects.get(pk=business_id, is_locked=False)
+            # Both gates at once (billing lock + moderation), via the single
+            # helper — a 404 here is also the privacy-preserving answer, since
+            # it never distinguishes "no such business" from "not approved".
+            #
+            # This runs ahead of the cache read: the cache key covers only
+            # business+date, so a hit served first would keep publishing
+            # occupancy for the whole TTL after a moderator suspended the
+            # business. The costly part (the appointment scan) stays cached.
+            business = Business.objects.get(Business.public_filter(), pk=business_id)
         except Business.DoesNotExist:
             return Response(
                 {"detail": "کسب و کار یافت نشد."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # ── 3. Serve from cache when available (high-traffic public endpoint) ─
+        cache_key = public_slots_key(business_id, query_date)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
 
         # ── 3. Build day boundaries (aware datetimes) ─────────────────────
         tz = timezone.get_current_timezone()

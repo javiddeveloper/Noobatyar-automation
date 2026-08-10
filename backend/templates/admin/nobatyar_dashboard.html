@@ -1,0 +1,144 @@
+{% load static %}
+
+{% comment %} ---------------------------------------------------------------------------
+  The dashboard section of the admin index. Included from admin/index.html,
+  above the stock app list.
+
+  Every block here is conditional on context that core/dashboard/panels.py only
+  emits when the viewer holds the matching `view` permission. A Moderator has no
+  accounting permissions at all, so the revenue cards, the revenue chart and the
+  stuck-payment panel simply do not exist in their context and nothing below
+  renders them — they get a shorter dashboard, never a 403 on the index.
+
+  Layout/spacing uses logical properties (inline-start/end) so it follows the
+  admin's dir=rtl without a second RTL stylesheet. Styles live in
+  admin_custom/css/admin.css, already loaded by base_site.html.
+--------------------------------------------------------------------------- {% endcomment %}
+
+{% if dashboard_failed %}
+  <p class="errornote">
+    محاسبهٔ آمار داشبورد با خطا مواجه شد. فهرست بخش‌ها در ادامه در دسترس است و
+    جزئیات خطا در لاگ‌های سرور ثبت شده است.
+  </p>
+{% endif %}
+
+{% if dashboard_any %}
+<div class="nb-dash">
+
+  <div class="nb-dash-head">
+    <h2>نمای کلی سامانه</h2>
+    <span class="nb-spacer"></span>
+    <span class="nb-dash-meta">
+      آخرین محاسبه: {{ dashboard_generated_at }}
+      {% if dashboard_cached %}(از حافظهٔ موقت){% endif %}
+    </span>
+    <a class="button" href="{% url 'admin:dashboard_refresh' %}">بروزرسانی</a>
+  </div>
+
+  {% if dashboard_status_cards %}
+    <div class="nb-status">
+      {% comment %} <a> only when the target model actually has a ModelAdmin — see
+         panels._link(). A card with no changelist is still worth showing. {% endcomment %}
+      {% for card in dashboard_status_cards %}
+        {% if card.url %}
+          <a class="nb-status-card{% if card.urgent %} nb-urgent{% endif %}" href="{{ card.url }}">
+            <span class="nb-status-value">{{ card.value }}</span>
+            <span>{{ card.title }}</span>
+          </a>
+        {% else %}
+          <div class="nb-status-card{% if card.urgent %} nb-urgent{% endif %}">
+            <span class="nb-status-value">{{ card.value }}</span>
+            <span>{{ card.title }}</span>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if dashboard_revenue_cards %}
+    <h3>درآمد پلتفرم</h3>
+    <div class="nb-cards">
+      {% for card in dashboard_revenue_cards %}
+        {% include "admin/nobatyar_dashboard_card.html" %}
+      {% endfor %}
+    </div>
+    {% comment %} Stated on the page, not just in the code: the headline number excludes
+       appointment deposits on purpose, and somebody comparing it against Zibal
+       will otherwise assume it is broken. {% endcomment %}
+    <p class="nb-note">
+      فقط پرداخت‌های <strong>موفق</strong> شمرده می‌شوند؛ پرداخت‌های ناتمام در بخش
+      هشدارها می‌آیند. بیعانهٔ نوبت‌ها در این ارقام نیست — بیعانه به درگاه زیبالِ
+      خودِ کسب‌وکار واریز می‌شود و هرگز از حساب پلتفرم عبور نمی‌کند.
+    </p>
+  {% endif %}
+
+  {% if dashboard_volume_cards %}
+    <h3>فعالیت</h3>
+    <div class="nb-cards">
+      {% for card in dashboard_volume_cards %}
+        {% include "admin/nobatyar_dashboard_card.html" %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if dashboard_charts.revenue or dashboard_charts.growth %}
+    <h3>روند {{ dashboard_chart_days }} روز اخیر</h3>
+    <div class="nb-charts">
+      {% if dashboard_charts.revenue %}
+        <div class="nb-chart">
+          <div class="nb-card-title">درآمد روزانه <span class="nb-card-unit">تومان</span></div>
+          <div class="nb-chart-box"><canvas id="nb-chart-revenue"></canvas></div>
+        </div>
+      {% endif %}
+      {% if dashboard_charts.growth %}
+        <div class="nb-chart">
+          <div class="nb-card-title">رشد روزانه</div>
+          <div class="nb-chart-box"><canvas id="nb-chart-growth"></canvas></div>
+        </div>
+      {% endif %}
+    </div>
+
+    {% comment %} json_script, not an inline literal: it escapes for the HTML context
+       correctly and keeps dashboard.js a static file. The series a viewer may
+       not see are absent from this payload entirely — the gating is server
+       side, never "rendered then hidden". {% endcomment %}
+    {{ dashboard_charts|json_script:"nb-dashboard-data" }}
+    <script src="{% static 'admin_custom/js/chart.umd.js' %}"></script>
+    <script src="{% static 'admin_custom/js/dashboard.js' %}"></script>
+  {% endif %}
+
+  {% if dashboard_alerts %}
+    <h3>نیازمند رسیدگی</h3>
+    <div class="nb-alerts">
+      {% for panel in dashboard_alerts %}
+        <div class="nb-alert{% if panel.urgent %} nb-urgent{% endif %}">
+          <div class="nb-alert-head">
+            <h4>{{ panel.title }}</h4>
+            <span class="nb-alert-count">{{ panel.count }}</span>
+            <span class="nb-spacer"></span>
+            {% if panel.url %}<a href="{{ panel.url }}">مشاهدهٔ همه</a>{% endif %}
+          </div>
+          {% if panel.rows %}
+            <table>
+              <thead>
+                <tr>{% for column in panel.columns %}<th>{{ column }}</th>{% endfor %}</tr>
+              </thead>
+              <tbody>
+                {% for row in panel.rows %}
+                  <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% if panel.more %}
+              <div class="nb-alert-more">و {{ panel.more }} مورد دیگر…</div>
+            {% endif %}
+          {% else %}
+            <div class="nb-alert-empty">{{ panel.empty }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+</div>
+{% endif %}

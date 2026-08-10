@@ -6,10 +6,12 @@ import {
   getBusinessByCode,
   getAvailableSlots,
   bookAppointment,
+  isNotFound,
   UnauthorizedError,
   type Business,
   type TimeSlot,
 } from '@/lib/api';
+import BusinessUnavailable from '@/app/components/BusinessUnavailable';
 import BusinessNotice from '@/app/components/BusinessNotice';
 
 interface Props {
@@ -68,6 +70,10 @@ export default function BookingPage({ params }: Props) {
   const [booking, setBooking] = useState(false);
   const [toast, setToast] = useState('');
   const [error, setError] = useState('');
+  // The API stopped serving this business — either it never resolved, or it
+  // dropped out from under an open tab. Either way the page becomes the same
+  // neutral "not available" screen; we never learn or show the reason.
+  const [unavailable, setUnavailable] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -80,7 +86,12 @@ export default function BookingPage({ params }: Props) {
       const code = s.replace(/^Noobatyar-/i, '');
       getBusinessByCode(code)
         .then(setBusiness)
-        .catch(() => setError('کسب‌وکار یافت نشد'))
+        .catch((err: unknown) => {
+          // A 404 is "we don't serve this business"; anything else (server
+          // down, offline) is a genuine load failure worth retrying.
+          if (isNotFound(err)) setUnavailable(true);
+          else setError('خطا در بارگذاری کسب‌وکار');
+        })
         .finally(() => setLoading(false));
     });
   }, [params]);
@@ -92,8 +103,12 @@ export default function BookingPage({ params }: Props) {
     try {
       const data = await getAvailableSlots(business.id, toDateString(day));
       setSlots(data.slots);
-    } catch {
+    } catch (err: unknown) {
       setSlots([]);
+      // A 404 here means the business stopped being served between loading the
+      // page and picking a day. "No free hours today" would be a lie — every
+      // other day is empty too — so switch to the not-available screen.
+      if (isNotFound(err)) setUnavailable(true);
     } finally {
       setSlotsLoading(false);
     }
@@ -205,11 +220,27 @@ export default function BookingPage({ params }: Props) {
         setTimeout(saveIntentAndLogin, 1200);
         return;
       }
-      showToast(err instanceof Error ? err.message : 'خطا در ثبت نوبت');
+      if (isNotFound(err)) {
+        // The business disappeared from the public surface while this tab was
+        // open; there is nothing left to book against.
+        setUnavailable(true);
+        return;
+      }
+      // Everything else — including a refusal such as «این کسب‌وکار در حال
+      // حاضر نوبت نمی‌پذیرد» — is the server telling the customer something in
+      // Persian. Pass it through verbatim; only fall back to a generic string
+      // when there genuinely is no message.
+      showToast(err instanceof Error && err.message ? err.message : 'خطا در ثبت نوبت');
     } finally {
       setBooking(false);
     }
   };
+
+  // Checked before the skeleton: a business that drops out mid-session should
+  // swap to this screen straight away, not sit behind a spinner.
+  if (unavailable) {
+    return <BusinessUnavailable />;
+  }
 
   if (loading) {
     return (
