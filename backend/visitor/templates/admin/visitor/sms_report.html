@@ -1,60 +1,36 @@
 {% extends "admin/base_site.html" %}
+{% load humanize %}
+{% comment %} intcomma:False, not a bare intcomma. With LANGUAGE_CODE="fa-ir" the
+   default l10n path routes through Django's Persian format module, whose
+   NUMBER_GROUPING is 0 — so `{{ 15501000|intcomma }}` renders "15501000"
+   unchanged and silently does nothing. Passing False takes the plain
+   comma-grouping branch, which is also exactly what the dashboard emits
+   from core/dashboard/panels.py:_fmt(). {% endcomment %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   SMS operations report for staff holding `visitor.view_smslog`.
 
   Reachable from the SmsLog changelist's "گزارش عملیات پیامک" object-tool
   button (visitor/templates/admin/visitor/smslog/change_list.html) and guarded
   independently in SmsLogAdmin.sms_report_view() — a role without the
   permission hitting this URL directly gets a real 403, not just a missing
-  nav link. Styling mirrors accounting/templates/admin/accounting/financial_report.html
-  (same class-name prefix convention, swapped to `sr-`) — no new stylesheet.
+  nav link. Styling is the shared component set in admin_custom/css/report.css
+  — the same filter bar, tiles and tables as the financial report, so this
+  template carries no <style> block of its own.
 
   Deliberately no message-content column anywhere on this page — see
   visitor/reports.py's docstring, "PII discipline".
---------------------------------------------------------------------------- #}
-
-{% block extrastyle %}{{ block.super }}
-<style>
-  .sr-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:end;
-                margin-block-end:20px; padding:14px; background:#f8f8f8;
-                border:1px solid #e3e3e3; border-radius:8px; }
-  .sr-filters label { display:flex; flex-direction:column; gap:4px;
-                       font-size:12px; color:#555; }
-  .sr-filters input[type=text], .sr-filters select { padding:6px 8px;
-      border:1px solid #ccc; border-radius:4px; font-family:inherit; }
-  .sr-filters input[type=text] { direction:ltr; text-align:end; width:110px; }
-  .sr-filters .button { align-self:end; }
-  .sr-meta { font-size:12px; color:#777; margin-inline-start:auto; align-self:center; }
-  .sr-section { margin-block-end:28px; }
-  .sr-section h3 { margin-block-end:10px; }
-  .sr-cards { display:flex; flex-wrap:wrap; gap:14px; }
-  .sr-card { border:1px solid #ddd; border-radius:8px; padding:14px 16px;
-             min-width:150px; background:#fff; }
-  .sr-card-title { font-size:12px; color:#666; margin-block-end:6px; }
-  .sr-card-value { font-size:22px; font-weight:700; direction:ltr; text-align:end; }
-  .sr-table { width:100%; border-collapse:collapse; background:#fff; }
-  .sr-table th, .sr-table td { border:1px solid #e6e6e6; padding:7px 10px; font-size:13px; }
-  .sr-table th { background:#fafafa; text-align:start; }
-  .sr-table td.num { direction:ltr; text-align:end; }
-  .sr-table td.err { max-width:420px; overflow-wrap:anywhere; color:#8b1a1a; }
-  .sr-note { font-size:12px; color:#666; margin-block-start:8px; }
-  .sr-empty { padding:16px; text-align:center; color:#888; border:1px dashed #ddd; border-radius:8px; }
-  .sr-error { color:#8b1a1a; }
-  .sr-badge-failed { color:#8b1a1a; font-weight:600; }
-  .sr-badge-sent { color:#0b6b34; }
-</style>
-{% endblock %}
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block content %}
 <div id="content-main">
 
-  <form method="get" class="sr-filters">
+  <form method="get" class="nb-filters">
     <label>از تاریخ (شمسی)
-      <input type="text" name="from" value="{{ date_from }}" placeholder="۱۴۰۴/۰۱/۰۱">
+      <input type="text" class="nb-in-ltr" name="from" value="{{ date_from }}" placeholder="۱۴۰۴/۰۱/۰۱">
     </label>
     <label>تا تاریخ (شمسی)
-      <input type="text" name="to" value="{{ date_to }}" placeholder="۱۴۰۴/۰۱/۳۰">
+      <input type="text" class="nb-in-ltr" name="to" value="{{ date_to }}" placeholder="۱۴۰۴/۰۱/۳۰">
     </label>
     <label>کسب‌وکار
       <select name="business">
@@ -80,99 +56,109 @@
       </a>
     {% endif %}
     {% if report %}
-      <span class="sr-meta">محاسبه‌شده در: {{ report.generated_at }}</span>
+      <span class="nb-spacer"></span>
+      <span class="nb-meta">محاسبه‌شده در: {{ report.generated_at }}</span>
     {% endif %}
   </form>
 
   {% if error %}
-    <p class="errornote sr-error">{{ error }}</p>
+    <p class="errornote">{{ error }}</p>
   {% endif %}
 
   {% if report %}
-    <p class="sr-note">
+    <p class="nb-note" style="margin-block-end:20px">
       بازه‌ی گزارش: {{ report.range.from_jalali }} تا {{ report.range.to_jalali }}
       (شامل هر دو روز، بر اساس نیمه‌شب تهران)
     </p>
 
-    <div class="sr-section">
+    <div class="nb-section">
       <h3>خلاصه</h3>
-      <div class="sr-cards">
-        <div class="sr-card">
-          <div class="sr-card-title">ارسال‌شده</div>
-          <div class="sr-card-value">{{ report.summary.sent }}</div>
+      {% comment %} Accent by meaning, not by position: "ناموفق" and the failure rate are
+         the two figures that decide whether anybody has to act today. {% endcomment %}
+      <div class="nb-stats">
+        <div class="nb-stat nb-stat--ok">
+          <div class="nb-stat-title">ارسال‌شده</div>
+          <div class="nb-stat-value">{{ report.summary.sent|intcomma:False }}</div>
         </div>
-        <div class="sr-card">
-          <div class="sr-card-title">ناموفق</div>
-          <div class="sr-card-value">{{ report.summary.failed }}</div>
+        <div class="nb-stat nb-stat--danger">
+          <div class="nb-stat-title">ناموفق</div>
+          <div class="nb-stat-value">{{ report.summary.failed|intcomma:False }}</div>
         </div>
-        <div class="sr-card">
-          <div class="sr-card-title">جمع</div>
-          <div class="sr-card-value">{{ report.summary.total }}</div>
+        <div class="nb-stat nb-stat--quiet">
+          <div class="nb-stat-title">جمع</div>
+          <div class="nb-stat-value">{{ report.summary.total|intcomma:False }}</div>
         </div>
-        <div class="sr-card">
-          <div class="sr-card-title">نرخ شکست</div>
-          <div class="sr-card-value">
+        <div class="nb-stat nb-stat--warn">
+          <div class="nb-stat-title">نرخ شکست</div>
+          <div class="nb-stat-value">
             {% if report.summary.failure_rate_pct != None %}
               {{ report.summary.failure_rate_pct }}٪
             {% else %}—{% endif %}
           </div>
         </div>
       </div>
-      <p class="sr-note">
+      <div class="nb-callout">
         متن پیامک‌ها (message_text) هرگز در این گزارش نمایش یا خروجی گرفته نمی‌شود — ممکن است
         شامل نام و اطلاعات نوبت مراجع باشد. فقط جزئیات خطای سمت پروایدر (error_detail) نمایش داده می‌شود.
-      </p>
+      </div>
     </div>
 
-    <div class="sr-section">
+    <div class="nb-section">
       <h3>ناموفق‌ها به تفکیک کسب‌وکار</h3>
       {% if report.by_business %}
-        <table class="sr-table">
-          <thead><tr><th>کسب‌وکار</th><th>ناموفق</th><th>ارسال‌شده</th><th>جمع</th><th>نرخ شکست</th></tr></thead>
-          <tbody>
-            {% for row in report.by_business %}
-              <tr>
-                <td>{{ row.business }}</td>
-                <td class="num">{{ row.failed }}</td>
-                <td class="num">{{ row.sent }}</td>
-                <td class="num">{{ row.total }}</td>
-                <td class="num">
-                  {% if row.failure_rate_pct != None %}{{ row.failure_rate_pct }}٪{% else %}—{% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="nb-table-wrap">
+          <table class="nb-table">
+            <thead><tr><th>کسب‌وکار</th><th>ناموفق</th><th>ارسال‌شده</th><th>جمع</th><th>نرخ شکست</th></tr></thead>
+            <tbody>
+              {% for row in report.by_business %}
+                <tr>
+                  <td>{{ row.business }}</td>
+                  <td class="num">{{ row.failed|intcomma:False }}</td>
+                  <td class="num">{{ row.sent|intcomma:False }}</td>
+                  <td class="num">{{ row.total|intcomma:False }}</td>
+                  <td class="num">
+                    {% if row.failure_rate_pct != None %}{{ row.failure_rate_pct }}٪{% else %}—{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
-        <div class="sr-empty">در این بازه هیچ پیامکی ثبت نشده است.</div>
+        <div class="nb-empty">در این بازه هیچ پیامکی ثبت نشده است.</div>
       {% endif %}
     </div>
 
-    <div class="sr-section">
+    <div class="nb-section">
       <h3>موارد اخیر</h3>
       {% if report.recent_logs %}
-        <table class="sr-table">
-          <thead><tr><th>کسب‌وکار</th><th>وضعیت</th><th>زمان</th><th>جزئیات خطا</th></tr></thead>
-          <tbody>
-            {% for row in report.recent_logs %}
-              <tr>
-                <td>{{ row.business }}</td>
-                <td>
-                  {% if row.status == "FAILED" %}
-                    <span class="sr-badge-failed">ناموفق</span>
-                  {% else %}
-                    <span class="sr-badge-sent">ارسال‌شده</span>
-                  {% endif %}
-                </td>
-                <td>{{ row.sent_at }}</td>
-                <td class="err">{{ row.error_detail|default:"—" }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <p class="sr-note">حداکثر {{ report.recent_logs|length }} ردیف نمایش داده می‌شود؛ بازه یا فیلتر را برای دیدن موارد بیشتر محدودتر کنید.</p>
+        <div class="nb-table-wrap">
+          <table class="nb-table">
+            <thead><tr><th>کسب‌وکار</th><th>وضعیت</th><th>زمان</th><th>جزئیات خطا</th></tr></thead>
+            <tbody>
+              {% for row in report.recent_logs %}
+                <tr>
+                  <td>{{ row.business }}</td>
+                  <td>
+                    {% if row.status == "FAILED" %}
+                      <span class="nb-badge nb-badge--danger">ناموفق</span>
+                    {% else %}
+                      <span class="nb-badge nb-badge--ok">ارسال‌شده</span>
+                    {% endif %}
+                  </td>
+                  {% comment %} Not .ltr: jalali.format_datetime() returns mixed content
+                     ("۱۴۰۵/۰۵/۰۵ ساعت ۱۴:۳۰"), so forcing LTR on the cell would
+                     move the Persian word to the wrong side. {% endcomment %}
+                  <td>{{ row.sent_at }}</td>
+                  <td class="err">{{ row.error_detail|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="nb-note">حداکثر {{ report.recent_logs|length }} ردیف نمایش داده می‌شود؛ بازه یا فیلتر را برای دیدن موارد بیشتر محدودتر کنید.</p>
       {% else %}
-        <div class="sr-empty">موردی در این بازه/فیلتر یافت نشد.</div>
+        <div class="nb-empty">موردی در این بازه/فیلتر یافت نشد.</div>
       {% endif %}
     </div>
 

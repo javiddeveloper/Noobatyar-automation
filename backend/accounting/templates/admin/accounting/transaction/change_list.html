@@ -1,12 +1,12 @@
 {% extends "admin/change_list.html" %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   Adds the financial report entry point to the Transaction changelist's
   object-tools — same pattern as
   business/templates/admin/business/business/change_list.html for the
   moderation queue. `financial_report_url` comes from
   TransactionAdmin.changelist_view().
---------------------------------------------------------------------------- #}
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block object-tools-items %}
   <li>

@@ -43,12 +43,12 @@
         {% if card.url %}
           <a class="nb-status-card{% if card.urgent %} nb-urgent{% endif %}" href="{{ card.url }}">
             <span class="nb-status-value">{{ card.value }}</span>
-            <span>{{ card.title }}</span>
+            <span class="nb-status-label">{{ card.title }}</span>
           </a>
         {% else %}
           <div class="nb-status-card{% if card.urgent %} nb-urgent{% endif %}">
             <span class="nb-status-value">{{ card.value }}</span>
-            <span>{{ card.title }}</span>
+            <span class="nb-status-label">{{ card.title }}</span>
           </div>
         {% endif %}
       {% endfor %}
@@ -65,11 +65,11 @@
     {% comment %} Stated on the page, not just in the code: the headline number excludes
        appointment deposits on purpose, and somebody comparing it against Zibal
        will otherwise assume it is broken. {% endcomment %}
-    <p class="nb-note">
+    <div class="nb-callout">
       فقط پرداخت‌های <strong>موفق</strong> شمرده می‌شوند؛ پرداخت‌های ناتمام در بخش
       هشدارها می‌آیند. بیعانهٔ نوبت‌ها در این ارقام نیست — بیعانه به درگاه زیبالِ
       خودِ کسب‌وکار واریز می‌شود و هرگز از حساب پلتفرم عبور نمی‌کند.
-    </p>
+    </div>
   {% endif %}
 
   {% if dashboard_volume_cards %}

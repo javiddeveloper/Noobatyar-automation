@@ -1,40 +1,32 @@
 {% extends "admin/base_site.html" %}
 
-{# Full, paginated customer list for one business — the standalone counterpart
-   to the short preview embedded in business_detail.html. #}
-
-{% block extrastyle %}{{ block.super }}
-<style>
-  .bc-table { width:100%; border-collapse:collapse; background:#fff; }
-  .bc-table th, .bc-table td { border:1px solid #e6e6e6; padding:7px 10px; font-size:13px; }
-  .bc-table th { background:#fafafa; text-align:start; }
-  .bc-table td.num { direction:ltr; text-align:end; }
-  .bc-pager { margin-block-start:14px; display:flex; gap:10px; }
-  .bc-note { font-size:12px; color:#666; margin-block-end:14px; }
-</style>
-{% endblock %}
+{% comment %} Full, paginated customer list for one business — the standalone counterpart
+   to the short preview embedded in business_detail.html. Table and pager come
+   from admin_custom/css/report.css, same as every other custom page. {% endcomment %}
 
 {% block content %}
 <div id="content-main">
-  <p class="bc-note">
+  <p class="nb-note" style="margin-block-end:16px">
     {{ total }} مراجع با حداقل یک نوبت در «{{ business.title }}» —
     <a href="{% url 'admin:core_business_detail' business.id %}">بازگشت به جزئیات کسب‌وکار</a>
   </p>
 
-  <table class="bc-table">
-    <thead><tr><th>نام</th><th>تلفن</th><th>تعداد نوبت</th><th>آخرین نوبت</th></tr></thead>
-    <tbody>
-      {% for v in page %}
-        <tr><td>{{ v.full_name }}</td><td style="direction:ltr;text-align:end">{{ v.phone_number }}</td>
-            <td class="num">{{ v.appointment_count }}</td>
-            <td class="num">{{ v.last_appointment_at|date:"Y-m-d" }}</td></tr>
-      {% empty %}
-        <tr><td colspan="4">مراجعی یافت نشد.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="nb-table-wrap">
+    <table class="nb-table">
+      <thead><tr><th>نام</th><th>تلفن</th><th>تعداد نوبت</th><th>آخرین نوبت</th></tr></thead>
+      <tbody>
+        {% for v in page %}
+          <tr><td>{{ v.full_name }}</td><td class="ltr">{{ v.phone_number }}</td>
+              <td class="num">{{ v.appointment_count }}</td>
+              <td class="num">{{ v.last_appointment_at|date:"Y-m-d" }}</td></tr>
+        {% empty %}
+          <tr><td colspan="4">مراجعی یافت نشد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-  <div class="bc-pager">
+  <div class="nb-pager">
     {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">« قبلی</a>{% endif %}
     <span>صفحه {{ page.number }} از {{ page.paginator.num_pages }}</span>
     {% if page.has_next %}<a href="?page={{ page.next_page_number }}">بعدی »</a>{% endif %}

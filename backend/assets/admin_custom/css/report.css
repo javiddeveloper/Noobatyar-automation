@@ -1,0 +1,1290 @@
+/*
+ * admin_custom/css/report.css — the shared visual language for every page we
+ * add to the Django admin: the index dashboard, the two 360 pages, the
+ * financial and SMS reports, the segment builder and the moderation queue.
+ *
+ * Loaded on every admin page from templates/admin/base_site.html, right after
+ * admin.css.
+ *
+ * WHY THIS FILE EXISTS
+ * Each custom page used to carry its own inline <style> block, and each one
+ * re-invented the same card, the same table and the same badge with slightly
+ * different numbers (`.ud-card` vs `.bd-card` vs `.fr-card` vs `.sr-card` vs
+ * `.sg-card`). Worse, all of them hard-coded light-mode hex (`#fff`, `#fafafa`,
+ * `#e6e6e6`), so every one of them turned into white-on-white the moment a
+ * staff member used the admin's dark toggle. One component set, driven by
+ * tokens that have a dark value, fixes both problems at once.
+ *
+ * HOW IT THEMES
+ * The token block below mirrors Django's own pattern in base.css/dark_mode.css
+ * exactly: light values on `html[data-theme="light"], :root`, dark values on
+ * both `@media (prefers-color-scheme: dark) :root` and `html[data-theme="dark"]`.
+ * That ordering is load-bearing — `html[data-theme="light"]` outranks a bare
+ * `:root`, which is what lets the manual "light" toggle win over a dark OS
+ * preference. Copying the structure means our components follow the admin's
+ * three-way theme switch for free.
+ *
+ * It also re-points a handful of Django's *own* variables at the Noobatyar
+ * palette (brand/README.md). Overriding variables rather than selectors is
+ * deliberate: an admin upgrade that restyles a button keeps working, because
+ * we never touched the button's rules — only the colour it reads.
+ *
+ * No CDN, no build step, no `color-mix()`: the production server is in Iran
+ * (see admin.css) and staff browsers there are not reliably current.
+ */
+
+/* ══ Tokens ═════════════════════════════════════════════════════════════════ */
+
+html[data-theme="light"],
+:root {
+    /* ── Django's variables, re-pointed at the product's palette ──────────────
+       Values from brand/README.md. Without this the admin is Django's stock
+       teal while every other surface of the product is violet, which is most
+       of what makes the panel feel like a different, older application. */
+    --secondary: #4c1d95;          /* header bar */
+    --primary: #7c3aed;            /* breadcrumbs, default button */
+    --primary-fg: #ffffff;
+    --accent: #fbbf24;             /* the one fixed brand accent (the dot) */
+    --header-color: #ede9fe;
+    --header-branding-color: var(--accent);
+    --breadcrumbs-fg: #e9e2ff;
+    --breadcrumbs-link-fg: #ffffff;
+
+    --link-fg: #6d28d9;
+    --link-hover-color: #4c1d95;
+    --link-selected-fg: #7c3aed;
+
+    --button-bg: #7c3aed;
+    --button-hover-bg: #6d28d9;
+    --default-button-bg: #4c1d95;
+    --default-button-hover-bg: #3b1078;
+    --object-tools-bg: #4c1d95;
+    --object-tools-hover-bg: #7c3aed;
+
+    /* Django's stock --selected-row is #ffc, a saturated yellow highlight on
+       every hovered changelist row. Against Persian body text at 14px it is
+       loud enough to be tiring over a long moderation session; a violet tint
+       of the same lightness reads as "this row" without shouting. */
+    --selected-row: #f6f3ff;
+    --selected-bg: #ede9fe;
+
+    /* ── Our own surface scale ────────────────────────────────────────────── */
+    --nb-surface: #ffffff;
+    --nb-surface-2: #fafafa;       /* table headers, filter bars */
+    --nb-surface-3: #f3f2f7;       /* stat wells inside a card */
+    --nb-line: #e6e5ec;
+    --nb-line-soft: #f0eff4;
+    /* A *glyph* separator, not a hairline. A 1px rule at --nb-line reads fine
+       because it is a solid edge; the same colour on a "|" character is a few
+       stray pixels at 1.25:1 and simply disappears. Tuned to ~3.3:1 — over the
+       3:1 non-text threshold, still clearly subordinate to the text either
+       side of it. */
+    --nb-line-strong: #8f8c99;
+    --nb-fg: #23212b;
+    --nb-muted: #6b6878;
+
+    /* Two brand tokens, and they are not interchangeable.
+     *
+     *   --nb-brand       reads *as* colour: accent rules, focus rings, hover
+     *                    borders. On dark it has to be light to be visible, so
+     *                    it becomes #a78bfa there.
+     *   --nb-brand-solid is a *fill* that white text sits on. It stays dark in
+     *                    both themes, because the moment it lightens to match
+     *                    --nb-brand the white label on top drops to about 2.7:1
+     *                    and fails AA.
+     *
+     * Same split for danger: --nb-danger-fg is text on a tint, --nb-danger-solid
+     * is a fill behind white. */
+    --nb-brand: #7c3aed;
+    --nb-brand-solid: #7c3aed;
+    --nb-danger-solid: #b02a2a;
+
+    --nb-radius: 12px;
+    --nb-radius-sm: 8px;
+    --nb-radius-pill: 999px;
+
+    /* Two stacked shadows, both tinted toward the brand's violet rather than
+       neutral black: a pure-grey shadow under a violet-accented UI reads as
+       dirty. Kept very shallow — this is a dense data panel, not a marketing
+       page, and deep shadows on twenty tiles turn into visual noise. */
+    --nb-shadow: 0 1px 2px rgba(30, 20, 60, 0.04), 0 2px 6px rgba(30, 20, 60, 0.06);
+    --nb-shadow-hover: 0 2px 4px rgba(30, 20, 60, 0.06), 0 6px 16px rgba(30, 20, 60, 0.10);
+
+    /* ── Semantic tints ───────────────────────────────────────────────────── */
+    --nb-ok-bg: #e7f6ec;      --nb-ok-fg: #14683a;      --nb-ok-line: #b7e4c7;
+    --nb-warn-bg: #fef6e0;    --nb-warn-fg: #8a5b00;    --nb-warn-line: #f3dda0;
+    --nb-danger-bg: #fdecec;  --nb-danger-fg: #a11b1b;  --nb-danger-line: #f3c0c0;
+    --nb-info-bg: #ede9fe;    --nb-info-fg: #5b21b6;    --nb-info-line: #ddd6fe;
+    --nb-muted-bg: #eeedf1;   --nb-muted-fg: #4a4753;   --nb-muted-line: #dcdae3;
+}
+
+/* Two selectors, same values: the media query serves `data-theme="auto"` (the
+   default) and the attribute serves the explicit dark toggle. This is exactly
+   how django/contrib/admin/static/admin/css/dark_mode.css is written. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --secondary: #2e1065;
+        --primary: #6d28d9;
+        --primary-fg: #f7f5ff;
+        --accent: #fbbf24;
+        --header-color: #d9cffb;
+        --breadcrumbs-fg: #cfc2f5;
+        --breadcrumbs-link-fg: #f3efff;
+
+        --link-fg: #c4b5fd;
+        --link-hover-color: #ddd6fe;
+        --link-selected-fg: #a78bfa;
+
+        --button-bg: #7c3aed;
+        --button-hover-bg: #8b5cf6;
+        --default-button-bg: #6d28d9;
+        --default-button-hover-bg: #7c3aed;
+        --object-tools-bg: #4c1d95;
+        --object-tools-hover-bg: #7c3aed;
+
+        --selected-row: #2a1a4d;
+        --selected-bg: #241247;
+
+        --nb-surface: #1a191f;
+        --nb-surface-2: #201f27;
+        --nb-surface-3: #26252e;
+        --nb-line: #2f2e38;
+        --nb-line-soft: #26252d;
+        --nb-line-strong: #6e6b78;
+        --nb-fg: #eceaf2;
+        --nb-muted: #a5a1b4;
+        --nb-brand: #a78bfa;
+        /* Deliberately NOT lightened alongside --nb-brand: these are fills
+           behind white text, see the light block above. */
+        --nb-brand-solid: #7c3aed;
+        --nb-danger-solid: #b02a2a;
+
+        --nb-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --nb-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 8px 20px rgba(0, 0, 0, 0.35);
+
+        --nb-ok-bg: #10301f;      --nb-ok-fg: #7ee2a8;      --nb-ok-line: #1e5638;
+        --nb-warn-bg: #352708;    --nb-warn-fg: #f5c264;    --nb-warn-line: #5c441a;
+        --nb-danger-bg: #3a1414;  --nb-danger-fg: #f09a9a;  --nb-danger-line: #632424;
+        --nb-info-bg: #241247;    --nb-info-fg: #c4b5fd;    --nb-info-line: #3c2270;
+        --nb-muted-bg: #262630;   --nb-muted-fg: #c8c5d2;   --nb-muted-line: #3a3945;
+    }
+}
+
+html[data-theme="dark"] {
+    --secondary: #2e1065;
+    --primary: #6d28d9;
+    --primary-fg: #f7f5ff;
+    --accent: #fbbf24;
+    --header-color: #d9cffb;
+    --breadcrumbs-fg: #cfc2f5;
+    --breadcrumbs-link-fg: #f3efff;
+
+    --link-fg: #c4b5fd;
+    --link-hover-color: #ddd6fe;
+    --link-selected-fg: #a78bfa;
+
+    --button-bg: #7c3aed;
+    --button-hover-bg: #8b5cf6;
+    --default-button-bg: #6d28d9;
+    --default-button-hover-bg: #7c3aed;
+    --object-tools-bg: #4c1d95;
+    --object-tools-hover-bg: #7c3aed;
+
+    --selected-row: #2a1a4d;
+    --selected-bg: #241247;
+
+    --nb-surface: #1a191f;
+    --nb-surface-2: #201f27;
+    --nb-surface-3: #26252e;
+    --nb-line: #2f2e38;
+    --nb-line-soft: #26252d;
+    --nb-line-strong: #6e6b78;
+    --nb-fg: #eceaf2;
+    --nb-muted: #a5a1b4;
+    --nb-brand: #a78bfa;
+    --nb-brand-solid: #7c3aed;
+    --nb-danger-solid: #b02a2a;
+
+    --nb-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --nb-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 8px 20px rgba(0, 0, 0, 0.35);
+
+    --nb-ok-bg: #10301f;      --nb-ok-fg: #7ee2a8;      --nb-ok-line: #1e5638;
+    --nb-warn-bg: #352708;    --nb-warn-fg: #f5c264;    --nb-warn-line: #5c441a;
+    --nb-danger-bg: #3a1414;  --nb-danger-fg: #f09a9a;  --nb-danger-line: #632424;
+    --nb-info-bg: #241247;    --nb-info-fg: #c4b5fd;    --nb-info-line: #3c2270;
+    --nb-muted-bg: #262630;   --nb-muted-fg: #c8c5d2;   --nb-muted-line: #3a3945;
+}
+
+/* ══ Admin chrome ═══════════════════════════════════════════════════════════ */
+
+/* The brand mark in the header. Inline SVG in base_site.html so it inherits
+   `currentColor` for the ring and the tick — the amber dot is hard-coded in
+   the file because it is the one fixed accent (brand/README.md). */
+/* The flex lives on the <a>, not on the <h1>: the anchor is the thing that has
+   to keep mark and wordmark on one baseline, and Django's own #site-name rules
+   (margin, font-size) stay untouched. */
+#branding #site-name a {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#branding .nb-mark {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    /* The header sits on deep violet in both themes, so the mark is always
+       drawn light — this is not a theme-dependent surface. */
+    color: #ffffff;
+}
+
+/* Django ships the header as a flat block of colour. A one-pixel amber rule
+   underneath is the cheapest way to make the panel look designed rather than
+   defaulted, and it reuses the accent already in the logo. */
+#header {
+    border-block-end: 2px solid var(--accent);
+}
+
+/* ══ Page furniture ═════════════════════════════════════════════════════════ */
+
+/* Header strip at the top of a custom page: title, a run of quiet metadata,
+   then actions pushed to the far edge. `.nb-spacer` does the pushing so the
+   markup does not need `margin-inline-start:auto` sprinkled through it. */
+.nb-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    margin-block-end: 20px;
+    padding-block-end: 14px;
+    border-block-end: 1px solid var(--nb-line);
+}
+
+.nb-head h2 {
+    margin: 0;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--nb-fg);
+}
+
+.nb-head .nb-spacer { flex: 1 1 auto; }
+
+.nb-meta {
+    font-size: 12.5px;
+    color: var(--nb-muted);
+}
+
+/* Phone numbers and codes in the header strip are Latin runs inside RTL text. */
+.nb-meta-ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+}
+
+.nb-section {
+    margin-block-end: 28px;
+}
+
+/* Section heading: small, quiet, with a rule that runs to the end of the row.
+   The rule is a flex child rather than a border-bottom on the heading so the
+   text keeps its own width and the line starts where the words stop. */
+.nb-section > h3,
+.nb-dash h3 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--nb-muted);
+}
+
+.nb-section > h3::after,
+.nb-dash h3::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--nb-line);
+}
+
+.nb-note {
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--nb-muted);
+    margin: 8px 0 0;
+}
+
+/* ══ Callouts ═══════════════════════════════════════════════════════════════ */
+
+/* A boxed aside — the deposit-flow explanation on the financial report, the
+   "this filter reads live Redis" warning in the segment builder. Colour comes
+   from a modifier so the same box can be neutral, warning or informational. */
+.nb-callout {
+    border: 1px solid var(--nb-line);
+    border-inline-start: 4px solid var(--nb-brand);
+    border-radius: var(--nb-radius-sm);
+    background: var(--nb-surface-2);
+    padding: 12px 16px;
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: var(--nb-fg);
+    margin-block-end: 16px;
+}
+
+.nb-callout h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: inherit;
+}
+
+/* The heading inside a callout must not pick up .nb-section > h3's rule. */
+.nb-callout h3::after { content: none; }
+
+.nb-callout p { margin: 0; }
+
+/* A callout that follows a grid of cards is a footnote *to* that grid, so it
+   needs the gap above it that its own bottom margin would otherwise only give
+   the block below. */
+.nb-cards + .nb-callout,
+.nb-stats + .nb-callout,
+.nb-table-wrap + .nb-callout { margin-block-start: 12px; }
+
+.nb-callout--warn {
+    border-color: var(--nb-warn-line);
+    border-inline-start-color: var(--nb-warn-fg);
+    background: var(--nb-warn-bg);
+    color: var(--nb-warn-fg);
+}
+
+.nb-callout--danger {
+    border-color: var(--nb-danger-line);
+    border-inline-start-color: var(--nb-danger-fg);
+    background: var(--nb-danger-bg);
+    color: var(--nb-danger-fg);
+}
+
+/* ══ Stat tiles ═════════════════════════════════════════════════════════════ */
+
+/* One number with a label. Replaces the five near-identical `*-card` rules the
+   report pages each used to define.
+
+   auto-fill rather than auto-fit: with three tiles on a wide monitor auto-fit
+   stretches each to a third of the viewport and a two-digit figure ends up
+   marooned in the middle of a 500px box. The `min()` around the track floor
+   lets the track collapse below its floor on a narrow screen instead of
+   forcing the whole admin to scroll sideways. */
+.nb-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+    gap: 12px;
+}
+
+.nb-stat {
+    position: relative;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    padding: 14px 16px;
+    overflow: hidden;
+}
+
+/* A hairline of brand colour along the top edge. Not a border: a border would
+   shift the content box and misalign the label baseline across a row of tiles
+   where only some are accented. */
+.nb-stat::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    height: 3px;
+    background: var(--nb-brand);
+    opacity: 0.85;
+}
+
+.nb-stat--ok::before { background: var(--nb-ok-fg); }
+.nb-stat--warn::before { background: var(--nb-warn-fg); }
+.nb-stat--danger::before { background: var(--nb-danger-fg); }
+.nb-stat--quiet::before { background: var(--nb-line); }
+
+.nb-stat-title {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--nb-muted);
+    margin-block-end: 6px;
+}
+
+/* Latin digits in an RTL page: isolate so the bidi algorithm cannot move a
+   thousands separator or a percent sign to the wrong end, and tabular-nums so
+   a column of figures lines up on the digit. */
+.nb-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--nb-fg);
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.nb-stat-unit {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--nb-muted);
+    margin-inline-start: 4px;
+}
+
+/* Tiles that link somewhere (the dashboard's standing totals). */
+a.nb-stat {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+a.nb-stat:hover {
+    border-color: var(--nb-brand);
+    box-shadow: var(--nb-shadow-hover);
+    transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    a.nb-stat { transition: none; }
+    a.nb-stat:hover { transform: none; }
+}
+
+/* ══ Tables ═════════════════════════════════════════════════════════════════ */
+
+/* The single biggest source of the "old" look was a full 1px grid on every
+   cell — `border:1px solid #e6e6e6` on both th and td, which is a spreadsheet,
+   not a report. Horizontal rules only, and let whitespace do the column
+   separation.
+
+   The wrapper carries the border and the radius, and clips its overflow, so
+   the first and last rows sit inside rounded corners; it also scrolls a wide
+   table on its own instead of widening the page. */
+.nb-table-wrap {
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    overflow-x: auto;
+}
+
+.nb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: transparent;
+}
+
+.nb-table th,
+.nb-table td {
+    text-align: start;
+    padding: 10px 14px;
+    border: 0;
+    border-block-end: 1px solid var(--nb-line-soft);
+    vertical-align: middle;
+}
+
+.nb-table thead th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+    background: var(--nb-surface-2);
+    color: var(--nb-muted);
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    border-block-end: 1px solid var(--nb-line);
+}
+
+.nb-table tbody tr:last-child td,
+.nb-table tbody tr:last-child th { border-block-end: 0; }
+
+.nb-table tbody tr:hover td,
+.nb-table tbody tr:hover th { background: var(--selected-row); }
+
+/* Numeric / identifier columns: LTR so digits never reorder, aligned to the
+   end of the cell (which is the left in RTL) so figures stack on the digit. */
+.nb-table td.num,
+.nb-table td.ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Free-text columns (notes, provider error strings) otherwise stretch the row
+   to the viewport and squeeze every other column to nothing. */
+.nb-table td.wrap {
+    max-width: 44ch;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.nb-table td.err {
+    max-width: 44ch;
+    overflow-wrap: anywhere;
+    color: var(--nb-danger-fg);
+    font-size: 12px;
+}
+
+/* ══ Empty states ═══════════════════════════════════════════════════════════ */
+
+.nb-empty {
+    padding: 28px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--nb-muted);
+    border: 1px dashed var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface-2);
+}
+
+/* ══ Badges ═════════════════════════════════════════════════════════════════ */
+
+.nb-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: var(--nb-radius-pill);
+    border: 1px solid transparent;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.8;
+    white-space: nowrap;
+    background: var(--nb-muted-bg);
+    color: var(--nb-muted-fg);
+    border-color: var(--nb-muted-line);
+}
+
+/* Emitted from Python too — business/admin.py's `_badge()` builds changelist
+   cells with these classes instead of the inline (fg, bg) hex pairs it used to
+   carry, which is what kept the changelist badges stuck in light mode. */
+.nb-badge--ok     { background: var(--nb-ok-bg);     color: var(--nb-ok-fg);     border-color: var(--nb-ok-line); }
+.nb-badge--warn   { background: var(--nb-warn-bg);   color: var(--nb-warn-fg);   border-color: var(--nb-warn-line); }
+.nb-badge--danger { background: var(--nb-danger-bg); color: var(--nb-danger-fg); border-color: var(--nb-danger-line); }
+.nb-badge--info   { background: var(--nb-info-bg);   color: var(--nb-info-fg);   border-color: var(--nb-info-line); }
+
+/* ══ Inline utilities ═══════════════════════════════════════════════════════ */
+
+/* Both are emitted from business/admin.py, where a changelist column needs a
+   scrap of styling and there is no element of its own to hang a component on. */
+
+/* Secondary text inside a cell — the unremarkable "فعال" plan state, the status
+   in parentheses after a business link. */
+.nb-quiet {
+    color: var(--nb-muted);
+    font-size: 11.5px;
+}
+
+/* A banned-keyword hit inside the owner's own copy, in the review queue. The
+   browser default <mark> is a flat yellow that is unreadable on a dark page. */
+.nb-mark-hit {
+    background: var(--nb-warn-bg);
+    color: var(--nb-warn-fg);
+    padding: 0 3px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+/* ══ Filter bars ════════════════════════════════════════════════════════════ */
+
+/* The GET-form filter strip on the financial report, the SMS report and the
+   segment builder. Same three pages, three copies of this rule before. */
+.nb-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 14px;
+    align-items: end;
+    padding: 14px 16px;
+    margin-block-end: 20px;
+    background: var(--nb-surface-2);
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+}
+
+.nb-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--nb-muted);
+}
+
+.nb-filters input[type="text"],
+.nb-filters input[type="number"],
+.nb-filters select {
+    padding: 7px 10px;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius-sm);
+    background: var(--nb-surface);
+    color: var(--nb-fg);
+    font-family: inherit;
+    font-size: 13px;
+    min-width: 130px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nb-filters input[type="text"]:focus,
+.nb-filters input[type="number"]:focus,
+.nb-filters select:focus {
+    outline: none;
+    border-color: var(--nb-brand);
+    /* A ring rather than a thicker border: a border change reflows the control
+       by a pixel and the whole filter row twitches on tab-through. */
+    box-shadow: 0 0 0 3px var(--nb-info-bg);
+}
+
+/* Jalali date fields and id lists are Latin content. */
+.nb-filters .nb-in-ltr {
+    direction: ltr;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A checkbox and its text belong on one line, unlike every other control here
+   which stacks its label above the input. */
+.nb-filters .nb-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--nb-fg);
+    /* Align with the *inputs* in the row, not with the labels above them. */
+    padding-block-end: 7px;
+}
+
+/* Buttons in a filter bar.
+ *
+ * base.css carries `input, textarea, select, .form-row p, form .button
+ * { padding: 2px 3px }` — intended for form fields, but `form .button` (0,1,1)
+ * also outranks Django's own `.button { padding: 10px 15px }` (0,1,0). Every
+ * <button class="button"> inside a form therefore collapses to 21px tall while
+ * the <a class="button"> beside it stays 39px, which is why "اعمال بازه" and
+ * "خروجی CSV" were visibly different heights in the same row.
+ *
+ * Two classes here (0,2,0) outrank that, and both element types are listed so
+ * the submit and the link come out identical. min-height is a touch target,
+ * not decoration: this panel gets opened on a phone. */
+.nb-filters .button,
+.nb-filters button[type="submit"],
+.nb-filters a.button,
+.sg-save .button,
+.sg-save button[type="submit"] {
+    align-self: end;
+    /* border-box, or the two element types disagree about what min-height
+       measures: a <button> counts padding inside it (38px total) while an <a>
+       adds padding on top (38 + 16 = 54px), and the row ends up with buttons of
+       two different heights again for a completely different reason than the
+       specificity bug above. */
+    box-sizing: border-box;
+    min-height: 38px;
+    padding: 8px 18px;
+    border-radius: var(--nb-radius-sm);
+    font-size: 13px;
+    line-height: 1.5;
+    /* "خروجی CSV" is Persian plus a Latin token; a narrow flex line would
+       otherwise break it between the two. Let the row wrap, not the label. */
+    white-space: nowrap;
+    /* min-height alone leaves the label at the top of a taller box. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ══ Tabs ═══════════════════════════════════════════════════════════════════ */
+
+.nb-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-block-end: 18px;
+}
+
+.nb-tab {
+    padding: 7px 18px;
+    border-radius: var(--nb-radius-pill);
+    border: 1px solid var(--nb-line);
+    background: var(--nb-surface);
+    color: var(--nb-fg);
+    text-decoration: none;
+    font-size: 13px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.nb-tab:hover { border-color: var(--nb-brand); color: var(--nb-fg); }
+
+/* -solid, not --nb-brand: the label on top is white in both themes. */
+.nb-tab.active {
+    background: var(--nb-brand-solid);
+    border-color: var(--nb-brand-solid);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.nb-tab.active:hover { color: #ffffff; }
+
+/* ══ Pager ══════════════════════════════════════════════════════════════════ */
+
+.nb-pager {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-block-start: 16px;
+    font-size: 13px;
+    color: var(--nb-muted);
+}
+
+/* ══ Dashboard (admin index) ════════════════════════════════════════════════ */
+
+.nb-dash {
+    margin-block-end: 30px;
+}
+
+.nb-dash-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: center;
+    margin-block-end: 18px;
+    padding-block-end: 14px;
+    border-block-end: 1px solid var(--nb-line);
+}
+
+.nb-dash-head h2 {
+    margin: 0;
+    font-size: 19px;
+    color: var(--nb-fg);
+}
+
+.nb-dash-head .nb-spacer { flex: 1 1 auto; }
+
+.nb-dash-meta {
+    font-size: 12px;
+    color: var(--nb-muted);
+}
+
+/* The dashboard's h3 rule is shared with .nb-section > h3 above; only the
+   spacing differs, because these headings separate bands of a single page
+   rather than titling a standalone section. */
+.nb-dash h3 {
+    margin-block: 24px 12px;
+}
+
+.nb-dash h3:first-of-type { margin-block-start: 0; }
+
+/* ── Standing totals ──────────────────────────────────────────────────────── */
+
+.nb-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
+    gap: 12px;
+}
+
+/* Same tile as .nb-stat but with the number leading and the label under it —
+   these are the "how many right now" counts a reader scans first, so the
+   figure gets the top line and the full type size. */
+.nb-status-card {
+    position: relative;
+    display: block;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    padding: 16px;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.nb-status-card::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    height: 3px;
+    background: var(--nb-brand);
+    opacity: 0.85;
+}
+
+a.nb-status-card:hover {
+    border-color: var(--nb-brand);
+    box-shadow: var(--nb-shadow-hover);
+    transform: translateY(-1px);
+}
+
+/* Urgent is carried by the top rule going red plus a red count, not by a thick
+   inline-start border: with a grid of tiles the side border only reads as
+   "urgent" if you already know the convention, whereas a red number does not
+   need explaining. */
+.nb-status-card.nb-urgent::before { background: var(--nb-danger-fg); opacity: 1; }
+.nb-status-card.nb-urgent .nb-status-value { color: var(--nb-danger-fg); }
+
+.nb-status-value {
+    display: block;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--nb-fg);
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: start;
+    font-variant-numeric: tabular-nums;
+}
+
+.nb-status-label {
+    display: block;
+    margin-block-start: 4px;
+    font-size: 12.5px;
+    color: var(--nb-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nb-status-card { transition: none; }
+    a.nb-status-card:hover { transform: none; }
+}
+
+/* ── KPI cards (the four-window metrics) ──────────────────────────────────── */
+
+.nb-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
+    gap: 12px;
+}
+
+.nb-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    padding: 14px 16px;
+}
+
+.nb-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--nb-fg);
+    margin-block-end: 2px;
+}
+
+.nb-card-unit {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--nb-muted);
+    margin-inline-start: 5px;
+}
+
+.nb-card-hint {
+    font-size: 11px;
+    color: var(--nb-muted);
+    line-height: 1.7;
+    margin-block-end: 8px;
+}
+
+/* Push the window row to the bottom edge of the card so the four-window rows
+   line up horizontally across the grid even when one card carries a hint and
+   its neighbour does not. That alignment is the whole point of the layout. */
+.nb-cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-block-start: auto;
+    padding-block-start: 10px;
+}
+
+/* `min-width: max-content` is doing the real work here.
+ *
+ * Four equal windows across one card is right for "۹ کاربر جدید" and wrong for
+ * "۲۳٬۵۶۰٬۰۰۰ تومان": at a quarter of the card an eight-digit figure does not
+ * fit, and a fixed split forced it to wrap mid-number — "23,560," on one line
+ * and "000" on the next, which is worse than useless in a financial panel.
+ *
+ * Sizing the floor to the content instead lets the same rule serve both: small
+ * figures still sit four-up because four of them fit, and money cards fall to a
+ * 2×2 automatically because they do not. Every card has exactly four cells, so
+ * the windows still line up across the grid either way. */
+.nb-cell {
+    flex: 1 1 auto;
+    min-width: max-content;
+    text-align: center;
+    padding: 8px 6px;
+    border-radius: var(--nb-radius-sm);
+    background: var(--nb-surface-3);
+}
+
+/* The rightmost window is "از ابتدا" (all time) — the standing total, and the
+   one figure a reader looks for first. Marking it keeps the eye from having to
+   count across four identical wells. */
+.nb-cell:last-child {
+    background: var(--nb-info-bg);
+}
+
+.nb-cell:last-child .nb-cell-value { color: var(--nb-info-fg); }
+
+.nb-cell-label {
+    display: block;
+    font-size: 10.5px;
+    color: var(--nb-muted);
+}
+
+/* nowrap, not overflow-wrap: a thousands separator is not a break opportunity.
+   The cell is sized to fit this text (see .nb-cell above), so nothing is
+   clipped by refusing to break it. */
+.nb-cell-value {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--nb-fg);
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ── Charts ───────────────────────────────────────────────────────────────── */
+
+.nb-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+    gap: 12px;
+}
+
+.nb-chart {
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    padding: 14px 16px;
+}
+
+/* Chart.js sizes the canvas from its parent, and `responsive` needs a parent
+   with a resolved height or the chart grows without bound on every redraw. */
+.nb-chart-box {
+    position: relative;
+    height: 250px;
+    margin-block-start: 10px;
+}
+
+/* ── Alert panels ─────────────────────────────────────────────────────────── */
+
+.nb-alerts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr));
+    gap: 12px;
+}
+
+.nb-alert {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    overflow: hidden;
+}
+
+.nb-alert-head {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 16px;
+    border-block-end: 1px solid var(--nb-line);
+    background: var(--nb-surface-2);
+}
+
+.nb-alert-head h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--nb-fg);
+}
+
+.nb-alert-head .nb-spacer { flex: 1 1 auto; }
+.nb-alert-head a { font-size: 12px; }
+
+/* The count as a pill rather than bare text: it is a quantity, and at a glance
+   the reader needs to separate it from the panel title beside it. */
+.nb-alert-count {
+    display: inline-block;
+    min-width: 22px;
+    padding: 1px 8px;
+    border-radius: var(--nb-radius-pill);
+    background: var(--nb-muted-bg);
+    color: var(--nb-muted-fg);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A panel is "urgent" only when it has something in it — panels.py sets the
+   flag from the count, so an empty queue stays neutral and the red is reserved
+   for rows that actually need somebody. */
+.nb-alert.nb-urgent .nb-alert-head {
+    background: var(--nb-danger-bg);
+    border-block-end-color: var(--nb-danger-line);
+}
+
+.nb-alert.nb-urgent .nb-alert-head h4 { color: var(--nb-danger-fg); }
+
+/* -solid again: --nb-danger-fg is a light pink on dark, and white on that is
+   unreadable. */
+.nb-alert.nb-urgent .nb-alert-count {
+    background: var(--nb-danger-solid);
+    color: #ffffff;
+}
+
+.nb-alert table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.nb-alert th,
+.nb-alert td {
+    text-align: start;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-block-end: 1px solid var(--nb-line-soft);
+    max-width: 28ch;
+    overflow-wrap: anywhere;
+}
+
+.nb-alert th {
+    color: var(--nb-muted);
+    font-weight: 600;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.nb-alert tbody tr:last-child td { border-block-end: 0; }
+.nb-alert tbody tr:hover td { background: var(--selected-row); }
+
+.nb-alert-empty,
+.nb-alert-more {
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--nb-muted);
+}
+
+/* Keep the "and N more" line pinned to the bottom of a short panel so panels
+   of different lengths still end on a consistent edge in the grid. */
+.nb-alert-more { margin-block-start: auto; }
+
+/* ══ Moderation queue ═══════════════════════════════════════════════════════ */
+
+/* The review card is genuinely a one-off — it is the only place a reviewer has
+   to *read* free text before deciding, so it keeps its own layout. Only its
+   colours and radii are pulled onto the shared tokens. */
+.mq-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-block-end: 18px;
+}
+
+.mq-count {
+    font-size: 13px;
+    color: var(--nb-muted);
+}
+
+.mq-count strong { color: var(--nb-fg); }
+
+.mq-card {
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface);
+    box-shadow: var(--nb-shadow);
+    padding: 18px;
+    margin-block-end: 16px;
+}
+
+.mq-card.mq-flagged { border-inline-start: 4px solid var(--nb-warn-fg); }
+.mq-card.mq-flagged-high { border-inline-start: 4px solid var(--nb-danger-fg); }
+
+.mq-card-top {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.mq-logo,
+.mq-logo-empty {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--nb-radius-sm);
+    flex: 0 0 auto;
+}
+
+.mq-logo {
+    object-fit: cover;
+    border: 1px solid var(--nb-line);
+    background: var(--nb-surface-2);
+}
+
+.mq-logo-empty {
+    border: 1px dashed var(--nb-line);
+    background: var(--nb-surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--nb-muted);
+    font-size: 11px;
+}
+
+.mq-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--nb-fg);
+    margin: 0 0 4px;
+}
+
+.mq-meta {
+    font-size: 12px;
+    color: var(--nb-muted);
+    line-height: 1.9;
+}
+
+.mq-meta .mq-sep {
+    color: var(--nb-line-strong);
+    margin-inline: 6px;
+}
+
+.mq-fields {
+    margin-block-start: 14px;
+    padding-block-start: 12px;
+    border-block-start: 1px solid var(--nb-line-soft);
+}
+
+.mq-field {
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    padding-block: 3px;
+    align-items: flex-start;
+}
+
+.mq-field-label {
+    flex: 0 0 90px;
+    color: var(--nb-muted);
+    font-size: 12px;
+    padding-block-start: 2px;
+}
+
+.mq-field-value {
+    flex: 1 1 auto;
+    color: var(--nb-fg);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.mq-field-empty {
+    color: var(--nb-muted);
+    font-style: italic;
+}
+
+.mq-hits {
+    margin-block-start: 12px;
+    font-size: 12px;
+}
+
+.mq-hits-label { color: var(--nb-muted); }
+
+.mq-hit {
+    display: inline-block;
+    border-radius: var(--nb-radius-pill);
+    border: 1px solid transparent;
+    padding: 2px 10px;
+    margin-inline-end: 6px;
+    margin-block-end: 4px;
+    font-size: 11.5px;
+}
+
+.mq-hit-high {
+    background: var(--nb-danger-bg);
+    color: var(--nb-danger-fg);
+    border-color: var(--nb-danger-line);
+    font-weight: 600;
+}
+
+.mq-hit-low {
+    background: var(--nb-warn-bg);
+    color: var(--nb-warn-fg);
+    border-color: var(--nb-warn-line);
+}
+
+.mq-actions {
+    margin-block-start: 16px;
+    padding-block-start: 14px;
+    border-block-start: 1px solid var(--nb-line-soft);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.mq-actions form {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+.mq-note {
+    min-width: 280px;
+    min-height: 36px;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius-sm);
+    background: var(--nb-surface);
+    color: var(--nb-fg);
+    font-family: inherit;
+}
+
+.mq-note:focus {
+    outline: none;
+    border-color: var(--nb-brand);
+    box-shadow: 0 0 0 3px var(--nb-info-bg);
+}
+
+.mq-btn {
+    border: 0;
+    border-radius: var(--nb-radius-sm);
+    padding: 9px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    transition: background 0.15s ease;
+}
+
+.mq-approve { background: #15803d; }
+.mq-approve:hover { background: #166534; }
+.mq-reject { background: #b02a2a; }
+.mq-reject:hover { background: #911f1f; }
+
+.mq-empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--nb-muted);
+    border: 1px dashed var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface-2);
+}
+
+.mq-warn { font-size: 12px; color: var(--nb-danger-fg); }

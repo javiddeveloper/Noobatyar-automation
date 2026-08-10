@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   The moderation review queue.
 
   Card layout rather than a changelist table: a reviewer has to *read* the copy
@@ -12,56 +12,11 @@
 
   Spacing/alignment uses logical properties (inline-start/end, margin-inline)
   so it follows the admin's dir=rtl without a second RTL stylesheet.
---------------------------------------------------------------------------- #}
 
-{% block extrastyle %}{{ block.super }}
-<style>
-  .mq-head { display:flex; flex-wrap:wrap; gap:12px; align-items:center;
-             margin-block-end:18px; }
-  .mq-count { font-size:13px; color:#555; }
-  .mq-card { border:1px solid #ddd; border-radius:8px; padding:16px;
-             margin-block-end:16px; background:#fff; }
-  .mq-card.mq-flagged { border-inline-start:5px solid #e0a800; }
-  .mq-card.mq-flagged-high { border-inline-start:5px solid #b02a2a; }
-  .mq-card-top { display:flex; gap:14px; align-items:flex-start;
-                 flex-wrap:wrap; }
-  .mq-logo { width:72px; height:72px; border-radius:8px; object-fit:cover;
-             border:1px solid #e3e3e3; flex:0 0 auto; background:#fafafa; }
-  .mq-logo-empty { width:72px; height:72px; border-radius:8px;
-                   border:1px dashed #ccc; display:flex; align-items:center;
-                   justify-content:center; color:#aaa; font-size:11px;
-                   flex:0 0 auto; }
-  .mq-title { font-size:16px; font-weight:700; margin:0 0 4px; }
-  .mq-meta { font-size:12px; color:#666; line-height:1.9; }
-  .mq-meta .mq-sep { color:#ccc; margin-inline:6px; }
-  .mq-fields { margin-block-start:12px; border-top:1px solid #f0f0f0;
-               padding-block-start:10px; }
-  .mq-field { display:flex; gap:8px; font-size:13px; padding-block:3px;
-              align-items:flex-start; }
-  .mq-field-label { flex:0 0 90px; color:#777; font-size:12px;
-                    padding-block-start:2px; }
-  .mq-field-value { flex:1 1 auto; white-space:pre-wrap; word-break:break-word; }
-  .mq-hits { margin-block-start:10px; font-size:12px; }
-  .mq-hit { display:inline-block; border-radius:10px; padding:2px 8px;
-            margin-inline-end:6px; margin-block-end:4px; }
-  .mq-hit-high { background:#fbdddd; color:#8b1a1a; font-weight:600; }
-  .mq-hit-low  { background:#fff3cd; color:#7a5c00; }
-  .mq-actions { margin-block-start:14px; display:flex; gap:10px;
-                flex-wrap:wrap; align-items:flex-start;
-                border-top:1px solid #f0f0f0; padding-block-start:12px; }
-  .mq-actions form { display:flex; gap:8px; align-items:flex-start;
-                     flex-wrap:wrap; margin:0; }
-  .mq-note { min-width:260px; min-height:34px; font-size:13px; padding:6px;
-             border:1px solid #ccc; border-radius:4px; font-family:inherit; }
-  .mq-btn { border:0; border-radius:4px; padding:8px 18px; cursor:pointer;
-            font-size:13px; font-weight:600; color:#fff; }
-  .mq-approve { background:#1a7a45; }
-  .mq-reject  { background:#a52a2a; }
-  .mq-empty { padding:40px; text-align:center; color:#777; border:1px dashed #ddd;
-              border-radius:8px; }
-  .mq-warn { font-size:12px; color:#8b1a1a; }
-</style>
-{% endblock %}
+  The `mq-` rules live in admin_custom/css/report.css alongside the shared
+  components, so the review card reads its colours from the same tokens as
+  every other page and survives the admin's dark toggle.
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block content %}
 <div id="content-main">
@@ -77,9 +32,9 @@
     </a>
   </div>
 
-  {# Keyword hits only flag for a human — they never reject anything on their
+  {% comment %} Keyword hits only flag for a human — they never reject anything on their
      own. Saying so on the page keeps reviewers from treating a badge as a
-     verdict. #}
+     verdict. {% endcomment %}
   <p class="help" style="margin-block-end:16px">
     کلیدواژه‌های نشانه‌گذاری‌شده فقط برای جلب توجه شما هستند و به‌تنهایی دلیل رد کردن نیستند.
     تصمیم نهایی با شماست.
@@ -125,13 +80,13 @@
             <div class="mq-field-value">{{ field.html }}</div>
           </div>
         {% empty %}
-          <div class="mq-field"><em style="color:#999">هیچ محتوایی برای بررسی وارد نشده است.</em></div>
+          <div class="mq-field"><em class="mq-field-empty">هیچ محتوایی برای بررسی وارد نشده است.</em></div>
         {% endfor %}
       </div>
 
       {% if card.matches %}
         <div class="mq-hits">
-          <span style="color:#777">کلیدواژه‌های یافت‌شده:</span>
+          <span class="mq-hits-label">کلیدواژه‌های یافت‌شده:</span>
           {% for match in card.matches %}
             <span class="mq-hit {% if match.severity == 'HIGH' %}mq-hit-high{% else %}mq-hit-low{% endif %}">
               {{ match.term }} — در {{ match.field_label }}
@@ -141,8 +96,8 @@
       {% endif %}
 
       <div class="mq-actions">
-        {# Two separate POST forms. Approve carries no note field at all, so an
-           accidental Enter in the reject textarea can never submit an approval. #}
+        {% comment %} Two separate POST forms. Approve carries no note field at all, so an
+           accidental Enter in the reject textarea can never submit an approval. {% endcomment %}
         <form method="post" action="{{ card.decide_url }}">
           {% csrf_token %}
           <input type="hidden" name="decision" value="approve">
@@ -154,8 +109,8 @@
           {% csrf_token %}
           <input type="hidden" name="decision" value="reject">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          {# `required` is a convenience only; the server rejects an empty note
-             regardless — the browser check is trivially bypassed. #}
+          {% comment %} `required` is a convenience only; the server rejects an empty note
+             regardless — the browser check is trivially bypassed. {% endcomment %}
           <textarea name="note" class="mq-note" rows="1" required
                     placeholder="دلیل رد کردن (الزامی — برای مالک ارسال می‌شود)"></textarea>
           <button type="submit" class="mq-btn mq-reject">رد</button>

@@ -1,21 +1,41 @@
 {% extends "admin/base.html" %}
 {% load i18n static %}
 
-{# Overrides django/contrib/admin/templates/admin/base_site.html. It extends
+{% comment %} Overrides django/contrib/admin/templates/admin/base_site.html. It extends
    admin/base.html rather than admin/base_site.html on purpose: this file *is*
    admin/base_site.html as far as the loader is concerned (TEMPLATES DIRS is
    searched before app dirs), so extending that name would recurse into itself.
    The three blocks below are therefore copies of the stock ones, with the
-   Persian font/stylesheet added in extrastyle. #}
+   Persian font/stylesheet added in extrastyle. {% endcomment %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block extrastyle %}{{ block.super }}
   <link rel="stylesheet" href="{% static 'admin_custom/css/admin.css' %}">
+  {% comment %} report.css after admin.css: it owns the design tokens and re-points a few
+     of Django's own colour variables at the Noobatyar palette, so it has to
+     come last of the three (base.css → admin.css → report.css). {% endcomment %}
+  <link rel="stylesheet" href="{% static 'admin_custom/css/report.css' %}">
 {% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% comment %} The mark is inlined rather than <img>-ed so the ring and tick can inherit
+   `currentColor` from the header (brand/noobatyar-mark.svg is authored for
+   exactly that); the amber dot stays fixed because it is the one brand accent.
+   Inlining also costs no extra request on every admin page load. {% endcomment %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">
+    <svg class="nb-mark" viewBox="78 90 356 356" aria-hidden="true" focusable="false">
+      <path d="M337.64 156.96A146 146 0 1 1 174.36 156.96"
+            fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+      <path d="M191 276L234 323L327 221"
+            fill="none" stroke="currentColor" stroke-width="36"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="256" cy="122" r="28" fill="#F59E0B"/>
+    </svg>
+    <span>{{ site_header|default:_('Django administration') }}</span>
+  </a>
+</h1>
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}

@@ -1,6 +1,6 @@
 {% extends "admin/base_site.html" %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   Confirmation step for the bulk رد / تعلیق changelist actions.
 
   It exists to collect the reason. A bulk decision reaches just as many owners
@@ -9,7 +9,7 @@
   The form posts straight back to the changelist with `action` and the original
   `_selected_action` checkboxes, which is how Django's action machinery
   re-enters the same action with `apply` set.
---------------------------------------------------------------------------- #}
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block content %}
 <div id="content-main">
@@ -23,7 +23,7 @@
       {% for business in queryset %}
         <li>
           <strong>{{ business.title }}</strong>
-          <span style="color:#888">({{ business.unique_code }} — {{ business.user.phone }})</span>
+          <span class="nb-meta">({{ business.unique_code }} — {{ business.user.phone }})</span>
         </li>
       {% endfor %}
     </ul>

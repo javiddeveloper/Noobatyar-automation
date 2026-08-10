@@ -1,11 +1,11 @@
 {% extends "admin/change_list.html" %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   Adds the SMS report entry point to the SmsLog changelist's object-tools —
   same pattern as accounting/templates/admin/accounting/transaction/change_list.html
   and business/templates/admin/business/business/change_list.html.
   `sms_report_url` comes from SmsLogAdmin.changelist_view().
---------------------------------------------------------------------------- #}
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block object-tools-items %}
   <li>

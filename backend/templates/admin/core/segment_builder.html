@@ -1,6 +1,6 @@
 {% extends "admin/base_site.html" %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   Audience segment builder (core.admin_site.NobatyarAdminSite.segment_builder_view).
 
   Plain GET-form + server round-trip, same pattern as
@@ -10,54 +10,64 @@
   export triggered blind. Exporting is a *separate* link built from the same
   querystring (`export_url`), gated on a different, stricter permission than
   viewing this page — see segment_export_view()'s docstring for why.
---------------------------------------------------------------------------- #}
+
+  Tabs, filter bar, tiles and tables come from admin_custom/css/report.css,
+  which base_site.html loads on every admin page. The only rule this template
+  still needs for itself is the save-form strip at the bottom, which has no
+  counterpart anywhere else in the admin.
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block extrastyle %}{{ block.super }}
 <style>
-  .sg-tabs { display:flex; gap:8px; margin-block-end:16px; }
-  .sg-tab { padding:6px 16px; border-radius:16px; border:1px solid #ccc; text-decoration:none;
-            color:#333; font-size:13px; }
-  .sg-tab.active { background:#417690; color:#fff; border-color:#417690; }
-  .sg-filters { display:flex; flex-wrap:wrap; gap:14px; align-items:end; padding:14px;
-                background:#f8f8f8; border:1px solid #e3e3e3; border-radius:8px; margin-block-end:16px; }
-  .sg-filters label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:#555; }
-  .sg-filters input[type=text], .sg-filters input[type=number], .sg-filters select {
-    padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-family:inherit; min-width:120px; }
-  .sg-filters input[direction-ltr] { direction:ltr; }
-  .sg-checkbox { flex-direction:row !important; align-items:center; gap:6px !important; }
-  .sg-filters .button { align-self:end; }
-  .sg-counts { display:flex; flex-wrap:wrap; gap:14px; margin-block-end:16px; }
-  .sg-card { border:1px solid #ddd; border-radius:8px; padding:12px 16px; min-width:160px; background:#fff; }
-  .sg-card-title { font-size:12px; color:#666; margin-block-end:6px; }
-  .sg-card-value { font-size:22px; font-weight:700; direction:ltr; text-align:end; }
-  .sg-warn { border:1px solid #e0a800; background:#fff8e6; border-radius:8px; padding:10px 14px;
-             font-size:12px; color:#7a5c00; margin-block-end:16px; }
-  .sg-table { width:100%; border-collapse:collapse; background:#fff; margin-block-end:16px; }
-  .sg-table th, .sg-table td { border:1px solid #e6e6e6; padding:6px 10px; font-size:13px; }
-  .sg-table th { background:#fafafa; text-align:start; }
-  .sg-section { margin-block-end:24px; }
-  .sg-save { display:flex; gap:10px; align-items:end; padding:12px; border:1px dashed #ccc; border-radius:8px; }
-  .sg-note { font-size:12px; color:#666; }
-  .sg-error { color:#8b1a1a; }
+  /* Dashed rather than solid, and no shadow: this box is a *form*, not a
+     result, and it sits directly under the numbers it would save. The dashed
+     edge is what keeps a reader from scanning it as one more data panel. */
+  .sg-save {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border: 1px dashed var(--nb-line);
+    border-radius: var(--nb-radius);
+    background: var(--nb-surface-2);
+  }
+  .sg-save form { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 0; }
+  .sg-save label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--nb-muted); }
+  .sg-save input[type=text] {
+    padding: 7px 10px;
+    border: 1px solid var(--nb-line);
+    border-radius: var(--nb-radius-sm);
+    background: var(--nb-surface);
+    color: var(--nb-fg);
+    font-family: inherit;
+    font-size: 13px;
+    min-width: 220px;
+  }
+  .sg-save input[type=text]:focus {
+    outline: none;
+    border-color: var(--nb-brand);
+    box-shadow: 0 0 0 3px var(--nb-info-bg);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="content-main">
 
-  <div class="sg-tabs">
-    <a class="sg-tab {% if kind == 'visitor' %}active{% endif %}" href="?kind=visitor">مراجعان (Visitor)</a>
-    <a class="sg-tab {% if kind == 'owner' %}active{% endif %}" href="?kind=owner">صاحبان کسب‌وکار (Owner)</a>
+  <div class="nb-tabs">
+    <a class="nb-tab {% if kind == 'visitor' %}active{% endif %}" href="?kind=visitor">مراجعان (Visitor)</a>
+    <a class="nb-tab {% if kind == 'owner' %}active{% endif %}" href="?kind=owner">صاحبان کسب‌وکار (Owner)</a>
   </div>
 
-  {% if error %}<p class="errornote sg-error">{{ error }}</p>{% endif %}
+  {% if error %}<p class="errornote">{{ error }}</p>{% endif %}
 
-  <form method="get" class="sg-filters">
+  <form method="get" class="nb-filters">
     <input type="hidden" name="kind" value="{{ kind }}">
 
     {% if kind == 'visitor' %}
       <label>کسب‌وکار (شناسه‌ها، با کاما)
-        <input type="text" name="business_ids" value="{{ params.business_ids }}" direction-ltr placeholder="1,2,3">
+        <input type="text" name="business_ids" value="{{ params.business_ids }}" class="nb-in-ltr" placeholder="1,2,3">
       </label>
       <label>دسته‌ی کسب‌وکار
         <select name="business_category">
@@ -74,10 +84,10 @@
         </select>
       </label>
       <label>از تاریخ (شمسی)
-        <input type="text" name="appointment_date_from" value="{{ params.appointment_date_from }}" direction-ltr placeholder="۱۴۰۴/۰۱/۰۱">
+        <input type="text" name="appointment_date_from" value="{{ params.appointment_date_from }}" class="nb-in-ltr" placeholder="۱۴۰۴/۰۱/۰۱">
       </label>
       <label>تا تاریخ (شمسی)
-        <input type="text" name="appointment_date_to" value="{{ params.appointment_date_to }}" direction-ltr placeholder="۱۴۰۴/۰۶/۰۱">
+        <input type="text" name="appointment_date_to" value="{{ params.appointment_date_to }}" class="nb-in-ltr" placeholder="۱۴۰۴/۰۶/۰۱">
       </label>
       <label>حداقل تعداد نوبت
         <input type="number" name="min_appointment_count" value="{{ params.min_appointment_count }}" min="1">
@@ -101,7 +111,7 @@
       <label>بدون نوبت جدید طی (روز)
         <input type="number" name="not_booked_days" value="{{ params.not_booked_days }}" min="1" placeholder="۶۰">
       </label>
-      <label class="sg-checkbox">
+      <label class="nb-check">
         <input type="checkbox" name="exclude_opted_out" value="1" {% if exclude_opted_out %}checked{% endif %}>
         حذف مراجعان انصراف‌داده از بازاریابی
       </label>
@@ -145,7 +155,7 @@
   </form>
 
   {% if kind == 'owner' and params.low_wallet_below %}
-    <div class="sg-warn">
+    <div class="nb-callout nb-callout--warn">
       فیلتر «کیف‌پول کمتر از» وضعیت لحظه‌ای Redis را می‌خواند، نه یک عکس ثابت — اگر این
       گروه ذخیره و بعداً دوباره اجرا شود، همان لحظه‌ی اجرا دوباره خوانده می‌شود و ممکن است
       نتیجه با بار قبل فرق کند (مثلاً مالکی که کیف‌پولش را شارژ کرده دیگر در گروه نیست).
@@ -153,43 +163,48 @@
   {% endif %}
 
   {% if counts %}
-    <div class="sg-counts">
+    {% comment %} «نتیجه‌ی نهایی» is the number the export is built from, so it is the one
+       that keeps the brand accent; the two figures leading up to it are
+       working, and go quiet. {% endcomment %}
+    <div class="nb-stats">
       {% if kind == 'visitor' %}
-        <div class="sg-card"><div class="sg-card-title">مطابق فیلتر (پیش از رعایت انصراف)</div>
-          <div class="sg-card-value">{{ counts.total_before_consent }}</div></div>
-        <div class="sg-card"><div class="sg-card-title">انصراف‌داده و حذف‌شده</div>
-          <div class="sg-card-value">{{ counts.opted_out_excluded }}</div></div>
-        <div class="sg-card"><div class="sg-card-title">نتیجه‌ی نهایی</div>
-          <div class="sg-card-value">{{ counts.included }}</div></div>
+        <div class="nb-stat nb-stat--quiet"><div class="nb-stat-title">مطابق فیلتر (پیش از رعایت انصراف)</div>
+          <div class="nb-stat-value">{{ counts.total_before_consent }}</div></div>
+        <div class="nb-stat nb-stat--quiet"><div class="nb-stat-title">انصراف‌داده و حذف‌شده</div>
+          <div class="nb-stat-value">{{ counts.opted_out_excluded }}</div></div>
+        <div class="nb-stat"><div class="nb-stat-title">نتیجه‌ی نهایی</div>
+          <div class="nb-stat-value">{{ counts.included }}</div></div>
       {% else %}
-        <div class="sg-card"><div class="sg-card-title">نتیجه‌ی نهایی</div>
-          <div class="sg-card-value">{{ counts.included }}</div></div>
+        <div class="nb-stat"><div class="nb-stat-title">نتیجه‌ی نهایی</div>
+          <div class="nb-stat-value">{{ counts.included }}</div></div>
       {% endif %}
     </div>
 
-    <p class="sg-note">
+    <div class="nb-callout">
       این عدد همیشه لحظه‌ای محاسبه می‌شود — گروه ذخیره‌شده یک فیلتر است، نه یک عکسِ ثابت
       از نتیجه؛ هر بار که اجرا شود دوباره روی داده‌ی فعلی حساب می‌شود.
-    </p>
+    </div>
 
     {% if can_export %}
-      <div class="sg-section">
+      <div class="nb-section">
         <h3>پیش‌نمایش (حداکثر ۲۰ ردیف اول)</h3>
         {% if preview_rows %}
-          <table class="sg-table">
-            <thead><tr><th>نام</th><th>تلفن</th></tr></thead>
-            <tbody>
-              {% for row in preview_rows %}
-                {% if kind == 'visitor' %}
-                  <tr><td>{{ row.full_name }}</td><td style="direction:ltr;text-align:end">{{ row.phone_number }}</td></tr>
-                {% else %}
-                  <tr><td>{{ row.name }}</td><td style="direction:ltr;text-align:end">{{ row.phone }}</td></tr>
-                {% endif %}
-              {% endfor %}
-            </tbody>
-          </table>
+          <div class="nb-table-wrap">
+            <table class="nb-table">
+              <thead><tr><th>نام</th><th>تلفن</th></tr></thead>
+              <tbody>
+                {% for row in preview_rows %}
+                  {% if kind == 'visitor' %}
+                    <tr><td>{{ row.full_name }}</td><td class="ltr">{{ row.phone_number }}</td></tr>
+                  {% else %}
+                    <tr><td>{{ row.name }}</td><td class="ltr">{{ row.phone }}</td></tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         {% else %}
-          <div class="sg-note">هیچ ردیفی با این فیلتر مطابقت ندارد.</div>
+          <div class="nb-empty">هیچ ردیفی با این فیلتر مطابقت ندارد.</div>
         {% endif %}
       </div>
     {% endif %}
@@ -197,14 +212,14 @@
     {% if can_export and export_url %}
       <p><a class="button" href="{{ export_url }}">خروجی CSV ({{ counts.included }} ردیف)</a></p>
     {% elif not can_export %}
-      <p class="sg-note">
+      <p class="nb-note">
         دسترسی خروجی PII (core.export_pii) را ندارید — فقط شمارش کلی گروه قابل مشاهده
         است، نه نام/تلفن تک‌تک افراد.
       </p>
     {% endif %}
 
     {% if can_save %}
-      <div class="sg-section sg-save">
+      <div class="nb-section sg-save">
         <form method="post" action="{% url 'admin:core_segment_save' %}">
           {% csrf_token %}
           <input type="hidden" name="kind" value="{{ kind }}">
@@ -221,25 +236,27 @@
     {% endif %}
   {% endif %}
 
-  <div class="sg-section">
+  <div class="nb-section">
     <h3>گروه‌های مخاطب ذخیره‌شده ({{ kind }})</h3>
     {% if saved_segments %}
-      <table class="sg-table">
-        <thead><tr><th>نام</th><th>ساخته‌شده توسط</th><th>تاریخ ساخت</th><th>آخرین اجرا</th><th></th></tr></thead>
-        <tbody>
-          {% for seg in saved_segments %}
-            <tr>
-              <td>{{ seg.name }}</td>
-              <td>{{ seg.created_by.name|default:"—" }}</td>
-              <td class="num">{{ seg.created_at|date:"Y-m-d" }}</td>
-              <td class="num">{{ seg.last_run_at|date:"Y-m-d H:i"|default:"—" }}</td>
-              <td><a href="{% url 'admin:core_segment_run' seg.id %}">اجرا ←</a></td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="nb-table-wrap">
+        <table class="nb-table">
+          <thead><tr><th>نام</th><th>ساخته‌شده توسط</th><th>تاریخ ساخت</th><th>آخرین اجرا</th><th></th></tr></thead>
+          <tbody>
+            {% for seg in saved_segments %}
+              <tr>
+                <td>{{ seg.name }}</td>
+                <td>{{ seg.created_by.name|default:"—" }}</td>
+                <td class="num">{{ seg.created_at|date:"Y-m-d" }}</td>
+                <td class="num">{{ seg.last_run_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                <td><a href="{% url 'admin:core_segment_run' seg.id %}">اجرا ←</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
-      <div class="sg-note">هنوز گروه مخاطبی برای این نوع ذخیره نشده است.</div>
+      <div class="nb-empty">هنوز گروه مخاطبی برای این نوع ذخیره نشده است.</div>
     {% endif %}
   </div>
 

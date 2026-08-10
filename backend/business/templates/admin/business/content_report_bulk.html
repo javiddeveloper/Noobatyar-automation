@@ -1,6 +1,6 @@
 {% extends "admin/base_site.html" %}
 
-{# ---------------------------------------------------------------------------
+{% comment %} ---------------------------------------------------------------------------
   Confirmation step for the bulk «اقدام شد» / «رد شد» ContentReport actions.
 
   Mirrors moderation_bulk.html: resolving a report without recording why is an
@@ -8,7 +8,7 @@
   recover from, so a note is required the same way it is for reject/suspend.
   The form posts back to the changelist with `action` and the original
   `_selected_action` checkboxes, re-entering the action with `apply` set.
---------------------------------------------------------------------------- #}
+--------------------------------------------------------------------------- {% endcomment %}
 
 {% block content %}
 <div id="content-main">
@@ -22,7 +22,7 @@
       {% for report in queryset %}
         <li>
           <strong>{{ report.business.title }}</strong>
-          <span style="color:#888">({{ report.get_reason_display }})</span>
+          <span class="nb-meta">({{ report.get_reason_display }})</span>
         </li>
       {% endfor %}
     </ul>

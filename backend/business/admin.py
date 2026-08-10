@@ -55,23 +55,23 @@ MODERATED_FIELD_LABELS = {
     'logo': 'لوگو',
 }
 
-# (text colour, background). Inline styles rather than a stylesheet: these are
-# a handful of badges and another agent owns the admin CSS bundle — adding rules
-# there from here would be two owners on one file.
+# Modifier suffixes, not colours. These used to be (fg, bg) hex pairs baked
+# into an inline style, which meant every badge in the changelist stayed
+# light-mode-only and turned into dark-on-dark under the admin's theme toggle.
+# The classes are defined once in admin_custom/css/report.css and carry a value
+# for both themes; an empty string is the neutral variant.
 _STATUS_BADGE = {
-    Business.MODERATION_PENDING:   ('#7a5c00', '#fff3cd'),
-    Business.MODERATION_APPROVED:  ('#0b6b34', '#d9f2e3'),
-    Business.MODERATION_REJECTED:  ('#8b1a1a', '#fbdddd'),
-    Business.MODERATION_SUSPENDED: ('#3d3d3d', '#e4e4e4'),
+    Business.MODERATION_PENDING:   'warn',
+    Business.MODERATION_APPROVED:  'ok',
+    Business.MODERATION_REJECTED:  'danger',
+    Business.MODERATION_SUSPENDED: '',
 }
 
 
-def _badge(label, fg, bg):
-    return format_html(
-        '<span style="display:inline-block;padding:2px 8px;border-radius:10px;'
-        'font-size:11px;font-weight:600;white-space:nowrap;color:{};background:{}">{}</span>',
-        fg, bg, label,
-    )
+def _badge(label, variant=''):
+    """One `.nb-badge` pill; ``variant`` is 'ok' / 'warn' / 'danger' / '' ."""
+    css = 'nb-badge nb-badge--%s' % variant if variant else 'nb-badge'
+    return format_html('<span class="{}">{}</span>', css, label)
 
 
 def _highlight(text, terms):
@@ -90,7 +90,7 @@ def _highlight(text, terms):
     for start, end in spans:
         out.append(escape(text[cursor:start]))
         out.append(format_html(
-            '<mark style="background:#ffe08a;padding:0 2px;border-radius:3px">{}</mark>',
+            '<mark class="nb-mark-hit">{}</mark>',
             text[start:end],
         ))
         cursor = end
@@ -204,14 +204,19 @@ class BusinessAdmin(admin.ModelAdmin):
 
     @admin.display(description='بررسی محتوا', ordering='moderation_status')
     def moderation_badge(self, obj):
-        fg, bg = _STATUS_BADGE.get(obj.moderation_status, ('#3d3d3d', '#e4e4e4'))
-        return _badge(obj.get_moderation_status_display(), fg, bg)
+        return _badge(
+            obj.get_moderation_status_display(),
+            _STATUS_BADGE.get(obj.moderation_status, ''),
+        )
 
     @admin.display(description='وضعیت پلن', ordering='is_locked')
     def lock_badge(self, obj):
         if obj.is_locked:
-            return _badge('🔒 قفل‌شده (سهمیهٔ پلن)', '#8b1a1a', '#fbdddd')
-        return format_html('<span style="color:#6b6b6b;font-size:11px">فعال</span>')
+            return _badge('🔒 قفل‌شده (سهمیهٔ پلن)', 'danger')
+        # Not a badge: "فعال" is the unremarkable state, and pilling it would
+        # give the normal case the same visual weight as the one that needs
+        # somebody to act.
+        return format_html('<span class="nb-quiet">فعال</span>')
 
     # ── Custom URLs ───────────────────────────────────────────────────────
 
@@ -526,8 +531,8 @@ class BannedKeywordAdmin(admin.ModelAdmin):
     @admin.display(description='شدت', ordering='severity')
     def severity_badge(self, obj):
         if obj.severity == BannedKeyword.SEVERITY_HIGH:
-            return _badge('زیاد', '#8b1a1a', '#fbdddd')
-        return _badge('کم', '#7a5c00', '#fff3cd')
+            return _badge('زیاد', 'danger')
+        return _badge('کم', 'warn')
 
 
 @admin.register(ContentReport)
@@ -582,20 +587,19 @@ class ContentReportAdmin(admin.ModelAdmin):
     def business_link(self, obj):
         url = reverse('admin:business_business_change', args=[obj.business_id])
         return format_html(
-            '<a href="{}">{}</a> <span style="color:#888">({})</span>',
+            '<a href="{}">{}</a> <span class="nb-quiet">({})</span>',
             url, obj.business.title, obj.business.get_moderation_status_display(),
         )
 
     @admin.display(description='وضعیت', ordering='status')
     def status_badge(self, obj):
-        palette = {
-            ContentReport.STATUS_NEW:       ('#8b1a1a', '#fbdddd'),
-            ContentReport.STATUS_REVIEWING: ('#7a5c00', '#fff3cd'),
-            ContentReport.STATUS_ACTIONED:  ('#0b6b34', '#d9f2e3'),
-            ContentReport.STATUS_DISMISSED: ('#3d3d3d', '#e4e4e4'),
+        variants = {
+            ContentReport.STATUS_NEW:       'danger',
+            ContentReport.STATUS_REVIEWING: 'warn',
+            ContentReport.STATUS_ACTIONED:  'ok',
+            ContentReport.STATUS_DISMISSED: '',
         }
-        fg, bg = palette.get(obj.status, ('#3d3d3d', '#e4e4e4'))
-        return _badge(obj.get_status_display(), fg, bg)
+        return _badge(obj.get_status_display(), variants.get(obj.status, ''))
 
     @admin.display(description='گزارش‌دهنده')
     def reporter_display(self, obj):

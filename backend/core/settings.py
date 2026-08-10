@@ -33,6 +33,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # For `intcomma` in the admin report templates. Toman amounts run to eight
+    # digits, and "15501000" is not a number anybody reads off a financial
+    # report correctly at a glance. No models, no migrations.
+    'django.contrib.humanize',
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',

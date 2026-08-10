@@ -7,8 +7,12 @@
  * degrade gracefully — it would just leave staff staring at a fallback face
  * with broken Persian shaping.
  *
- * Deliberately small. This is internal tooling; it should stay recognisably
- * "the Django admin" so upstream template/CSS changes keep working.
+ * Scope: the *stock* admin — typography, bidi, changelists, forms. The pages
+ * we add ourselves (dashboard, reports, 360 views, moderation queue) are
+ * styled by report.css, which is loaded straight after this file and owns the
+ * design tokens. Keeping the split means this file stays a thin readability
+ * layer over upstream, so a Django upgrade that restyles the changelist keeps
+ * working.
  */
 
 /* ── Vazirmatn (SIL OFL 1.1, see ../fonts/OFL.txt) ─────────────────────────── */
@@ -125,229 +129,111 @@ input[type='number'], input[type='tel'], input[type='url'], input[type='email'],
     font-weight: 500;
 }
 
-/* ── Dashboard (admin index) ───────────────────────────────────────────────── */
-/* Every colour below is one of Django's own admin CSS custom properties. That
-   is not a shortcut: base.css redefines the same variables under
-   `prefers-color-scheme: dark` and under the manual theme toggle, so borrowing
-   them means the dashboard follows the admin's light/dark theme for free. A
-   literal #fff here would produce white cards on a dark page. Fallbacks are
-   given for the case where a future upgrade renames one. */
-
-.nb-dash {
-    margin-block-end: 26px;
-}
-
-.nb-dash-head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: baseline;
-    margin-block-end: 14px;
-}
-
-.nb-dash-head h2 {
-    margin: 0;
-    font-size: 16px;
-}
-
-.nb-dash-meta {
-    font-size: 12px;
-    color: var(--body-quiet-color, #666);
-}
-
-.nb-dash-head .nb-spacer { flex: 1 1 auto; }
-
-/* Section heading between the card groups. Not an <h2 class="module"> because
-   these sit outside a .module box and would pick up its full-width bar. */
-.nb-dash h3 {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--body-quiet-color, #666);
-    margin: 18px 0 8px;
-}
-
-/* auto-fill, not auto-fit: with three cards on a wide screen auto-fit stretches
-   each to a third of the viewport and the four windows inside drift apart.
+/* ── Stock surfaces ────────────────────────────────────────────────────────── */
+/* A light pass over the boxes Django draws itself, so the app list and the
+   change forms sit in the same visual language as the pages we add. Tokens
+   come from report.css; custom properties resolve at use time, so the load
+   order between the two files does not matter.
  *
- * Every grid below wraps its track floor in `min(Npx, 100%)`. A bare
- * `minmax(380px, 1fr)` is a *hard* floor: on a 375px phone the track still
- * measures 380px and pushes the whole admin sideways. `min()` lets the track
- * collapse to the container instead. */
-.nb-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
-    gap: 12px;
-}
-
-.nb-card {
-    border: 1px solid var(--hairline-color, #e0e0e0);
-    border-radius: 8px;
-    padding: 12px 14px;
-    background: var(--body-bg, #fff);
-}
-
-.nb-card-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin-block-end: 2px;
-}
-
-.nb-card-unit {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--body-quiet-color, #666);
-    margin-inline-start: 4px;
-}
-
-.nb-card-hint {
-    font-size: 11px;
-    color: var(--body-quiet-color, #666);
-    line-height: 1.6;
-    margin-block-end: 8px;
-}
-
-.nb-cells {
-    display: flex;
-    gap: 6px;
-}
-
-.nb-cell {
-    flex: 1 1 0;
-    min-width: 0;
-    text-align: center;
-    padding: 6px 2px;
-    border-radius: 6px;
-    background: var(--darkened-bg, #f6f6f6);
-}
-
-.nb-cell-label {
-    display: block;
-    font-size: 10.5px;
-    color: var(--body-quiet-color, #666);
-}
-
-/* The figures are Latin digits inside an RTL page — isolate them so the bidi
-   algorithm cannot reorder a thousands separator to the wrong end. */
-.nb-cell-value {
-    display: block;
-    font-size: 14px;
-    font-weight: 700;
-    direction: ltr;
-    unicode-bidi: isolate;
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-}
-
-/* Standing totals: one big number, not a four-window row. */
-.nb-status {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
-    gap: 12px;
-}
-
-.nb-status-card {
-    display: block;
-    border: 1px solid var(--hairline-color, #e0e0e0);
-    border-radius: 8px;
-    padding: 12px 14px;
-    background: var(--body-bg, #fff);
-    text-decoration: none;
-    color: inherit;
-}
-
-.nb-status-card:hover { border-color: var(--primary, #79aec8); }
-
-.nb-status-card.nb-urgent { border-inline-start: 5px solid #b02a2a; }
-
-.nb-status-value {
-    display: block;
-    font-size: 26px;
-    font-weight: 700;
-    line-height: 1.3;
-    direction: ltr;
-    unicode-bidi: isolate;
-    font-variant-numeric: tabular-nums;
-}
-
-.nb-charts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
-    gap: 12px;
-}
-
-.nb-chart {
-    border: 1px solid var(--hairline-color, #e0e0e0);
-    border-radius: 8px;
-    padding: 12px 14px;
-    background: var(--body-bg, #fff);
-}
-
-/* The canvas is sized by Chart.js from its parent, and `responsive` needs a
-   parent with a resolved height or the chart grows without bound on redraw. */
-.nb-chart-box {
-    position: relative;
-    height: 240px;
-}
-
-.nb-alerts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr));
-    gap: 12px;
-}
-
-.nb-alert {
-    border: 1px solid var(--hairline-color, #e0e0e0);
-    border-radius: 8px;
-    background: var(--body-bg, #fff);
+ * Radius and hairlines only — no layout changes. Everything here is a property
+ * Django sets on a class it owns, which means an upgrade that restructures the
+ * markup degrades to "square corners", never to a broken page. */
+.module,
+#changelist .results,
+#changelist-filter,
+.inline-group {
+    border-radius: var(--nb-radius, 12px);
     overflow: hidden;
 }
 
-.nb-alert.nb-urgent { border-inline-start: 5px solid #b02a2a; }
-
-.nb-alert-head {
-    display: flex;
-    gap: 8px;
-    align-items: baseline;
-    padding: 10px 14px;
-    border-block-end: 1px solid var(--hairline-color, #e0e0e0);
-    background: var(--darkened-bg, #f6f6f6);
+.module {
+    border: 1px solid var(--nb-line, #e6e5ec);
+    box-shadow: var(--nb-shadow, none);
 }
 
-.nb-alert-head h4 { margin: 0; font-size: 13px; font-weight: 700; }
-
-.nb-alert-count {
-    font-size: 12px;
-    font-weight: 700;
-    direction: ltr;
-    unicode-bidi: isolate;
+/* Django gives .module h2 the full-width primary bar. Toning it down to the
+   quiet surface keeps twelve stacked app modules from reading as twelve
+   headline banners competing for attention.
+ *
+ * letter-spacing must go back to `normal`: base.css tracks the caption out by
+ * 0.5px for its uppercase Latin, and tracking applied to Arabic script pulls
+ * the joined letters of a Persian app name apart at the connections. The
+ * accompanying `text-transform: uppercase` is a no-op on Persian, so it is
+ * left alone. */
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: var(--nb-surface-2, #fafafa);
+    color: var(--nb-fg, #23212b);
+    font-size: 12.5px;
+    letter-spacing: normal;
+    border-block-end: 1px solid var(--nb-line, #e6e5ec);
 }
 
-.nb-alert-head .nb-spacer { flex: 1 1 auto; }
-.nb-alert-head a { font-size: 12px; }
-
-.nb-alert table { width: 100%; border-collapse: collapse; }
-
-.nb-alert th, .nb-alert td {
-    text-align: start;
-    font-size: 12px;
-    padding: 6px 14px;
-    border-block-end: 1px solid var(--hairline-color, #eee);
-    max-width: 28ch;
-    overflow-wrap: anywhere;
+/* The app name inside a caption is an <a class="section">, and base.css colours
+   that with --header-link-color (white) because it expects the primary bar
+   behind it. Against the quiet surface above, white is invisible — so the link
+   has to be re-coloured wherever the bar was toned down. */
+.module caption a.section:link,
+.module caption a.section:visited,
+.module h2 a:link,
+.module h2 a:visited {
+    color: var(--nb-fg, #23212b);
 }
 
-.nb-alert th { color: var(--body-quiet-color, #666); font-weight: 500; }
-.nb-alert tbody tr:last-child td { border-block-end: 0; }
-
-.nb-alert-empty, .nb-alert-more {
-    padding: 12px 14px;
-    font-size: 12px;
-    color: var(--body-quiet-color, #666);
-}
-
-.nb-note {
+/* The changelist's own header row keeps Django's markup but picks up the same
+   quiet treatment as .nb-table's thead, so a stock list and a report table do
+   not look like they came from two different products. */
+#changelist table thead th {
+    background: var(--nb-surface-2, #fafafa);
+    color: var(--nb-muted, #6b6878);
     font-size: 11.5px;
-    color: var(--body-quiet-color, #666);
-    line-height: 1.8;
-    margin: 10px 0 0;
+    border-block-end: 1px solid var(--nb-line, #e6e5ec);
+}
+
+/* base.css pins `.dashboard #content` to a literal 600px. That is sized for
+   what the stock index *is* — a narrow list of app links next to a recent-
+   actions rail — and it predates anything else living on that page. With our
+   dashboard on it, a 1500px monitor renders four KPI cards into 600px and
+   wraps "۲۱٬۸۵۵٬۰۰۰" onto two lines while 800px of screen sits empty beside
+   it.
+ *
+ * `auto` lets the grids use the room they already know how to fill; they are
+ * auto-fill, so a wider screen buys more columns rather than longer lines.
+ * responsive.css already does exactly this below 1024px — this only extends
+ * the same behaviour upward. */
+.dashboard #content {
+    width: auto;
+}
+
+/* Object-tools are the entry points to our report pages ("گزارش مالی",
+   "گزارش عملیات پیامک"). Pills, so they read as actions rather than as another
+   row of tabs. */
+.object-tools a {
+    border-radius: var(--nb-radius-pill, 999px);
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* Object-tools are 26px tall, which is fine for a mouse and awkward for a
+   thumb — and on the Business changelist the object-tool *is* the way into the
+   review queue. Given a coarse pointer, give it a real target. Gated on the
+   pointer rather than on width so a touch laptop gets it too and a narrow
+   desktop window does not lose density for nothing. */
+@media (pointer: coarse) {
+    .object-tools a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+    }
+}
+
+/* An object-tool that is counting something overdue — today only the content
+   review queue (business/.../business/change_list.html). Red on the pill
+   itself rather than a badge beside it: the whole control is the alarm. */
+.object-tools a.nb-tool-alarm,
+.object-tools a.nb-tool-alarm:focus,
+.object-tools a.nb-tool-alarm:hover {
+    background: #b02a2a;
+    color: #fff;
 }

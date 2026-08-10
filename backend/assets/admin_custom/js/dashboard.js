@@ -38,18 +38,24 @@
         return value || fallback;
     }
 
-    var grid = themeColor('--hairline-color', '#e0e0e0');
-    var quiet = themeColor('--body-quiet-color', '#666');
+    // report.css owns the palette, so the charts read their neutrals from the
+    // same tokens as the cards they sit in rather than keeping a second, quietly
+    // diverging copy of the theme.
+    var grid = themeColor('--nb-line-soft', themeColor('--hairline-color', '#e0e0e0'));
+    var axis = themeColor('--nb-line', '#e0e0e0');
+    var quiet = themeColor('--nb-muted', themeColor('--body-quiet-color', '#666'));
+    var surface = themeColor('--nb-surface', '#fff');
 
-    // Fixed series colours. These are data identities, not theme colours: the
-    // revenue line must stay the same hue in both themes or the two charts stop
-    // being comparable across a toggle.
-    var TEAL = '#1a7a7a';
-    var AMBER = '#d68910';
-    var BLUE = '#2d6ca2';
-    var GREEN = '#1a7a45';
+    // Fixed series colours, from brand/README.md. These are data identities,
+    // not theme colours: the revenue line must stay the same hue in both themes
+    // or the two charts stop being comparable across a toggle.
+    var VIOLET = '#7c3aed';
+    var AMBER = '#f59e0b';
+    var BLUE = '#2563eb';
+    var GREEN = '#15803d';
 
     Chart.defaults.font.family = "Vazirmatn, Tahoma, sans-serif";
+    Chart.defaults.font.size = 11;
     Chart.defaults.color = quiet;
 
     function baseOptions(yTitle) {
@@ -60,28 +66,83 @@
             plugins: {
                 // rtl on both: without it the legend swatch sits to the right of
                 // its Persian label and the tooltip body reads inside-out.
-                legend: { rtl: true, textDirection: 'rtl', labels: { boxWidth: 12 } },
-                tooltip: { rtl: true, textDirection: 'rtl' }
+                legend: {
+                    rtl: true,
+                    textDirection: 'rtl',
+                    align: 'end',
+                    labels: {
+                        // Round swatches, not squares: they read as data points
+                        // rather than as another set of boxes on a page that is
+                        // already all rectangles.
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        padding: 14
+                    }
+                },
+                tooltip: {
+                    rtl: true,
+                    textDirection: 'rtl',
+                    // Chart.js defaults to a black box, which floats over a dark
+                    // theme as a hole. Painting it on the card surface with a
+                    // hairline keeps it part of the page in both themes.
+                    backgroundColor: surface,
+                    titleColor: quiet,
+                    bodyColor: themeColor('--nb-fg', '#23212b'),
+                    borderColor: axis,
+                    borderWidth: 1,
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    usePointStyle: true,
+                    callbacks: {
+                        // Latin grouping on the figures inside an otherwise
+                        // Persian tooltip — same convention as the cards.
+                        label: function (ctx) {
+                            var v = ctx.parsed.y;
+                            return ' ' + ctx.dataset.label + ': ' +
+                                (v == null ? '—' : Number(v).toLocaleString('en-US'));
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
-                    grid: { color: grid },
+                    // No vertical rules: with 30 daily points they turn the plot
+                    // into graph paper and compete with the series itself.
+                    grid: { display: false },
+                    border: { color: axis },
                     ticks: {
                         color: quiet,
                         // 30 labels do not fit; show roughly every fifth.
                         maxTicksLimit: 8,
-                        autoSkip: true
+                        autoSkip: true,
+                        maxRotation: 0,
+                        padding: 6
                     }
                 },
                 y: {
                     beginAtZero: true,
-                    grid: { color: grid },
-                    title: { display: !!yTitle, text: yTitle, color: quiet },
+                    // Dotted, not solid: these rules exist to let the eye carry
+                    // a value across to the axis, and a solid rule at that job
+                    // competes with the series drawn on top of it. drawTicks
+                    // off because the rule already reaches the label.
+                    //
+                    // The dash goes on `border`, not on `grid`. Chart.js 4
+                    // moved the v3 `grid.borderDash` option onto `border.dash`,
+                    // and the old spelling is silently ignored — set it on
+                    // `grid` here and the lines just come out solid.
+                    grid: { color: grid, drawTicks: false },
+                    border: { display: false, dash: [3, 3] },
+                    title: { display: !!yTitle, text: yTitle, color: quiet, padding: 4 },
                     ticks: {
                         color: quiet,
                         // Integer ticks only: half a user and half a Toman are
                         // both meaningless.
                         precision: 0,
+                        padding: 8,
+                        maxTicksLimit: 6,
                         callback: function (value) {
                             return Number(value).toLocaleString('en-US');
                         }
@@ -99,6 +160,22 @@
     }
 
     if (data.revenue) {
+        // The total is the subject of the chart and gets the filled area; the
+        // two components that add up to it are dashed hairlines, so a reader
+        // sees one shape with its breakdown rather than three peer lines.
+        var revenueCanvas = document.getElementById('nb-chart-revenue');
+        var totalFill = 'rgba(124,58,237,0.14)';
+        if (revenueCanvas) {
+            // A vertical gradient instead of a flat wash: the area stays legible
+            // where it is tall and fades out before it can swallow the x-axis
+            // labels underneath.
+            var ctx2d = revenueCanvas.getContext('2d');
+            var gradient = ctx2d.createLinearGradient(0, 0, 0, 250);
+            gradient.addColorStop(0, 'rgba(124,58,237,0.28)');
+            gradient.addColorStop(1, 'rgba(124,58,237,0.02)');
+            totalFill = gradient;
+        }
+
         draw('nb-chart-revenue', {
             type: 'line',
             data: {
@@ -107,13 +184,16 @@
                     {
                         label: 'مجموع',
                         data: data.revenue.total,
-                        borderColor: TEAL,
-                        backgroundColor: 'rgba(26,122,122,0.12)',
+                        borderColor: VIOLET,
+                        backgroundColor: totalFill,
                         fill: true,
-                        tension: 0.25,
-                        borderWidth: 2,
+                        tension: 0.35,
+                        borderWidth: 2.5,
                         pointRadius: 0,
-                        pointHoverRadius: 4
+                        pointHoverRadius: 4,
+                        pointHoverBackgroundColor: VIOLET,
+                        pointHoverBorderColor: surface,
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'اشتراک',
@@ -122,9 +202,9 @@
                         borderWidth: 1.5,
                         borderDash: [4, 3],
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 3,
                         fill: false,
-                        tension: 0.25
+                        tension: 0.35
                     },
                     {
                         label: 'بسته‌های افزودنی',
@@ -133,9 +213,9 @@
                         borderWidth: 1.5,
                         borderDash: [4, 3],
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 3,
                         fill: false,
-                        tension: 0.25
+                        tension: 0.35
                     }
                 ]
             },
@@ -145,19 +225,25 @@
 
     if (data.growth) {
         var growthSets = [];
+        // maxBarThickness, not a fixed width: over a 7-day range the bars would
+        // otherwise stretch into slabs, and over 90 days they collapse to
+        // threads. Rounded caps to match the card radii around them.
+        var bar = { borderRadius: 4, borderSkipped: false, maxBarThickness: 22 };
         if (data.growth.users) {
-            growthSets.push({
+            growthSets.push(Object.assign({
                 label: 'کاربر جدید',
                 data: data.growth.users,
-                backgroundColor: BLUE
-            });
+                backgroundColor: BLUE,
+                hoverBackgroundColor: BLUE
+            }, bar));
         }
         if (data.growth.businesses) {
-            growthSets.push({
+            growthSets.push(Object.assign({
                 label: 'کسب‌وکار جدید',
                 data: data.growth.businesses,
-                backgroundColor: GREEN
-            });
+                backgroundColor: GREEN,
+                hoverBackgroundColor: GREEN
+            }, bar));
         }
         if (growthSets.length) {
             draw('nb-chart-growth', {
