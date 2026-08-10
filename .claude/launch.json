@@ -18,6 +18,12 @@
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "set DEBUG=True&& set PYTHONIOENCODING=utf-8&& backend\\.venv\\Scripts\\python.exe backend\\manage.py runserver 8010"],
       "port": 8010
+    },
+    {
+      "name": "backend_admin_lan",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set DEBUG=True&& set PYTHONIOENCODING=utf-8&& set ALLOWED_HOSTS=*&& backend\\.venv\\Scripts\\python.exe backend\\manage.py runserver 0.0.0.0:8011"],
+      "port": 8011
     }
   ]
 }
