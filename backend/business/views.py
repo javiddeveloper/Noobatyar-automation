@@ -170,13 +170,18 @@ class BusinessView(APIView):
         # posted the whole object back unchanged.
         before = services.moderated_snapshot(business)
 
+        # Whether this business has ever cleared review before the save below —
+        # decides which of the two "your edit is under review" messages is
+        # true afterwards (its own moderation_status is about to change).
+        had_prior_approval = business.first_approved_at is not None
+
         try:
             if await sync_to_async(serializer.is_valid)(raise_exception=True):
                 # save() and the re-queue check run as one transaction (see
-                # save_and_maybe_requeue's docstring): two separate sync_to_async
+                # save_with_moderation's docstring): two separate sync_to_async
                 # hops would leave a window where an edited, unreviewed business
                 # is committed and still APPROVED.
-                requeued = await sync_to_async(services.save_and_maybe_requeue)(
+                requeued = await sync_to_async(services.save_with_moderation)(
                     serializer, business, before
                 )
                 logger.info(f"Business updated: {business_id} by user {user.id}")
@@ -185,18 +190,24 @@ class BusinessView(APIView):
                     # Re-serialise from the row rather than reusing the cached
                     # representation: submit_for_review moved the status and the
                     # submitted-at stamp after the serializer rendered, and the
-                    # owner has to see that this edit took them off the public
-                    # listing — that is the whole point of telling them.
+                    # owner has to see that this edit is under review.
                     business = await Business.objects.aget(id=business_id, user=user)
                     data = BusinessSerializer(business).data
-                    return APIResponse.success(
-                        data=data,
-                        message=(
+                    if had_prior_approval:
+                        # Staged path (business/services.py): the live, public
+                        # copy is untouched — customers keep seeing the last-
+                        # approved version until this edit is cleared.
+                        message = (
+                            "تغییرات برای بررسی ارسال شد؛ تا تأیید، نسخه‌ی قبلی "
+                            "همچنان برای مشتریان نمایش داده می‌شود"
+                        )
+                    else:
+                        message = (
                             "تغییرات ذخیره شد؛ چون اطلاعات نمایش‌داده‌شده تغییر کرده، "
                             "کسب و کار دوباره برای بررسی ارسال شد و تا تأیید مجدد "
                             "برای مشتریان نمایش داده نمی‌شود"
                         )
-                    )
+                    return APIResponse.success(data=data, message=message)
 
                 return APIResponse.success(
                     data=serializer.data,

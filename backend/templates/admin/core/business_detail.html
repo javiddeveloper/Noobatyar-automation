@@ -43,7 +43,34 @@
     {% elif detail.business.moderation_status == 'SUSPENDED' %}<span class="bd-badge bd-b-suspended">معلق</span>
     {% else %}<span class="bd-badge bd-b-rejected">رد شده</span>{% endif %}
     {% if detail.business.is_locked %}<span class="bd-badge bd-b-rejected">قفل (محدودیت اشتراک)</span>{% endif %}
+    {% if detail.business.moderation_status == 'PENDING' and detail.business.first_approved_at %}
+      <span class="bd-badge bd-b-pending">نسخه‌ی فعلی همچنان نمایش داده می‌شود؛ ویرایش جدید در انتظار بررسی است</span>
+    {% endif %}
   </div>
+
+  {% if detail.business.pending_title or detail.business.pending_bio or detail.business.pending_address or detail.business.pending_logo %}
+  <div class="bd-section">
+    <h3>ویرایش در انتظار بررسی</h3>
+    <table class="bd-table">
+      <tbody>
+        {% if detail.business.pending_title %}<tr><td>عنوان</td><td>{{ detail.business.title }} ← <strong>{{ detail.business.pending_title }}</strong></td></tr>{% endif %}
+        {% if detail.business.pending_bio %}<tr><td>معرفی کوتاه</td><td>{{ detail.business.bio }} ← <strong>{{ detail.business.pending_bio }}</strong></td></tr>{% endif %}
+        {% if detail.business.pending_address %}<tr><td>آدرس</td><td>{{ detail.business.address }} ← <strong>{{ detail.business.pending_address }}</strong></td></tr>{% endif %}
+        {% if detail.business.pending_logo %}<tr><td>لوگو</td><td>لوگوی جدید آپلود شده</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if detail.business.notice_message %}
+  <div class="bd-section">
+    <h3>پیام اضطراری
+      {% if detail.business.notice_enabled %}<span class="bd-badge bd-b-pending">فعال</span>
+      {% else %}<span class="bd-badge">غیرفعال</span>{% endif %}
+    </h3>
+    <p class="bd-note">{{ detail.business.notice_message }}</p>
+  </div>
+  {% endif %}
 
   {% if detail.can.appointments %}
   <div class="bd-section">
