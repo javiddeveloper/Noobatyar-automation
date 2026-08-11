@@ -10,6 +10,32 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
+## v1.3.0 — 2026-08-11
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- سیستم نظارت بر محتوای کسب‌وکارها اضافه شد: کسب‌وکارهای جدید و ویرایش‌های حساس (نام، توضیحات، آدرس، لوگو) پیش از نمایش عمومی بررسی می‌شن.
+- در اپ صاحب کسب‌وکار، وضعیت بررسی و دلیل رد (در صورت وجود) روی صفحه‌ی تنظیمات نمایش داده می‌شه.
+- تیک «تأیید شده»ی قبلی که صرفاً تزئینی بود و ممکن بود گمراه‌کننده باشه، حذف شد.
+<!-- fa:end -->
+
+### mobile_owner
+- Business moderation status surfaced in Settings: badge (pending/approved/rejected/suspended), rejection reason when present, and a warning shown before an edit that would return an approved business to review.
+- Removed the decorative "Verified" checkmark from the settings hero (it wasn't tied to real moderation state and read as a false claim); the real moderation badge replaces it.
+- `is_locked` wired end-to-end (DTO → entity → mapper → domain) so `Business.isPubliclyVisible` matches the backend's combined billing+moderation check instead of moderation alone.
+- Room DB bumped to version 11 for the new `isLocked` column (schema 14 exported).
+
+### backend
+- New content moderation system for businesses: review queue (oldest-submitted first, keyword matches highlighted), banned-keyword list (advisory only, never auto-rejects), POST-only/CSRF-protected/logged decisions, and automatic re-queue when a moderated field (title/bio/address/logo) is edited.
+- Public business/slot endpoints now consistently check both billing lock and moderation state; a suspended business returns the same response as one that never existed.
+- New admin panel foundation (`NobatyarAdminSite`) — RTL, self-hosted Vazirmatn font, role setup command (Superadmin/Moderator/Support/Finance).
+- Redis `maxmemory-policy` changed from `allkeys-lru` to `volatile-lru` so paid SMS/appointment credit (stored with no TTL) can no longer be silently evicted under memory pressure.
+
+### front_client
+- Fixed a 404-from-slots bug that made a suspended business look "fully booked" instead of unavailable; shared `BusinessUnavailable` empty state and status-aware `ApiError`.
+
+Full commit range: [`v1.2.0...v1.3.0`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.2.0...v1.3.0)
+
 ## v1.2.0 — 2026-08-07
 
 <!-- fa:start -->
