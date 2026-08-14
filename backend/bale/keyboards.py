@@ -9,6 +9,7 @@ terse rather than readable:
 
     m:d:<business_id>:<A|R|S>[:<reason_index>]   apply a decision
     m:q:<business_id>:<R|S>                      open the reason menu
+    m:w:<business_id>:<R|S>                      ask for a typed reason
     m:b:<business_id>                            back to the decision buttons
 
 A rejection or suspension always carries a reason index: the admin queue refuses
@@ -70,6 +71,8 @@ def reason_keyboard(business_id, letter) -> dict:
         [{'text': reason, 'callback_data': f'm:d:{business_id}:{letter}:{index}'}]
         for index, reason in enumerate(reasons)
     ]
+    rows.append([{'text': '✍️ نوشتن دلیل دلخواه',
+                  'callback_data': f'm:w:{business_id}:{letter}'}])
     rows.append([{'text': '↩️ انصراف', 'callback_data': f'm:b:{business_id}'}])
     return {'inline_keyboard': rows}
 
@@ -114,6 +117,17 @@ def parse_callback(data: str):
         if letter not in REASONS_BY_LETTER:
             return None
         return {'action': 'menu', 'business_id': business_id, 'letter': letter}
+
+    if kind == 'w':
+        letter = parts[3] if len(parts) > 3 else ''
+        if letter not in REASONS_BY_LETTER:
+            return None
+        return {
+            'action': 'ask_reason',
+            'business_id': business_id,
+            'letter': letter,
+            'status': STATUS_BY_LETTER[letter],
+        }
 
     if kind == 'd':
         letter = parts[3] if len(parts) > 3 else ''

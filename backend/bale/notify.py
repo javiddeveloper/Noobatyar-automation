@@ -17,6 +17,7 @@ their business registration.
 """
 
 import logging
+import os
 import threading
 
 from django.conf import settings
@@ -24,7 +25,7 @@ from django.db import transaction
 
 from api.jalali import format_datetime
 
-from .client import send_message
+from .client import send_message, send_photo
 from .keyboards import main_keyboard
 from .models import BaleSettings
 
@@ -85,19 +86,90 @@ def _send(business_id, kind, changed):
             logger.info('Bale notification skipped: business %s is gone', business_id)
             return
 
-        result = send_message(
-            config.bot_token,
-            config.chat_id,
-            build_text(business, kind, changed),
-            reply_markup=main_keyboard(business.pk),
-        )
-        if not result['success']:
-            logger.warning(
-                'Bale review notification not delivered for business %s: %s',
-                business_id, result.get('error'),
-            )
+        send_card(config, business, kind, changed)
     except Exception:
         logger.exception('Bale review notification failed for business %s', business_id)
+
+
+def send_card(config, business, kind=KIND_NEW, changed=None):
+    """Send one reviewable business: its logo, then its details and buttons.
+
+    The logo goes as a separate photo message rather than as a caption on the
+    card, because the decision buttons live on the card and a photo message's
+    text can only be changed with editMessageCaption — so folding the two
+    together would mean the "✅ تأیید شد" rewrite silently fails and the buttons
+    stay live after a decision.
+    """
+    photo = _logo_path(business)
+    if photo:
+        result = send_photo(config.bot_token, config.chat_id, photo)
+        if not result['success']:
+            logger.warning(
+                'Bale logo not delivered for business %s: %s',
+                business.pk, result.get('error'),
+            )
+
+    result = send_message(
+        config.bot_token,
+        config.chat_id,
+        build_text(business, kind, changed),
+        reply_markup=main_keyboard(business.pk),
+    )
+    if not result['success']:
+        logger.warning(
+            'Bale review notification not delivered for business %s: %s',
+            business.pk, result.get('error'),
+        )
+    return result
+
+
+def _logo_path(business):
+    """Local filesystem path of the logo under review, or None.
+
+    Prefers ``pending_logo``: on a staged edit that is the image actually
+    awaiting a decision, while ``logo`` still holds the last-approved one.
+    """
+    for field in ('pending_logo', 'logo'):
+        image = getattr(business, field, None)
+        if not image:
+            continue
+        try:
+            path = image.path
+        except (NotImplementedError, ValueError):
+            # Non-filesystem storage, or a name that resolves to nothing.
+            continue
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def fire_owner_sms(business_id, to_status):
+    """Send the owner's moderation SMS off the request path.
+
+    ``apply_moderation_decision(notify=True)`` sends it inline, which costs the
+    caller a round trip to Melipayamak with a 10s timeout. In the admin that is
+    merely slow; in the Bale webhook it is the difference between a button that
+    resolves instantly and one that spins until Bale gives up on the delivery
+    and retries it.
+    """
+    def _run():
+        try:
+            from business.models import Business
+            from business.sms_moderation import notify_moderation_decision
+
+            business = Business.objects.select_related('user').filter(
+                pk=business_id).first()
+            if business is not None:
+                notify_moderation_decision(business, to_status)
+        except Exception:
+            logger.exception('Owner moderation SMS failed for business %s', business_id)
+
+    try:
+        threading.Thread(
+            target=_run, daemon=True, name=f'bale-sms-{business_id}',
+        ).start()
+    except Exception:
+        logger.exception('Could not start owner SMS thread for %s', business_id)
 
 
 def build_text(business, kind, changed=None) -> str:
@@ -111,10 +183,14 @@ def build_text(business, kind, changed=None) -> str:
 
     lines.append(f'عنوان: {business.title}')
     lines.append(f'دسته: {business.get_category_display()}')
+    if business.unique_code:
+        lines.append(f'کد: {business.unique_code}')
 
-    owner_phone = getattr(getattr(business, 'user', None), 'phone', None)
-    if owner_phone:
-        lines.append(f'مالک: {owner_phone}')
+    owner = getattr(business, 'user', None)
+    owner_name = getattr(owner, 'name', '') or ''
+    owner_phone = getattr(owner, 'phone', '') or ''
+    if owner_name or owner_phone:
+        lines.append(f'مالک: {" — ".join(x for x in (owner_name, owner_phone) if x)}')
     if business.phone:
         lines.append(f'تلفن: {business.phone}')
 
@@ -123,6 +199,16 @@ def build_text(business, kind, changed=None) -> str:
         if len(address) > _MAX_ADDRESS_CHARS:
             address = address[:_MAX_ADDRESS_CHARS].rstrip() + '…'
         lines.append(f'آدرس: {address}')
+
+    bio = (business.bio or '').strip().replace('\n', ' ')
+    if bio:
+        lines.append(f'توضیحات: {bio}')
+
+    lines.append(
+        f'ساعت کاری: {business.work_start_hour}–{business.work_end_hour}'
+        f'  |  مدت نوبت: {business.default_service_duration} دقیقه'
+    )
+    lines.append('لوگو: دارد' if _logo_path(business) else 'لوگو: ندارد')
 
     if changed:
         lines.append(f'تغییرات: {"، ".join(_FIELD_LABELS.get(f, f) for f in changed)}')

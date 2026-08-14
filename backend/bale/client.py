@@ -14,6 +14,7 @@ thread or a webhook that must answer 200 regardless, so an exception escaping
 this module would only ever turn a cosmetic failure into a real one.
 """
 
+import json
 import logging
 
 import httpx
@@ -22,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = 'https://tapi.bale.ai'
 TIMEOUT = 10.0
+# Uploads get their own budget: a logo is orders of magnitude larger than a JSON
+# body, and sharing the 10s timeout made photo sends fail on a slow link.
+UPLOAD_TIMEOUT = 30.0
 
 
 def _call(token: str, method: str, payload: dict) -> dict:
@@ -88,8 +92,58 @@ def answer_callback_query(token: str, callback_query_id: str, text: str = '',
     })
 
 
+def send_photo(token: str, chat_id: str, photo_path: str, caption: str = '',
+               reply_markup: dict = None) -> dict:
+    """Upload a local image file.
+
+    Multipart rather than JSON, so it cannot go through :func:`_call` — and
+    ``reply_markup`` has to be a JSON *string* in a multipart body, which is the
+    detail that silently drops the keyboard if you pass the dict.
+    """
+    if not token:
+        return {'success': False, 'error': 'bot token is not configured'}
+
+    data = {'chat_id': chat_id}
+    if caption:
+        # Bale caps captions at 1024 characters like Telegram; a longer one is
+        # rejected outright rather than truncated, losing the whole message.
+        data['caption'] = caption[:1024]
+    if reply_markup is not None:
+        data['reply_markup'] = json.dumps(reply_markup)
+
+    url = f'{BASE_URL}/bot{token}/sendPhoto'
+    try:
+        with open(photo_path, 'rb') as handle:
+            with httpx.Client() as client:
+                response = client.post(
+                    url, data=data, files={'photo': handle}, timeout=UPLOAD_TIMEOUT
+                )
+                response.raise_for_status()
+                payload = response.json()
+    except OSError as e:
+        logger.warning('Bale sendPhoto could not read %s: %s', photo_path, e)
+        return {'success': False, 'error': str(e)}
+    except httpx.HTTPError as e:
+        logger.error('Bale sendPhoto failed: %s', e)
+        return {'success': False, 'error': str(e)}
+    except ValueError as e:
+        logger.error('Bale sendPhoto returned non-JSON: %s', e)
+        return {'success': False, 'error': 'invalid response'}
+
+    if not payload.get('ok'):
+        error = payload.get('description') or 'unknown error'
+        logger.warning('Bale sendPhoto rejected: %s', error)
+        return {'success': False, 'error': error}
+
+    return {'success': True, 'result': payload.get('result')}
+
+
 def set_webhook(token: str, url: str) -> dict:
     return _call(token, 'setWebhook', {'url': url})
+
+
+def get_webhook_info(token: str) -> dict:
+    return _call(token, 'getWebhookInfo', {})
 
 
 def delete_webhook(token: str) -> dict:

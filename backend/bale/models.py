@@ -98,3 +98,57 @@ class BaleSettings(models.Model):
     @property
     def is_configured(self) -> bool:
         return bool(self.is_enabled and self.bot_token and self.chat_id)
+
+
+class PendingReason(models.Model):
+    """A decision waiting for the operator to type its reason.
+
+    Tapping "دلیل دلخواه" cannot decide anything on its own — the note has to
+    arrive in a *later* update, as a plain message. Something has to remember
+    which business that message belongs to in between.
+
+    A table rather than a cache key, deliberately: django-redis runs with
+    IGNORE_EXCEPTIONS=True, so during a Redis blip every read returns None and
+    the typed reason would be silently dropped — the operator would watch their
+    rejection do nothing and have no idea why.
+    """
+
+    chat_id = models.CharField(max_length=64, db_index=True)
+    business = models.ForeignKey(
+        'business.Business', on_delete=models.CASCADE, related_name='+',
+    )
+    to_status = models.CharField(max_length=20)
+    # The card that was tapped, so the outcome can replace it rather than
+    # leaving a dead keyboard above the answer.
+    message_id = models.BigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'bale_pending_reason'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.chat_id}: {self.business_id} → {self.to_status}'
+
+    @classmethod
+    def open(cls, chat_id, business, to_status, message_id=None):
+        """Start a prompt, replacing any half-finished one for this chat.
+
+        Only one can be outstanding: the operator has a single conversation
+        thread, so a second prompt means they abandoned the first, and keeping
+        both would make the next message they type ambiguous.
+        """
+        cls.objects.filter(chat_id=str(chat_id)).delete()
+        return cls.objects.create(
+            chat_id=str(chat_id), business=business,
+            to_status=to_status, message_id=message_id,
+        )
+
+    @classmethod
+    def take(cls, chat_id):
+        """Pop the outstanding prompt for ``chat_id``, or None."""
+        pending = cls.objects.filter(chat_id=str(chat_id)).first()
+        if pending is None:
+            return None
+        cls.objects.filter(pk=pending.pk).delete()
+        return pending
