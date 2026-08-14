@@ -338,7 +338,7 @@ def payment_conversion(start, end):
 # which only makes sense if the platform genuinely expects that subscriber to
 # keep re-buying every 7 days forever. Nothing in this system's plan ladder
 # (see PLANS.md — trial/۱/۳/۶/۱۲ ماهه) works that way: the only day-unit plan
-# today is the 10-day trial, priced at zero. This floor exists so that if
+# today is the 30-day trial, priced at zero. This floor exists so that if
 # staff ever add a short *paid* promotional plan through PlanAdmin (nothing
 # stops them — duration_value has no minimum), it is excluded from MRR
 # outright rather than silently inflating the platform's headline number.
