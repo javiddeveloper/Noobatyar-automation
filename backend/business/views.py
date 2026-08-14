@@ -127,10 +127,16 @@ class BusinessView(APIView):
                 # unpredictably against ones that were resubmitted, so the
                 # oldest-waiting-first rule quietly stops holding. Creating the
                 # business *is* the submission, so stamp it here.
-                await sync_to_async(serializer.save)(
+                business = await sync_to_async(serializer.save)(
                     user=user, moderation_submitted_at=timezone.now()
                 )
                 logger.info(f"Business created: {serializer.data['id']} by user {user.id}")
+                # Creating the business *is* the submission (see above), so this
+                # is the only point where a brand-new queue entry exists to
+                # announce — the two re-queue paths in services.py cover edits.
+                await sync_to_async(services.notify_review_queued)(
+                    business, kind='new'
+                )
                 return APIResponse.success(
                     data=serializer.data,
                     message=(

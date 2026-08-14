@@ -32,6 +32,27 @@ from accounting import entitlements
 logger = logging.getLogger(__name__)
 
 
+def notify_review_queued(business, kind='new', changed=None):
+    """Tell the operator's Bale chat that something needs reviewing.
+
+    A thin wrapper so the three call sites — the create view and the two
+    re-queue paths below — do not each need to know about the bale app, and so
+    that a missing/misconfigured bot degrades to a log line instead of breaking
+    a registration. The import is deferred: ``bale`` imports ``business.models``
+    for its keyboard constants, and pulling it in at module scope would make
+    that a cycle.
+    """
+    try:
+        from bale.notify import notify_review_queued as _notify
+
+        _notify(business, kind=kind, changed=changed)
+    except Exception:
+        logger.exception(
+            'Bale review notification could not be scheduled for business %s',
+            getattr(business, 'pk', None),
+        )
+
+
 def sync_locks(user):
     """
     Reconcile ``Business.is_locked`` for ``user`` with their current quota.
@@ -203,6 +224,7 @@ def resubmit_if_content_changed(business, before_snapshot):
     logger.info(
         'Business %s re-queued for review after editing %s', business.pk, changed
     )
+    notify_review_queued(business, kind='edit', changed=changed)
     return True
 
 
@@ -288,6 +310,11 @@ def save_with_moderation(serializer, business, before_snapshot):
             logger.info(
                 'Business %s re-queued for review after staging edits to %s',
                 business.pk, changed_names,
+            )
+            notify_review_queued(
+                business,
+                kind='edit',
+                changed=[f[len('pending_'):] for f in staged],
             )
 
         # Already PENDING (a second edit landing while the first is still
