@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'versions',
     'business',
     'visitor',
-    'appointment'
+    'appointment',
+    'bale',
 ]
 
 MIDDLEWARE = [

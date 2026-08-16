@@ -49,3 +49,6 @@ backend/media/
 # static_volume — nothing here should ever be committed. The *source* files we
 # author live in backend/assets/ (STATICFILES_DIRS) and are tracked.
 backend/static/
+
+# Obsidian vault config — local editor state, not project content.
+.obsidian/

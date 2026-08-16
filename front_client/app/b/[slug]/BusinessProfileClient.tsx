@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { categoryLabel, type Business } from '@/lib/api';
 import BusinessNotice from '@/app/components/BusinessNotice';
@@ -22,6 +23,7 @@ const toFa = (n: string | number) =>
 
 export default function BusinessProfileClient({ business, slug }: Props) {
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const emoji = CATEGORY_EMOJI[business.category] || '🏢';
   const bookingEnabled = business.booking_enabled !== false; // default true if undefined
@@ -200,11 +202,18 @@ export default function BusinessProfileClient({ business, slug }: Props) {
       <div className="btn-group">
         <button
           className="btn-primary"
-          onClick={() => router.push(`/b/${slug}/book`)}
-          disabled={!bookingEnabled}
+          onClick={() => {
+            setIsNavigating(true);
+            router.push(`/b/${slug}/book`);
+          }}
+          disabled={!bookingEnabled || isNavigating}
           style={!bookingEnabled ? { background: 'var(--color-faint)', boxShadow: 'none', cursor: 'not-allowed' } : {}}
         >
-          {bookingEnabled ? 'دریافت / مشاهده نوبت' : 'ثبت نوبت غیرفعال است'}
+          {!bookingEnabled
+            ? 'ثبت نوبت غیرفعال است'
+            : isNavigating
+              ? <>در حال بارگذاری<span className="btn-spinner" /></>
+              : 'دریافت / مشاهده نوبت'}
         </button>
       </div>
 

@@ -69,6 +69,10 @@
               <span class="mq-sep">|</span>
               <span class="mq-warn">🔒 قفل‌شده به‌دلیل سهمیهٔ پلن (مستقل از بررسی محتوا)</span>
             {% endif %}
+            {% if card.business.first_approved_at %}
+              <span class="mq-sep">|</span>
+              <span>✅ این یک ویرایش مجدد است؛ نسخه‌ی قبلی همچنان برای مشتریان نمایش داده می‌شود</span>
+            {% endif %}
           </div>
         </div>
       </div>

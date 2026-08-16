@@ -109,6 +109,12 @@ class BusinessSerializer(serializers.ModelSerializer):
     moderation_status_display = serializers.CharField(
         source='get_moderation_status_display', read_only=True,
     )
+    # moderation_status alone no longer tells the owner app whether customers
+    # can currently see the business: PENDING covers both "never reviewed,
+    # hidden" and "approved before, an edit is staged, still showing the old
+    # copy" (see Business.is_publicly_visible / pending_*). This is the one
+    # field the app can trust without re-deriving that logic itself.
+    is_publicly_visible = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Business
@@ -145,6 +151,13 @@ class BusinessSerializer(serializers.ModelSerializer):
             # written for the owner to read, so it is exposed as-is.
             'moderation_status', 'moderation_status_display',
             'moderation_note', 'moderation_submitted_at',
+            # A staged edit awaiting re-review — see Business.pending_* and
+            # services.stage_pending_moderated_fields. 'title'/'bio'/'address'/
+            # 'logo' above keep showing the last-*approved* copy (what
+            # customers currently see) while these carry the owner's proposed,
+            # not-yet-cleared change, if any.
+            'pending_title', 'pending_bio', 'pending_address', 'pending_logo',
+            'is_publicly_visible',
         ]
         read_only_fields = [
             'id', 'unique_code', 'created_at', 'updated_at', 'owner', 'is_locked',
@@ -153,6 +166,9 @@ class BusinessSerializer(serializers.ModelSerializer):
             # review — the whole point of the layer.
             'moderation_status', 'moderation_status_display',
             'moderation_note', 'moderation_submitted_at',
+            # Only ever written server-side, via services.stage_pending_moderated_fields.
+            'pending_title', 'pending_bio', 'pending_address', 'pending_logo',
+            'is_publicly_visible',
         ]
         extra_kwargs = {
             # Restated even though the model field is already CharField(300):

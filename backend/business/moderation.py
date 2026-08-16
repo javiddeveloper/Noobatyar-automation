@@ -151,6 +151,24 @@ def find_spans(text, terms):
     return merged
 
 
+def _effective_moderated_value(business, field):
+    """The value of ``field`` a moderator/log entry should reflect.
+
+    Once a business has cleared review at least once, an edit is staged onto
+    ``pending_<field>`` rather than the live column (see Business.pending_* and
+    services.stage_pending_moderated_fields), so the live column still holds
+    the last-*approved* copy while it's under re-review. A reviewer deciding
+    on that re-review — and the audit log recording the decision — must look
+    at what's actually being proposed, not the old approved copy sitting
+    underneath it. Falls back to the live value when nothing is staged (a
+    first-time submission, or a field the edit didn't touch).
+    """
+    pending = getattr(business, 'pending_' + field, None)
+    if field == 'logo':
+        return pending if pending else getattr(business, field, None)
+    return pending if pending is not None else getattr(business, field, None)
+
+
 def moderated_snapshot(business) -> dict:
     """The MODERATED_FIELDS of ``business`` as a JSON-serialisable dict.
 
@@ -160,7 +178,7 @@ def moderated_snapshot(business) -> dict:
     """
     snapshot = {}
     for field in Business.MODERATED_FIELDS:
-        value = getattr(business, field, None)
+        value = _effective_moderated_value(business, field)
         if hasattr(value, 'name'):        # FieldFile / ImageFieldFile
             value = value.name or ''
         snapshot[field] = '' if value is None else str(value)
@@ -174,7 +192,7 @@ def moderated_texts(business) -> dict:
     the owner writes, so scanning it only produces noise.
     """
     return {
-        field: (getattr(business, field, None) or '')
+        field: (_effective_moderated_value(business, field) or '')
         for field in Business.MODERATED_FIELDS
         if field != 'logo'
     }
@@ -200,13 +218,37 @@ def apply_decision(business, to_status, actor, note=''):
     business.moderation_note = note or ''
     business.moderation_reviewed_by = actor
     business.moderation_reviewed_at = timezone.now()
-    business.save(update_fields=[
+
+    update_fields = [
         'moderation_status',
         'moderation_note',
         'moderation_reviewed_by',
         'moderation_reviewed_at',
         'updated_at',
-    ])
+    ]
+
+    if to_status == Business.MODERATION_APPROVED:
+        # Promote any staged edit onto the live, publicly-served columns —
+        # this is the one moment a pending draft becomes the truth — and clear
+        # the staging fields so a future diff doesn't re-promote a stale draft.
+        for field in Business.MODERATED_FIELDS:
+            pending_field = 'pending_' + field
+            pending_value = getattr(business, pending_field)
+            # logo is a FieldFile: "staged" means it has a name at all, there
+            # is no meaningful staged-but-empty state like there is for text.
+            # Text fields use `is not None` instead of truthiness so an owner
+            # deliberately clearing e.g. bio to '' still gets promoted.
+            is_staged = bool(pending_value) if field == 'logo' else pending_value is not None
+            if not is_staged:
+                continue
+            setattr(business, field, pending_value)
+            setattr(business, pending_field, None)
+            update_fields += [field, pending_field]
+        if business.first_approved_at is None:
+            business.first_approved_at = timezone.now()
+            update_fields.append('first_approved_at')
+
+    business.save(update_fields=update_fields)
 
     return BusinessModerationLog.objects.create(
         business=business,

@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# وب مشتری نوبت‌یار
 
-## Getting Started
+اپ Next.js که مشتری‌های نهایی برای دیدن پروفایل عمومی یک کسب‌وکار و رزرو
+نوبت استفاده می‌کنند. اپ موبایل مستقلی برای مشتری وجود ندارد — این تنها راه
+رزرو نوبت است (جزئیات در
+[`../docs/ENVIRONMENTS.md`](../docs/ENVIRONMENTS.md#اپ-موبایل-مشتری)).
 
-First, run the development server:
+## استک
+
+- **Next.js 16** (App Router) + **React 19**
+- **Tailwind CSS 4**
+- **Zustand** برای state
+- **axios** برای فراخوانی API بک‌اند
+- **moment-jalaali** برای تاریخ شمسی
+
+## ساختار `app/`
+
+| مسیر | چیست |
+|---|---|
+| `home/` | صفحه‌ی اصلی، شامل نتیجه‌ی پرداخت (`home/payment-result`) |
+| `b/[slug]/` | پروفایل عمومی کسب‌وکار |
+| `appointments/` | رزرو و مدیریت نوبت‌های مشتری |
+| `auth/` | ورود/احراز هویت با شماره موبایل |
+| `profile/` | پروفایل مشتری |
+| `components/` | کامپوننت‌های مشترک |
+
+## راه‌اندازی لوکال
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm --prefix front_client run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+روی `http://localhost:3000` بالا می‌آید. `.env.local` (gitignore شده) باید
+`NEXT_PUBLIC_API_URL` را به بک‌اند لوکال اشاره کند — جزئیات کامل و جدول
+هاست‌نیم‌ها برای هر کلاینت در
+[`../docs/ENVIRONMENTS.md`](../docs/ENVIRONMENTS.md) است.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## برند
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+آیکن‌ها و رنگ‌ها از [`../brand/`](../brand) اعمال می‌شوند؛ رنگ اصلی محصول
+(`--color-primary`) در `app/globals.css` تعریف شده — جزئیات در
+[`../brand/README.md`](../brand/README.md) و
+[`../docs/BRAND_GUIDE_FOR_AI.md`](../docs/BRAND_GUIDE_FOR_AI.md).
 
-## Learn More
+## دیپلوی
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Build/سرو در production از طریق سرویس `frontend` در
+[`../backend/docker-compose.yml`](../backend/docker-compose.yml) انجام می‌شود؛
+`Dockerfile.prod` را ببین.

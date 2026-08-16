@@ -14,6 +14,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .models import Business
@@ -308,6 +309,85 @@ class ModerationSmsTests(TestCase):
 
         self.assertTrue(notified)
         self.assertIn('تأیید شد', send.call_args[0][1])
+
+
+class PendingEditStagingTests(TestCase):
+    """Once a business has cleared review once (first_approved_at is set), an
+    edit to a moderated field must stage instead of overwriting what customers
+    currently see — the bug report this exists for: an owner's edit (in
+    particular, the emergency notice) took the entire business offline."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(phone='09120000020', name='مالک')
+        self.business = make_business(
+            self.user,
+            moderation_status=Business.MODERATION_APPROVED,
+            first_approved_at=timezone.now(),
+        )
+
+    def _put(self, **data):
+        serializer = BusinessSerializer(self.business, data=data, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        before = services.moderated_snapshot(self.business)
+        return services.save_with_moderation(serializer, self.business, before)
+
+    def test_editing_title_stages_instead_of_overwriting(self):
+        original_title = self.business.title
+
+        requeued = self._put(title='عنوان جدید')
+        self.assertTrue(requeued)
+
+        self.business.refresh_from_db()
+        self.assertEqual(self.business.title, original_title)
+        self.assertEqual(self.business.pending_title, 'عنوان جدید')
+        self.assertEqual(self.business.moderation_status, Business.MODERATION_PENDING)
+        # The whole point: still live, on the strength of the old, approved copy.
+        self.assertTrue(self.business.is_publicly_visible)
+
+    def test_public_serializer_still_shows_old_title_while_pending(self):
+        self._put(title='عنوان جدید')
+        self.business.refresh_from_db()
+
+        data = PublicBusinessSerializer(self.business).data
+        self.assertNotEqual(data['title'], 'عنوان جدید')
+
+    def test_second_edit_while_pending_replaces_the_draft_without_reshuffling_queue(self):
+        self._put(title='عنوان جدید')
+        self.business.refresh_from_db()
+        stamped = self.business.moderation_submitted_at
+
+        requeued = self._put(title='باز هم عوض شد')
+        self.assertTrue(requeued)
+
+        self.business.refresh_from_db()
+        self.assertEqual(self.business.pending_title, 'باز هم عوض شد')
+        self.assertEqual(self.business.moderation_submitted_at, stamped)
+
+    def test_approval_promotes_the_staged_edit(self):
+        self._put(title='عنوان جدید', bio='معرفی جدید')
+        self.business.refresh_from_db()
+
+        services.apply_moderation_decision(
+            self.business, Business.MODERATION_APPROVED, actor=None, notify=False,
+        )
+        self.business.refresh_from_db()
+
+        self.assertEqual(self.business.title, 'عنوان جدید')
+        self.assertEqual(self.business.bio, 'معرفی جدید')
+        self.assertIsNone(self.business.pending_title)
+        self.assertIsNone(self.business.pending_bio)
+        self.assertEqual(self.business.moderation_status, Business.MODERATION_APPROVED)
+        self.assertIsNotNone(self.business.first_approved_at)
+
+    def test_editing_notice_message_no_longer_requeues(self):
+        """The bug report this whole feature exists for."""
+        requeued = self._put(notice_message='امروز تعطیلیم', notice_enabled=True)
+        self.assertFalse(requeued)
+
+        self.business.refresh_from_db()
+        self.assertEqual(self.business.moderation_status, Business.MODERATION_APPROVED)
+        self.assertTrue(self.business.is_publicly_visible)
+        self.assertEqual(self.business.notice_message, 'امروز تعطیلیم')
 
 
 class ContentReportAutoResolveTests(TestCase):

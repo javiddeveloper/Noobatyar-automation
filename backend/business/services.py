@@ -32,6 +32,27 @@ from accounting import entitlements
 logger = logging.getLogger(__name__)
 
 
+def notify_review_queued(business, kind='new', changed=None):
+    """Tell the operator's Bale chat that something needs reviewing.
+
+    A thin wrapper so the three call sites — the create view and the two
+    re-queue paths below — do not each need to know about the bale app, and so
+    that a missing/misconfigured bot degrades to a log line instead of breaking
+    a registration. The import is deferred: ``bale`` imports ``business.models``
+    for its keyboard constants, and pulling it in at module scope would make
+    that a cycle.
+    """
+    try:
+        from bale.notify import notify_review_queued as _notify
+
+        _notify(business, kind=kind, changed=changed)
+    except Exception:
+        logger.exception(
+            'Bale review notification could not be scheduled for business %s',
+            getattr(business, 'pk', None),
+        )
+
+
 def sync_locks(user):
     """
     Reconcile ``Business.is_locked`` for ``user`` with their current quota.
@@ -203,23 +224,100 @@ def resubmit_if_content_changed(business, before_snapshot):
     logger.info(
         'Business %s re-queued for review after editing %s', business.pk, changed
     )
+    notify_review_queued(business, kind='edit', changed=changed)
     return True
 
 
-def save_and_maybe_requeue(serializer, business, before_snapshot):
-    """``serializer.save()`` and :func:`resubmit_if_content_changed`, atomically.
+def stage_pending_moderated_fields(business, validated_data):
+    """Redirect any changed ``Business.MODERATED_FIELDS`` key out of
+    ``validated_data`` and into the matching ``pending_<field>`` name instead.
 
-    The owner's update view runs each of these as a separate ``sync_to_async``
-    hop, which means a separate database round trip. Between them, an edited but
-    still-``APPROVED`` business is genuinely live on the public booking page
-    with its new, unreviewed copy — a worker kill or a raised exception in that
-    window leaves it there permanently, since nothing rolls the save back. This
-    wraps both writes in one transaction so they commit — or fail — together;
-    call it as a single ``sync_to_async`` unit from the view rather than calling
-    the two pieces separately.
-
-    Returns whatever :func:`resubmit_if_content_changed` returns.
+    Mutates and returns a dict of ``{'pending_<field>': new_value, ...}``
+    suitable as ``serializer.save(**staged)`` kwargs; the popped keys are gone
+    from ``validated_data`` so the plain ``serializer.save()`` call the caller
+    makes afterwards never touches the live column. Only called once a business
+    has been approved at least once (``first_approved_at`` is set) — before
+    that there is no previously-approved, publicly-true copy to protect, so the
+    field may as well save directly like it always has.
     """
+    from .models import Business
+
+    staged = {}
+    for field in Business.MODERATED_FIELDS:
+        if field not in validated_data:
+            continue
+        new_value = validated_data[field]
+        current_value = getattr(business, field)
+        # Compare by stored file name for logo, same as moderated_snapshot(),
+        # so re-posting the same logo file is not mistaken for an edit.
+        new_compare = new_value.name if hasattr(new_value, 'name') else new_value
+        current_compare = current_value.name if hasattr(current_value, 'name') else current_value
+        if new_compare == (current_compare or ''):
+            continue
+        staged['pending_' + field] = validated_data.pop(field)
+
+    return staged
+
+
+def save_with_moderation(serializer, business, before_snapshot):
+    """``serializer.save()``, keeping the public copy stable while a content
+    edit is under re-review.
+
+    Once a business has cleared review at least once (``first_approved_at``
+    set), any change to a MODERATED_FIELDS column is staged onto its
+    ``pending_<field>`` counterpart (:func:`stage_pending_moderated_fields`)
+    instead of overwriting the live column — so the booking page keeps
+    showing the last-approved copy instead of the business disappearing while
+    a moderator gets to it. A moderator's later APPROVED decision promotes the
+    staged draft onto the live columns (business/moderation.py).
+
+    Before a business's first approval there is nothing yet worth protecting,
+    so this falls back to the original snapshot-diff behaviour
+    (:func:`resubmit_if_content_changed`), which also still owns the one path
+    a first-time REJECTED business has back into the queue.
+
+    Runs as one transaction for the same reason :func:`resubmit_if_content_changed`
+    always did: the owner's update view awaits this as a single
+    ``sync_to_async`` hop, and a save whose re-queue half never ran would leave
+    an edited business either publicly live with unreviewed copy (pre-staging)
+    or with a draft stuck in limbo (post-staging) if a worker died in between.
+
+    Returns True if the business now has an edit pending re-review.
+    """
+    from .models import Business
+
     with transaction.atomic():
-        serializer.save()
-        return resubmit_if_content_changed(business, before_snapshot)
+        if not business.first_approved_at:
+            serializer.save()
+            return resubmit_if_content_changed(business, before_snapshot)
+
+        staged = stage_pending_moderated_fields(business, serializer.validated_data)
+        serializer.save(**staged)
+
+        if not staged:
+            return business.moderation_status == Business.MODERATION_PENDING
+
+        if business.moderation_status in (
+            Business.MODERATION_APPROVED, Business.MODERATION_REJECTED,
+        ):
+            from .moderation import submit_for_review
+
+            changed_names = '، '.join(f[len('pending_'):] for f in staged)
+            submit_for_review(
+                business,
+                reason='ویرایش اطلاعات نمایش‌داده‌شده: ' + changed_names,
+            )
+            logger.info(
+                'Business %s re-queued for review after staging edits to %s',
+                business.pk, changed_names,
+            )
+            notify_review_queued(
+                business,
+                kind='edit',
+                changed=[f[len('pending_'):] for f in staged],
+            )
+
+        # Already PENDING (a second edit landing while the first is still
+        # under review) or SUSPENDED: the draft is saved either way, just
+        # without re-stamping the queue position or lifting the suspension.
+        return True

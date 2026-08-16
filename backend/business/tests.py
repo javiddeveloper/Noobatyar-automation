@@ -16,9 +16,13 @@ from .models import Business
 
 User = get_user_model()
 
-# Everything except APPROVED must stay invisible. Kept as a tuple driving
-# subTest loops so a new moderation state added to the model shows up here as a
-# single line rather than as three near-identical test methods.
+# Everything except APPROVED must stay invisible — with one deliberate
+# exception not covered by this tuple: PENDING *with* first_approved_at set
+# (a business re-queued by its own edit, not a first-time submission) stays
+# visible on its last-approved copy. See PendingButPreviouslyApprovedTests
+# below and Business.is_publicly_visible. Kept as a tuple driving subTest
+# loops so a new moderation state added to the model shows up here as a single
+# line rather than as three near-identical test methods.
 NON_PUBLIC_STATUSES = (
     Business.MODERATION_PENDING,
     Business.MODERATION_REJECTED,
@@ -40,7 +44,7 @@ class PublicGateTestCaseMixin:
         )
 
     def make_business(self, *, title='کسب‌وکار تست', status=Business.MODERATION_APPROVED,
-                      is_locked=False):
+                      is_locked=False, first_approved_at=None):
         return Business.objects.create(
             user=self.owner,
             title=title,
@@ -51,6 +55,7 @@ class PublicGateTestCaseMixin:
             work_end_hour=17,
             moderation_status=status,
             is_locked=is_locked,
+            first_approved_at=first_approved_at,
         )
 
 
@@ -137,15 +142,53 @@ class PublicFilterConsistencyTests(PublicGateTestCaseMixin, TestCase):
     """
 
     def test_filter_and_property_agree_for_every_combination(self):
+        from django.utils import timezone
+
         for status in (Business.MODERATION_APPROVED,) + NON_PUBLIC_STATUSES:
             for is_locked in (False, True):
-                with self.subTest(status=status, is_locked=is_locked):
-                    business = self.make_business(status=status, is_locked=is_locked)
-                    via_filter = Business.objects.filter(
-                        Business.public_filter(), pk=business.pk
-                    ).exists()
-                    self.assertEqual(via_filter, business.is_publicly_visible)
-                    business.delete()
+                for first_approved_at in (None, timezone.now()):
+                    with self.subTest(
+                        status=status, is_locked=is_locked,
+                        first_approved_at=first_approved_at,
+                    ):
+                        business = self.make_business(
+                            status=status, is_locked=is_locked,
+                            first_approved_at=first_approved_at,
+                        )
+                        via_filter = Business.objects.filter(
+                            Business.public_filter(), pk=business.pk
+                        ).exists()
+                        self.assertEqual(via_filter, business.is_publicly_visible)
+                        business.delete()
+
+
+class PendingButPreviouslyApprovedTests(PublicGateTestCaseMixin, TestCase):
+    """A business re-queued by its own edit (business/services.py
+    stage_pending_moderated_fields) is not the same as one still waiting for
+    its first review — it has a last-approved copy that is still true, and
+    stays visible on it. This is the fix for the bug where setting an
+    emergency notice (or any moderated-field edit) took a live business
+    offline until a moderator got to it."""
+
+    def test_pending_with_prior_approval_stays_visible(self):
+        from django.utils import timezone
+
+        business = self.make_business(
+            status=Business.MODERATION_PENDING, first_approved_at=timezone.now(),
+        )
+        self.assertTrue(business.is_publicly_visible)
+        self.assertTrue(
+            Business.objects.filter(Business.public_filter(), pk=business.pk).exists()
+        )
+
+    def test_pending_without_prior_approval_stays_hidden(self):
+        business = self.make_business(
+            status=Business.MODERATION_PENDING, first_approved_at=None,
+        )
+        self.assertFalse(business.is_publicly_visible)
+        self.assertFalse(
+            Business.objects.filter(Business.public_filter(), pk=business.pk).exists()
+        )
 
 
 class ClientContentReportSubmissionTests(PublicGateTestCaseMixin, TestCase):

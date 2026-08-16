@@ -92,14 +92,24 @@ DEFAULT_ENTITLEMENTS = {
 
 # ── Commitment-ladder tier bundles ────────────────────────────────────────────
 # Longer commitment unlocks strictly more. Referenced by seed_plans.py.
+# بیعانه و کنترل ظرفیت از همان روز اول باز هستند: بیعانه‌ی کارت‌به‌کارت
+# اصلی‌ترین دلیل خرید محصول است و نباید پشت پلن‌های بالاتر قفل باشد.
+#
+# ── منطق سقف پیامک در کل نردبان ──────────────────────────────────────────────
+# پیامک تنها هزینه‌ی متغیر پلتفرم است (۱۷۰ تومان هر عدد)؛ نوبت عملاً رایگان است.
+# پس سقف پیامک باید با «مبلغ ماهانه‌ی پرداختی» بالا برود، نه با «طول تعهد».
+# اگر پلن سالانه (ماهی ~۱۴۹) پیامک بیشتری از پلن ماهانه (۱۹۹) بگیرد، حاشیه‌ی
+# سود در بلندترین تعهد به کمترین مقدار می‌رسد — یعنی وفادارترین مشتری
+# کم‌سودترین مشتری می‌شود. سقف‌های زیر عمداً ملایم بالا می‌روند تا این وارونگی
+# رخ ندهد؛ مصرف بیشتر از طریق بسته‌های افزودنی (کیف‌پول پیامک) تأمین می‌شود.
 BUNDLE_TRIAL = {
     QUOTA_MAX_BUSINESSES:       1,
-    QUOTA_MONTHLY_APPOINTMENTS: 30,
-    QUOTA_MONTHLY_SMS:          10,
+    QUOTA_MONTHLY_APPOINTMENTS: 100,
+    QUOTA_MONTHLY_SMS:          20,
     FEATURE_ONLINE_GATEWAY:     False,
-    FEATURE_DEPOSIT:            False,
+    FEATURE_DEPOSIT:            True,
     FEATURE_PROMOTIONAL_SMS:    False,
-    FEATURE_CAPACITY_CONTROL:   False,
+    FEATURE_CAPACITY_CONTROL:   True,
     FEATURE_ADVANCED_REPORTS:   False,
     FEATURE_MULTI_CHANNEL:      False,
     FEATURE_BRANDED_PAGE:       False,
@@ -110,12 +120,12 @@ BUNDLE_TRIAL = {
 # ۱ ماهه «شروع»
 BUNDLE_1M = {
     QUOTA_MAX_BUSINESSES:       1,
-    QUOTA_MONTHLY_APPOINTMENTS: 150,
-    QUOTA_MONTHLY_SMS:          50,
+    QUOTA_MONTHLY_APPOINTMENTS: 500,
+    QUOTA_MONTHLY_SMS:          200,
     FEATURE_ONLINE_GATEWAY:     False,
-    FEATURE_DEPOSIT:            False,
+    FEATURE_DEPOSIT:            True,
     FEATURE_PROMOTIONAL_SMS:    False,
-    FEATURE_CAPACITY_CONTROL:   False,
+    FEATURE_CAPACITY_CONTROL:   True,
     FEATURE_ADVANCED_REPORTS:   False,
     FEATURE_MULTI_CHANNEL:      False,
     FEATURE_BRANDED_PAGE:       False,
@@ -126,8 +136,8 @@ BUNDLE_1M = {
 # ۳ ماهه «حرفه‌ای»
 BUNDLE_3M = {
     QUOTA_MAX_BUSINESSES:       2,
-    QUOTA_MONTHLY_APPOINTMENTS: 300,
-    QUOTA_MONTHLY_SMS:          150,
+    QUOTA_MONTHLY_APPOINTMENTS: 1000,
+    QUOTA_MONTHLY_SMS:          250,
     FEATURE_ONLINE_GATEWAY:     True,
     FEATURE_DEPOSIT:            True,
     FEATURE_PROMOTIONAL_SMS:    True,
@@ -142,7 +152,7 @@ BUNDLE_3M = {
 # ۶ ماهه «ویژه»
 BUNDLE_6M = {
     QUOTA_MAX_BUSINESSES:       3,
-    QUOTA_MONTHLY_APPOINTMENTS: 600,
+    QUOTA_MONTHLY_APPOINTMENTS: 2000,
     QUOTA_MONTHLY_SMS:          300,
     FEATURE_ONLINE_GATEWAY:     True,
     FEATURE_DEPOSIT:            True,
@@ -155,12 +165,13 @@ BUNDLE_6M = {
     FEATURE_AUTO_REMINDER_SMS:  True,
 }
 
-# ۱۲ ماهه — بالاترین سطح، مثل ۶ ماهه با سقف نوبت و پیامک بیشتر
+# ۱۲ ماهه — بالاترین سطح، مثل ۶ ماهه با نوبت نامحدود و پیامک بیشتر.
+# نوبت برای ما تقریباً هزینه‌ای ندارد؛ محدودکننده‌ی واقعی هزینه، پیامک است.
 BUNDLE_12M = {
     **BUNDLE_6M,
     QUOTA_MAX_BUSINESSES:       5,
-    QUOTA_MONTHLY_APPOINTMENTS: 1000,
-    QUOTA_MONTHLY_SMS:          500,
+    QUOTA_MONTHLY_APPOINTMENTS: UNLIMITED,
+    QUOTA_MONTHLY_SMS:          400,
 }
 
 

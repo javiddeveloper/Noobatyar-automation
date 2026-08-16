@@ -269,6 +269,25 @@ class Business(models.Model):
         help_text="When this business last entered the review queue. Drives "
                   "queue ordering (oldest waiting first).",
     )
+    # Set once, the first time this business is ever approved, and never
+    # cleared afterwards. Distinguishes "still waiting for its first review"
+    # (nothing publicly true yet — stay hidden) from "already live, an edit
+    # just sent it back for re-review" (the old, approved copy is still true
+    # and should keep showing — see pending_* below).
+    first_approved_at = models.DateTimeField(null=True, blank=True)
+
+    # ── Staged edits, pending re-review ─────────────────────────────────────
+    # Once a business has been approved at least once, an edit to a
+    # MODERATED_FIELDS column is written here instead of onto the live column,
+    # so the public booking page keeps showing the last-approved copy while the
+    # edit is under review — instead of the business vanishing until a
+    # moderator gets to it. A moderator's APPROVED decision (moderation.py)
+    # copies these onto the live fields and clears them; a REJECTED decision
+    # leaves them so the owner's next edit still has something to start from.
+    pending_title = models.CharField(max_length=255, null=True, blank=True)
+    pending_bio = models.CharField(max_length=50, null=True, blank=True)
+    pending_address = models.TextField(null=True, blank=True)
+    pending_logo = models.ImageField(upload_to='business_logos/', null=True, blank=True)
 
     class Meta:
         db_table = 'business'
@@ -286,17 +305,35 @@ class Business(models.Model):
     # Editing any of these changes what the public actually sees, so a change
     # after approval has to go back through review — otherwise an owner can be
     # approved with clean copy and then swap in anything they like.
-    MODERATED_FIELDS = ('title', 'bio', 'address', 'logo', 'notice_message')
+    #
+    # notice_message is deliberately NOT here: it's a time-sensitive, owner-
+    # controlled announcement ("closed today"). Gating it on moderation took
+    # the entire business offline while the notice sat in the review queue,
+    # defeating the point of an emergency notice. It's still shown to
+    # moderators via moderated_texts() so abuse is still visible, it just no
+    # longer flips moderation_status or public visibility.
+    MODERATED_FIELDS = ('title', 'bio', 'address', 'logo')
 
     @property
     def is_publicly_visible(self):
         """The single gate every public/client-facing query must pass through.
 
         Two independent reasons a business can be hidden — unpaid (`is_locked`)
-        and not editorially cleared (`moderation_status`). Callers must never
-        check just one of them.
+        and not editorially cleared. The second one is not simply "APPROVED":
+        a business that cleared review once and is now PENDING again because
+        an edit staged a pending draft (see pending_* fields) is still showing
+        its last-approved, live column values — those were true and cleared,
+        so it stays visible. Only a business that has never once been approved
+        (first_approved_at is still null) has nothing publicly true to show,
+        so PENDING there means hidden. REJECTED/SUSPENDED are always hidden —
+        those are real editorial/enforcement decisions, not just an edit
+        waiting in the queue.
         """
-        return not self.is_locked and self.moderation_status == self.MODERATION_APPROVED
+        if self.is_locked:
+            return False
+        if self.moderation_status == self.MODERATION_APPROVED:
+            return True
+        return self.moderation_status == self.MODERATION_PENDING and self.first_approved_at is not None
 
     @staticmethod
     def public_filter():
@@ -306,7 +343,10 @@ class Business(models.Model):
         listing and detail paths can never drift apart.
         """
         from django.db.models import Q
-        return Q(is_locked=False, moderation_status=Business.MODERATION_APPROVED)
+        return Q(is_locked=False) & (
+            Q(moderation_status=Business.MODERATION_APPROVED)
+            | Q(moderation_status=Business.MODERATION_PENDING, first_approved_at__isnull=False)
+        )
 
     def save(self, *args, **kwargs):
         if not self.unique_code:
