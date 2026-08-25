@@ -698,15 +698,30 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
 
-    # Send to business owner — off unless the owner explicitly asked for it.
-    # Business.notify_owner_by_sms now defaults to False (and existing rows were
-    # switched off by business migration 0013): an owner learning about their own
-    # booking should not be paying, out of their own SMS quota, for a message
-    # that repeats what the owner app already shows them. The intended
-    # replacement is an app push notification, which this backend cannot send
-    # yet — there is no device-token model, no FCM/APNs credentials and no
-    # dispatch path anywhere in the project. Until that exists, an owner who
-    # still wants to be told by SMS can turn this back on and keep paying for it.
+    # Push to the owner's app — free, so it goes out regardless of the SMS
+    # switch below. This is the channel notify_owner_by_sms was defaulted off in
+    # favour of: an owner should not pay, out of their own SMS quota, for a
+    # message that repeats what the app already shows them.
+    try:
+        if owner_id is not None and owner_msg:
+            from api.services import push
+
+            if push.is_configured():
+                push.send_to_user(
+                    owner_id,
+                    title="نوبت جدید",
+                    body=owner_msg,
+                    data={'type': 'NEW_BOOKING', 'business_id': business_id},
+                )
+    except Exception as e:
+        # Never let the push channel take the SMS channel down with it.
+        logger.error(f"Push→owner error: {e}")
+
+    # Send to business owner by SMS — off unless the owner explicitly asked for
+    # it. Business.notify_owner_by_sms defaults to False (and existing rows were
+    # switched off by business migration 0013); the push above is the intended
+    # replacement. An owner who still wants an SMS can turn this back on and
+    # keep paying for it.
     try:
         if not owner_phone or not owner_msg:
             pass

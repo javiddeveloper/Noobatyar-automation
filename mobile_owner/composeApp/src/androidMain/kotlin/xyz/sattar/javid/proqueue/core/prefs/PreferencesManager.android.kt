@@ -8,6 +8,7 @@ import xyz.sattar.javid.proqueue.ProQueueApp
 import androidx.core.content.edit
 
 import xyz.sattar.javid.proqueue.core.state.AppThemeMode
+import xyz.sattar.javid.proqueue.domain.model.business.DEFAULT_REMINDER_MINUTES
 
 actual object PreferencesManager {
     private val context: Context get() = ProQueueApp.appContext
@@ -31,7 +32,7 @@ actual object PreferencesManager {
         prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)
     )
     private val _notificationReminderMinutes = MutableStateFlow(
-        prefs.getInt(KEY_NOTIFICATION_REMINDER_MINUTES, 10) // Default 10 minutes
+        prefs.getInt(KEY_NOTIFICATION_REMINDER_MINUTES, DEFAULT_REMINDER_MINUTES)
     )
 
     actual val themeMode: Flow<AppThemeMode> = _themeMode
@@ -87,6 +88,6 @@ actual object PreferencesManager {
     }
 
     actual fun getNotificationReminderMinutes(): Int {
-        return prefs.getInt(KEY_NOTIFICATION_REMINDER_MINUTES, 20)
+        return prefs.getInt(KEY_NOTIFICATION_REMINDER_MINUTES, DEFAULT_REMINDER_MINUTES)
     }
 }

@@ -2,14 +2,22 @@ package xyz.sattar.javid.proqueue.feature.notifications
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import xyz.sattar.javid.proqueue.core.network.ApiException
+import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.notifications.NotificationScheduler
+import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
 import xyz.sattar.javid.proqueue.domain.BusinessRepository
+import xyz.sattar.javid.proqueue.domain.model.business.DEFAULT_REMINDER_MINUTES
+import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
 
 class NotificationsViewModel(
     private val notificationScheduler: NotificationScheduler,
-    private val businessRepository: BusinessRepository
+    private val businessRepository: BusinessRepository,
+    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase
 ) :
     BaseViewModel<NotificationsState, NotificationsState.PartialState, NotificationsEvent, NotificationsIntent>(
         initialState = NotificationsState()
@@ -39,6 +47,20 @@ class NotificationsViewModel(
                 if (intent.minutes.all { it.isDigit() }) {
                     emit(NotificationsState.PartialState.ReminderMinutesChanged(intent.minutes))
                 }
+            }
+
+            is NotificationsIntent.ToggleRemindClient -> flow {
+                emit(NotificationsState.PartialState.RemindClientChanged(intent.enabled))
+            }
+
+            // PANEL is refused locally when the plan does not cover it, so the
+            // owner never reaches a state the server would answer with a 403.
+            is NotificationsIntent.SetDelivery -> flow {
+                if (intent.delivery == ReminderDelivery.PANEL.value && !uiState.value.canUsePanelDelivery) {
+                    emit(NotificationsState.PartialState.Error("ارسال خودکار یادآوری در پلن فعلی شما نیست"))
+                    return@flow
+                }
+                emit(NotificationsState.PartialState.DeliveryChanged(intent.delivery))
             }
 
             is NotificationsIntent.SaveSettings -> saveSettings()
@@ -72,6 +94,15 @@ class NotificationsViewModel(
 
             is NotificationsState.PartialState.PermissionStatusChanged ->
                 currentState.copy(hasPermission = partialState.hasPermission)
+
+            is NotificationsState.PartialState.RemindClientChanged ->
+                currentState.copy(remindClient = partialState.enabled)
+
+            is NotificationsState.PartialState.DeliveryChanged ->
+                currentState.copy(reminderDelivery = partialState.delivery)
+
+            is NotificationsState.PartialState.PanelAllowedChanged ->
+                currentState.copy(canUsePanelDelivery = partialState.allowed)
         }
     }
 
@@ -83,12 +114,20 @@ class NotificationsViewModel(
         try {
             val business = BusinessStateHolder.selectedBusiness.value
             val hasPermission = notificationScheduler.hasPermission()
-            
+
             emit(NotificationsState.PartialState.PermissionStatusChanged(hasPermission))
-            
+
             if (business != null) {
                 emit(NotificationsState.PartialState.NotificationsEnabledChanged(business.notificationEnabled))
-                emit(NotificationsState.PartialState.ReminderMinutesChanged(business.notificationMinutesBefore.toString()))
+                // Businesses created before the lead time had a real default
+                // carry 0, which would fire the reminder at the appointment
+                // itself. Show the default instead of that.
+                val minutes = business.notificationMinutesBefore
+                    .takeIf { it > 0 } ?: DEFAULT_REMINDER_MINUTES
+                emit(NotificationsState.PartialState.ReminderMinutesChanged(minutes.toString()))
+                emit(NotificationsState.PartialState.RemindClientChanged(business.enableReminderSms))
+                emit(NotificationsState.PartialState.DeliveryChanged(business.reminderDelivery))
+                emit(NotificationsState.PartialState.PanelAllowedChanged(loadPanelEntitlement()))
             } else {
                 emit(NotificationsState.PartialState.Error("کسب و کاری انتخاب نشده است"))
             }
@@ -99,28 +138,70 @@ class NotificationsViewModel(
         }
     }
 
+    /**
+     * Whether the plan covers server-side reminders. A failed entitlements call
+     * leaves PANEL locked rather than optimistically unlocked — offering it and
+     * then eating a 403 on save is the worse of the two failures. Same rule as
+     * [xyz.sattar.javid.proqueue.feature.messages.MessagesViewModel].
+     */
+    private suspend fun loadPanelEntitlement(): Boolean = try {
+        when (val response = getMyEntitlementsUseCase()) {
+            is ApiResponse.Success -> response.data.hasFeature(EntitlementKeys.AUTO_REMINDER_SMS)
+            is ApiResponse.Error -> false
+        }
+    } catch (e: Exception) {
+        false
+    }
+
     private fun saveSettings(): Flow<NotificationsState.PartialState> = flow {
         emit(NotificationsState.PartialState.IsLoading(true))
         try {
             val currentState = uiState.value
             val currentBusiness = BusinessStateHolder.selectedBusiness.value
-            
-            if (currentBusiness != null) {
-                val minutes = currentState.reminderMinutes.toIntOrNull() ?: 30
-                val updatedBusiness = currentBusiness.copy(
-                    notificationEnabled = currentState.isNotificationsEnabled,
-                    notificationMinutesBefore = minutes
-                )
-                
-                val success = businessRepository.upsertBusiness(updatedBusiness)
-                if (success) {
-                    BusinessStateHolder.selectBusiness(updatedBusiness)
-                    sendEvent(NotificationsEvent.ShowSavedConfirmation)
-                } else {
-                    emit(NotificationsState.PartialState.Error("خطا در ذخیره تنظیمات"))
-                }
-            } else {
+
+            if (currentBusiness == null) {
                 emit(NotificationsState.PartialState.Error("کسب و کاری انتخاب نشده است"))
+                return@flow
+            }
+
+            val minutes = currentState.reminderMinutes.toIntOrNull()
+                ?.takeIf { it > 0 } ?: DEFAULT_REMINDER_MINUTES
+            // Falling back to MANUAL when the plan lost the entitlement keeps
+            // the saved value and the offered value in agreement.
+            val delivery = if (
+                currentState.reminderDelivery == ReminderDelivery.PANEL.value &&
+                !currentState.canUsePanelDelivery
+            ) ReminderDelivery.MANUAL.value else currentState.reminderDelivery
+
+            val updatedBusiness = currentBusiness.copy(
+                notificationEnabled = currentState.isNotificationsEnabled,
+                notificationMinutesBefore = minutes,
+                enableReminderSms = currentState.remindClient,
+                reminderDelivery = delivery
+            )
+
+            val success = businessRepository.upsertBusiness(updatedBusiness)
+            if (success) {
+                BusinessStateHolder.selectBusiness(updatedBusiness)
+                // The lead time also drives the {minutes} token in the message
+                // templates, which reads it back out of preferences.
+                PreferencesManager.setNotificationReminderMinutes(minutes)
+                emit(NotificationsState.PartialState.ReminderMinutesChanged(minutes.toString()))
+                emit(NotificationsState.PartialState.DeliveryChanged(delivery))
+                sendEvent(NotificationsEvent.ShowSavedConfirmation)
+            } else {
+                emit(NotificationsState.PartialState.Error("خطا در ذخیره تنظیمات"))
+            }
+        } catch (e: ApiException) {
+            // 403 = the server disagrees with what we believed about the plan
+            // (expired mid-session, say). Drop back to the mode that always
+            // works instead of leaving the UI claiming PANEL is on.
+            if (e.code == 403) {
+                emit(NotificationsState.PartialState.DeliveryChanged(ReminderDelivery.MANUAL.value))
+                emit(NotificationsState.PartialState.PanelAllowedChanged(false))
+                emit(NotificationsState.PartialState.Error("پلن فعلی شما ارسال خودکار یادآوری را پوشش نمی‌دهد"))
+            } else {
+                emit(NotificationsState.PartialState.Error(e.message ?: "خطا در ذخیره تنظیمات"))
             }
         } catch (e: Exception) {
             emit(NotificationsState.PartialState.Error(e.message ?: "خطا در ذخیره تنظیمات"))

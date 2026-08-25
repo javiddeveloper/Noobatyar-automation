@@ -79,6 +79,7 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 append("allow_client_add_service", business.allowClientAddService.toString())
                 append("notice_enabled", business.noticeEnabled.toString())
                 append("notice_message", business.noticeMessage)
+                append("enable_reminder_sms", business.enableReminderSms.toString())
                 append("reminder_delivery", business.reminderDelivery)
 
 

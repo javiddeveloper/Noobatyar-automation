@@ -13,3 +13,5 @@ requests==2.32.3
 django-redis==5.4.0
 redis==5.2.1
 argon2-cffi==23.1.0
+# FCM HTTP v1 needs a service-account OAuth token (api/services/push.py).
+google-auth==2.40.0

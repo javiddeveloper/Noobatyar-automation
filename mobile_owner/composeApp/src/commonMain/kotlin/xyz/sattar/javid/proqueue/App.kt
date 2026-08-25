@@ -28,6 +28,7 @@ import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import xyz.sattar.javid.proqueue.core.ui.components.showToasty
 import xyz.sattar.javid.proqueue.core.utils.AppInfo
 import xyz.sattar.javid.proqueue.domain.BusinessRepository
+import xyz.sattar.javid.proqueue.domain.usecase.push.SyncPushTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.HasTokenUseCase
 import xyz.sattar.javid.proqueue.feature.version.VersionHandler
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
@@ -43,6 +44,16 @@ fun App() {
     var onAuthComplete by remember { mutableStateOf(hasTokenUseCase()) }
     val scope = rememberCoroutineScope()
     val businessRepository: BusinessRepository = koinInject()
+    val syncPushToken: SyncPushTokenUseCase = koinInject()
+
+    // Re-registers this device with the backend on every signed-in start, not
+    // only right after login: FCM rotates tokens on its own schedule
+    // (reinstall, restored backup, cleared app data) and a stale token is
+    // silently undeliverable, so re-sending the current one is cheaper than
+    // trying to detect the rotation.
+    LaunchedEffect(onAuthComplete) {
+        if (onAuthComplete) syncPushToken()
+    }
 
     // Mounted for the whole app (outside the auth/business/main nav swap below),
     // so a toast triggered right before a forced navigation — e.g. the session

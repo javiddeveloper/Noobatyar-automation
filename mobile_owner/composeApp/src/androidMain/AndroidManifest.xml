@@ -33,6 +33,25 @@
         </activity>
         
         <receiver android:name=".core.notifications.ReminderReceiver" />
+
+        <!-- FCM. exported=false: only the Play Services process binds to it,
+             and an exported messaging service would let any app on the device
+             hand the owner a fake notification. -->
+        <service
+            android:name=".core.push.PushMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <!-- Used for the tray notification FCM renders itself when the app is
+             in the background; onMessageReceived does not run in that case. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/main_icon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="appointment_reminders" />
     </application>
 
 </manifest>

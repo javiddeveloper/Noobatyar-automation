@@ -51,6 +51,10 @@ data class BusinessDto(
     // the message while the switch is on, so both fields travel together.
     @SerialName("notice_enabled") val noticeEnabled: Boolean = false,
     @SerialName("notice_message") val noticeMessage: String? = null,
+    // Whether the client is reminded at all. Defaults to true to match the
+    // server's own default, so an older backend that omits the field is not read
+    // as "reminders off".
+    @SerialName("enable_reminder_sms") val enableReminderSms: Boolean = true,
     // "MANUAL" (owner texts from their own SIM) or "PANEL" (server sends).
     @SerialName("reminder_delivery") val reminderDelivery: String? = null,
     // The business's own service menu and whether clients may go off it.
