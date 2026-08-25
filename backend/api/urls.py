@@ -1,7 +1,7 @@
 # api/urls.py
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from . import views
+from . import device_views, views
 
 urlpatterns = [
     # احراز هویت
@@ -19,5 +19,9 @@ urlpatterns = [
     
     # مدیریت کاربران
     path('users/<int:pk>/', views.user_detail, name='user-detail'),
+
+    # اعلان‌های پوش (FCM) — ثبت و حذف توکن دستگاه اپ اونر
+    path('devices/register/', device_views.register_device, name='device-register'),
+    path('devices/unregister/', device_views.unregister_device, name='device-unregister'),
     
 ]

@@ -13,7 +13,7 @@ data class Business(
     val workEndHour: Int,
     val notificationEnabled: Boolean,
     val notificationTypes: String,
-    val notificationMinutesBefore: Int = 0,
+    val notificationMinutesBefore: Int = DEFAULT_REMINDER_MINUTES,
     val createdAt: Long = 0,
     val allowAnonymousView: Boolean = false,
     val notifyOwnerBySms: Boolean = true,
@@ -41,6 +41,12 @@ data class Business(
     /** Emergency notice for the public booking page — hidden while disabled. */
     val noticeEnabled: Boolean = false,
     val noticeMessage: String = "",
+    /**
+     * Whether the client gets an appointment reminder at all. Off means no
+     * reminder is sent on any channel; [reminderDelivery] only decides *how* an
+     * enabled reminder travels.
+     */
+    val enableReminderSms: Boolean = true,
     /** [ReminderDelivery] value; PANEL needs the auto_reminder_sms entitlement. */
     val reminderDelivery: String = ReminderDelivery.MANUAL.value,
     /**

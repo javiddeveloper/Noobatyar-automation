@@ -9,10 +9,17 @@ never received a reminder. This command closes that gap: for every upcoming
 appointment whose reminder window has opened, it sends one SMS and stamps
 ``reminder_sent_at`` so the same appointment is never reminded twice.
 
-Scope: only businesses with ``reminder_delivery='PANEL'`` — the paid, automatic
-channel gated behind ``auto_reminder_sms``. ``MANUAL`` businesses (the default)
-send their reminders from the owner's own SIM inside the owner app; this job
-must send nothing and charge nothing for them.
+Two channels, deliberately independent:
+
+* **The client's SMS** — only for businesses on ``reminder_delivery='PANEL'``,
+  the paid automatic channel gated behind ``auto_reminder_sms``. ``MANUAL``
+  businesses (the default) send their reminders from the owner's own SIM inside
+  the owner app; this job must send nothing and charge nothing for them.
+  Stamped with ``reminder_sent_at``.
+* **The owner's push** — free, so it goes out for *every* business with
+  notifications on, whichever way the client is reminded. Stamped with
+  ``reminder_push_sent_at``. A business on MANUAL depends on this push: it is
+  the prompt to go and text the client.
 
 Options:
     --dry-run   report what would be sent without sending or stamping anything.
@@ -21,7 +28,7 @@ Options:
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from accounting import usage
@@ -53,14 +60,22 @@ class Command(BaseCommand):
 
         due = self._due_appointments(now)
 
-        sent = skipped = failed = 0
+        sent = skipped = failed = pushed = 0
         for appointment in due:
             if dry_run:
                 self.stdout.write(
                     f"[dry-run] #{appointment.id} → {appointment.visitor.phone_number} "
-                    f"({appointment.appointment_date.isoformat()})"
+                    f"({appointment.appointment_date.isoformat()}) "
+                    f"sms={'yes' if self._sms_due(appointment) else 'no'} "
+                    f"push={'yes' if appointment.reminder_push_sent_at is None else 'no'}"
                 )
                 sent += 1
+                continue
+
+            if appointment.reminder_push_sent_at is None:
+                pushed += self._push_owner(appointment, now)
+
+            if not self._sms_due(appointment):
                 continue
 
             result = self._send_one(appointment, now)
@@ -71,13 +86,31 @@ class Command(BaseCommand):
             else:
                 failed += 1
 
-        summary = f"یادآوری‌ها: {sent} ارسال، {skipped} رد شده، {failed} ناموفق"
+        summary = (
+            f"یادآوری‌ها: {sent} پیامک ارسال، {skipped} رد شده، {failed} ناموفق، "
+            f"{pushed} اعلان به اونر"
+        )
         self.stdout.write(self.style.SUCCESS(summary))
+
+    @staticmethod
+    def _sms_due(appointment):
+        """Whether this appointment still owes the *client* an SMS.
+
+        MANUAL businesses never do — their reminder leaves the owner's own SIM
+        from inside the app, so sending here would both duplicate the message
+        and spend quota the owner deliberately chose not to spend.
+        """
+        business = appointment.business
+        return (
+            appointment.reminder_sent_at is None
+            and business.enable_reminder_sms
+            and business.reminder_delivery == 'PANEL'
+        )
 
     def _due_appointments(self, now):
         """
         Appointments whose reminder window has opened but that have not been
-        reminded yet.
+        reminded yet — on either channel.
 
         The window opens at ``appointment_date - notification_minutes_before``,
         which varies per business. Rather than express that subtraction in SQL
@@ -87,19 +120,14 @@ class Command(BaseCommand):
         in Python. The candidate set is only "appointments starting soon", so
         this stays small.
 
-        ``reminder_delivery`` is part of the filter, not just a display setting:
-        a MANUAL business sends its reminders from the owner's own SIM through
-        the owner app, so anything this job did for one would be a duplicate
-        message *and* a charge against a quota the owner deliberately chose not
-        to spend. Only PANEL businesses are the panel's to send.
+        Unlike the first version of this job the filter is no longer restricted
+        to PANEL businesses: a MANUAL one still needs the owner's push, which is
+        free. Whether the *client* also gets an SMS is decided per appointment
+        by :meth:`_sms_due`.
         """
         widest = (
             Business.objects
-            .filter(
-                enable_reminder_sms=True,
-                notification_enabled=True,
-                reminder_delivery='PANEL',
-            )
+            .filter(notification_enabled=True)
             .aggregate(m=Max('notification_minutes_before'))['m']
         )
         if not widest:
@@ -109,13 +137,11 @@ class Command(BaseCommand):
             Appointment.objects
             .filter(
                 status__in=REMINDABLE_STATUSES,
-                reminder_sent_at__isnull=True,
                 appointment_date__gt=now,
                 appointment_date__lte=now + timedelta(minutes=widest),
-                business__enable_reminder_sms=True,
                 business__notification_enabled=True,
-                business__reminder_delivery='PANEL',
             )
+            .filter(Q(reminder_sent_at__isnull=True) | Q(reminder_push_sent_at__isnull=True))
             .select_related('business', 'visitor')
             .order_by('appointment_date')
         )
@@ -129,6 +155,46 @@ class Command(BaseCommand):
                 due.append(appointment)
 
         return due
+
+    def _push_owner(self, appointment, now):
+        """
+        Notify the owner's phone through FCM. Returns 1 if any device took it.
+
+        Stamped even when nothing was delivered — an owner with no registered
+        device (push not set up, or app not installed) must not make this job
+        re-check the same appointment every few minutes until it starts.
+        """
+        from api.services import push
+
+        business = appointment.business
+        delivered = 0
+        if push.is_configured():
+            body = (
+                f"{appointment.visitor.full_name} — "
+                f"{format_datetime(appointment.appointment_date)}"
+            )
+            if business.reminder_delivery != 'PANEL':
+                body += "\nیادآوری را برای مشتری بفرستید"
+            try:
+                delivered = push.send_to_user(
+                    business.user_id,
+                    title=f"یادآوری نوبت · {business.title}",
+                    body=body,
+                    data={
+                        'type': 'APPOINTMENT_REMINDER',
+                        'appointment_id': appointment.id,
+                        'business_id': business.id,
+                        'visitor_id': appointment.visitor_id,
+                    },
+                )
+            except Exception as exc:
+                # Push is the convenience channel; the SMS below is what
+                # actually carries the message. Never let it break the run.
+                self.stderr.write(f"#{appointment.id}: ارسال اعلان ناموفق: {exc}")
+
+        appointment.reminder_push_sent_at = now
+        appointment.save(update_fields=['reminder_push_sent_at', 'updated_at'])
+        return 1 if delivered else 0
 
     def _send_one(self, appointment, now):
         from api.sms import send_sms, signed

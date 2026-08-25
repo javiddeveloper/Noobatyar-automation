@@ -44,6 +44,9 @@ import xyz.sattar.javid.proqueue.domain.usecase.VisitorUpsertUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CheckVersionUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.ClearTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetUserProfileUseCase
+import xyz.sattar.javid.proqueue.data.remoteDataSource.device.DeviceApiService
+import xyz.sattar.javid.proqueue.domain.usecase.push.SyncPushTokenUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.push.UnregisterPushTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.HasTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.LoginUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.RegisterUseCase
@@ -85,6 +88,7 @@ val appModule: Module = module {
     // --- Network ---
     single<HttpClient> { HttpClientFactory.create() }
     single { UserApiService(get()) }
+    single { DeviceApiService(get()) }
     single { xyz.sattar.javid.proqueue.data.remoteDataSource.business.BusinessApiService(get()) }
     single { xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.VisitorApiService(get()) }
     single { xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.AppointmentApiService(get()) }
@@ -109,6 +113,8 @@ val appModule: Module = module {
     factory { UserLogoutUseCase(get()) }
     factory { HasTokenUseCase() }
     factory { ClearTokenUseCase() }
+    factory { SyncPushTokenUseCase(get()) }
+    factory { UnregisterPushTokenUseCase(get()) }
     factory { CheckVersionUseCase(get()) }
     factory { GetUserProfileUseCase(get()) }
     factory { SendOTPUseCase(get()) }
@@ -196,7 +202,7 @@ val appModule: Module = module {
     viewModel { VisitorSelectionViewModel(get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { VersionViewModel(get()) }
-    viewModel { NotificationsViewModel(get(), get()) }
+    viewModel { NotificationsViewModel(get(), get(), get()) }
     viewModel { BusinessListViewModel(get(), get(), get()) }
     viewModel { VisitorDetailsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { MessagesViewModel(get(), get(), get()) }
@@ -206,5 +212,5 @@ val appModule: Module = module {
     viewModel { SendOTPViewModel(get(), get()) }
     viewModel { ResetPasswordViewModel(get()) }
     viewModel { LoginViewModel(get()) }
-    viewModel { UserViewModel(get(), get(), get(), get()) }
+    viewModel { UserViewModel(get(), get(), get(), get(), get()) }
 }

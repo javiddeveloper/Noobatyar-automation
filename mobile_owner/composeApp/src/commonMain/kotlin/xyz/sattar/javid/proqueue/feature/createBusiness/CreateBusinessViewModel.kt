@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.flow
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.model.business.Business
+import xyz.sattar.javid.proqueue.domain.model.business.DEFAULT_REMINDER_MINUTES
 import xyz.sattar.javid.proqueue.domain.usecase.AddServiceCatalogItemUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.BusinessUpsertUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetServiceCatalogUseCase
@@ -232,6 +233,12 @@ class CreateBusinessViewModel(
                 workEndHour = workEndHour,
                 notificationEnabled = uiState.value.business?.notificationEnabled ?: true,
                 notificationTypes = uiState.value.business?.notificationTypes ?: "SMS,WHATSAPP",
+                // Carried over rather than rebuilt: this form has no field for
+                // either, so leaving them out would reset whatever the
+                // notifications screen saved every time the business is edited.
+                notificationMinutesBefore = uiState.value.business?.notificationMinutesBefore
+                    ?.takeIf { it > 0 } ?: DEFAULT_REMINDER_MINUTES,
+                enableReminderSms = uiState.value.business?.enableReminderSms ?: true,
                 allowAnonymousView = allowAnonymousView,
                 notifyOwnerBySms = notifyOwnerBySms,
                 maxAppointmentsPerHour = maxAppointmentsPerHour,

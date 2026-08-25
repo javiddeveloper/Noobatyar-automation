@@ -8,4 +8,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.buildkonfig) apply false
+    // Declared here only to put it on the build classpath; composeApp applies it
+    // conditionally, since it hard-fails when google-services.json is absent.
+    alias(libs.plugins.googleServices) apply false
 }

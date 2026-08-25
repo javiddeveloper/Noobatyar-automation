@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "56921056578",
+    "project_id": "nobatyar-79c53",
+    "storage_bucket": "nobatyar-79c53.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:56921056578:android:815a935edd4f50526a14db",
+        "android_client_info": {
+          "package_name": "xyz.sattar.javid.proqueue"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD11zmX9Gfas8GVXZwpFRo9StrCIGUJT9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:56921056578:android:79c188f2ebac9a546a14db",
+        "android_client_info": {
+          "package_name": "xyz.sattar.javid.proqueue.local"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD11zmX9Gfas8GVXZwpFRo9StrCIGUJT9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

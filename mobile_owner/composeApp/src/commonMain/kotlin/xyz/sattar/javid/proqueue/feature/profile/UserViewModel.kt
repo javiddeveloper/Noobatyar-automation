@@ -8,6 +8,7 @@ import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.domain.usecase.UserLogoutUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.push.UnregisterPushTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.ClearTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetCurrentUserUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMySubscriptionUseCase
@@ -16,6 +17,7 @@ class UserViewModel(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val getMySubscriptionUseCase: GetMySubscriptionUseCase,
     private val userLogoutUseCase: UserLogoutUseCase,
+    private val unregisterPushTokenUseCase: UnregisterPushTokenUseCase,
     private val clearTokenUseCase: ClearTokenUseCase
 ) : BaseViewModel<UserState, UserState.PartialState, UserEvent, UserIntent>(
     initialState = UserState()
@@ -82,6 +84,10 @@ class UserViewModel(
     private fun logout(): Flow<UserState.PartialState> = flow {
         emit(UserState.PartialState.IsLoading(true))
         try {
+            // Before the token is cleared, and before the account changes: the
+            // next owner to sign in on this phone must not inherit push
+            // notifications about the previous one's appointments.
+            unregisterPushTokenUseCase()
             userLogoutUseCase()
         } catch (e: Exception) {
         } finally {

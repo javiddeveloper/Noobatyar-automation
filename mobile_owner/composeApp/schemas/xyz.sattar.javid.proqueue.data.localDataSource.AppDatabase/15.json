@@ -1,0 +1,597 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 15,
+    "identityHash": "8dd6bc9dbdd3001f251f183d0327e110",
+    "entities": [
+      {
+        "tableName": "Business",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `category` TEXT, `uniqueCode` TEXT, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `logoPath` TEXT NOT NULL, `defaultServiceDuration` INTEGER NOT NULL, `workStartHour` INTEGER NOT NULL, `workEndHour` INTEGER NOT NULL, `notificationEnabled` INTEGER NOT NULL, `notificationTypes` TEXT NOT NULL, `notificationMinutesBefore` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `allowAnonymousView` INTEGER NOT NULL, `notifyOwnerBySms` INTEGER NOT NULL, `paymentMethod` TEXT, `acceptedPaymentMethods` TEXT NOT NULL, `maxAppointmentsPerHour` INTEGER, `depositMode` TEXT, `depositAmount` INTEGER, `merchantId` TEXT NOT NULL, `paymentLink` TEXT NOT NULL, `cardNumber` TEXT NOT NULL, `cardOwnerName` TEXT NOT NULL, `bio` TEXT NOT NULL, `moderationStatus` TEXT, `moderationStatusDisplay` TEXT NOT NULL, `moderationNote` TEXT NOT NULL, `moderationSubmittedAt` INTEGER NOT NULL, `isLocked` INTEGER NOT NULL, `noticeEnabled` INTEGER NOT NULL, `noticeMessage` TEXT NOT NULL, `enableReminderSms` INTEGER NOT NULL, `reminderDelivery` TEXT NOT NULL, `services` TEXT NOT NULL, `allowClientAddService` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "uniqueCode",
+            "columnName": "uniqueCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "logoPath",
+            "columnName": "logoPath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultServiceDuration",
+            "columnName": "defaultServiceDuration",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "workStartHour",
+            "columnName": "workStartHour",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "workEndHour",
+            "columnName": "workEndHour",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationEnabled",
+            "columnName": "notificationEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationTypes",
+            "columnName": "notificationTypes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationMinutesBefore",
+            "columnName": "notificationMinutesBefore",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allowAnonymousView",
+            "columnName": "allowAnonymousView",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notifyOwnerBySms",
+            "columnName": "notifyOwnerBySms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paymentMethod",
+            "columnName": "paymentMethod",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "acceptedPaymentMethods",
+            "columnName": "acceptedPaymentMethods",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxAppointmentsPerHour",
+            "columnName": "maxAppointmentsPerHour",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "depositMode",
+            "columnName": "depositMode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "depositAmount",
+            "columnName": "depositAmount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "merchantId",
+            "columnName": "merchantId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paymentLink",
+            "columnName": "paymentLink",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cardNumber",
+            "columnName": "cardNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cardOwnerName",
+            "columnName": "cardOwnerName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bio",
+            "columnName": "bio",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moderationStatus",
+            "columnName": "moderationStatus",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "moderationStatusDisplay",
+            "columnName": "moderationStatusDisplay",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moderationNote",
+            "columnName": "moderationNote",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moderationSubmittedAt",
+            "columnName": "moderationSubmittedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isLocked",
+            "columnName": "isLocked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "noticeEnabled",
+            "columnName": "noticeEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "noticeMessage",
+            "columnName": "noticeMessage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enableReminderSms",
+            "columnName": "enableReminderSms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reminderDelivery",
+            "columnName": "reminderDelivery",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "services",
+            "columnName": "services",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allowClientAddService",
+            "columnName": "allowClientAddService",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "Visitor",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `fullName` TEXT NOT NULL, `phoneNumber` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fullName",
+            "columnName": "fullName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phoneNumber",
+            "columnName": "phoneNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Visitor_phoneNumber",
+            "unique": true,
+            "columnNames": [
+              "phoneNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Visitor_phoneNumber` ON `${TABLE_NAME}` (`phoneNumber`)"
+          }
+        ]
+      },
+      {
+        "tableName": "Appointment",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `businessId` INTEGER NOT NULL, `visitorId` INTEGER NOT NULL, `appointmentDate` INTEGER NOT NULL, `serviceDuration` INTEGER, `status` TEXT NOT NULL, `description` TEXT, `selectedServices` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `paymentReceipt` TEXT, `trackingCode` TEXT, `paymentReference` TEXT, `depositPaymentMethod` TEXT, FOREIGN KEY(`businessId`) REFERENCES `Business`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`visitorId`) REFERENCES `Visitor`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessId",
+            "columnName": "businessId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visitorId",
+            "columnName": "visitorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appointmentDate",
+            "columnName": "appointmentDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serviceDuration",
+            "columnName": "serviceDuration",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "selectedServices",
+            "columnName": "selectedServices",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paymentReceipt",
+            "columnName": "paymentReceipt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "trackingCode",
+            "columnName": "trackingCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "paymentReference",
+            "columnName": "paymentReference",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "depositPaymentMethod",
+            "columnName": "depositPaymentMethod",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Appointment_businessId",
+            "unique": false,
+            "columnNames": [
+              "businessId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Appointment_businessId` ON `${TABLE_NAME}` (`businessId`)"
+          },
+          {
+            "name": "index_Appointment_visitorId",
+            "unique": false,
+            "columnNames": [
+              "visitorId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Appointment_visitorId` ON `${TABLE_NAME}` (`visitorId`)"
+          },
+          {
+            "name": "index_Appointment_appointmentDate",
+            "unique": false,
+            "columnNames": [
+              "appointmentDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Appointment_appointmentDate` ON `${TABLE_NAME}` (`appointmentDate`)"
+          },
+          {
+            "name": "index_Appointment_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Appointment_status` ON `${TABLE_NAME}` (`status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Business",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "businessId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Visitor",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "visitorId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "Message",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `appointmentId` INTEGER NOT NULL, `messageType` TEXT NOT NULL, `content` TEXT NOT NULL, `sentAt` INTEGER NOT NULL, `businessTitle` TEXT NOT NULL, FOREIGN KEY(`appointmentId`) REFERENCES `Appointment`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appointmentId",
+            "columnName": "appointmentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "messageType",
+            "columnName": "messageType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sentAt",
+            "columnName": "sentAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessTitle",
+            "columnName": "businessTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Message_appointmentId",
+            "unique": false,
+            "columnNames": [
+              "appointmentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Message_appointmentId` ON `${TABLE_NAME}` (`appointmentId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Appointment",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "appointmentId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "users",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `phone` TEXT NOT NULL, `name` TEXT NOT NULL, `userType` TEXT NOT NULL, `isEmployee` INTEGER NOT NULL, `joinedAt` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userType",
+            "columnName": "userType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isEmployee",
+            "columnName": "isEmployee",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "joinedAt",
+            "columnName": "joinedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "subscriptions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `planName` TEXT, `startedAt` TEXT, `endsAt` TEXT, `isValid` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "planName",
+            "columnName": "planName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "endsAt",
+            "columnName": "endsAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isValid",
+            "columnName": "isValid",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8dd6bc9dbdd3001f251f183d0327e110')"
+    ]
+  }
+}
