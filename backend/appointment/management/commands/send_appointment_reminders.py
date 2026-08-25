@@ -69,7 +69,13 @@ class Command(BaseCommand):
                     f"sms={'yes' if self._sms_due(appointment) else 'no'} "
                     f"push={'yes' if appointment.reminder_push_sent_at is None else 'no'}"
                 )
-                sent += 1
+                # Count what would *actually* happen, not one-per-appointment:
+                # the summary used to report an SMS for a MANUAL business that
+                # the real run correctly refuses to send.
+                if self._sms_due(appointment):
+                    sent += 1
+                if appointment.reminder_push_sent_at is None:
+                    pushed += 1
                 continue
 
             if appointment.reminder_push_sent_at is None:

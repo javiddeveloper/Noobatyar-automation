@@ -1,11 +1,9 @@
 package xyz.sattar.javid.proqueue.core.push
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -16,6 +14,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import xyz.sattar.javid.proqueue.R
+import xyz.sattar.javid.proqueue.core.notifications.NotificationChannels
 import xyz.sattar.javid.proqueue.domain.usecase.push.SyncPushTokenUseCase
 
 /**
@@ -39,7 +38,7 @@ class PushMessagingService : FirebaseMessagingService(), KoinComponent {
      * roughly the same thing. Must match settings.FCM_ANDROID_CHANNEL_ID on the
      * server, or Android 8+ drops the notification without a trace.
      */
-    private val channelId = "appointment_reminders"
+    private val channelId = NotificationChannels.APPOINTMENT_REMINDERS
 
     /**
      * FCM rotates tokens (reinstall, restored backup, cleared app data). Without
@@ -65,15 +64,8 @@ class PushMessagingService : FirebaseMessagingService(), KoinComponent {
     private fun showNotification(title: String, body: String, data: Map<String, String>) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    channelId,
-                    "Appointment Reminders",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply { description = "Reminders for upcoming appointments" }
-            )
-        }
+        // Belt and braces — ProQueueApp already created it at startup.
+        NotificationChannels.ensureCreated(this)
 
         val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
