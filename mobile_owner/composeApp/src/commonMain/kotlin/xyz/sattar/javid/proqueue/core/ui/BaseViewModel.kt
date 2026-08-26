@@ -3,7 +3,6 @@ package xyz.sattar.javid.proqueue.core.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,7 +62,13 @@ abstract class BaseViewModel<STATE, PARTIAL_STATE, EVENT, INTENT>(
     }
 
     protected fun doAsyncTask(task: suspend () -> Unit): Flow<PARTIAL_STATE> {
-        viewModelScope.launch(Dispatchers.IO) {
+        // Dispatchers.IO doesn't exist on wasmJs/JS (only JVM/Native have it —
+        // see docs/OWNER_WEB_PLAN.md section 5, "Dispatchers.IO" finding).
+        // Default is fine here: none of what this dispatches is blocking I/O
+        // in the classic thread-pool-starvation sense — it's Ktor calls and
+        // Room's own suspend functions, both already non-blocking/async under
+        // the hood, so this is a behavior-neutral change on Android/iOS too.
+        viewModelScope.launch(Dispatchers.Default) {
             task.invoke()
         }
         return emptyFlow<PARTIAL_STATE>()

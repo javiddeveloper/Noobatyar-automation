@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import proqueue.composeapp.generated.resources.*
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 
 @Composable
@@ -35,7 +36,8 @@ fun DateBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     val scope = rememberCoroutineScope()
-    
+    val windowSize = LocalWindowSize.current
+
     // Convert initialDate to Persian
     val initialPersian = remember(initialDate) { DateTimeUtils.getJalaliDateParts(initialDate) }
     
@@ -67,7 +69,7 @@ fun DateBottomSheet(
         )
     }
 
-    ModalBottomSheet(
+    AdaptiveSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
@@ -123,8 +125,15 @@ fun DateBottomSheet(
                 onClick = {
                     val millis = DateTimeUtils.jalaliToGregorian(year, month, day)
                     onDateSelected(millis)
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        if (!sheetState.isVisible) onDismiss()
+                    // sheetState.hide() only makes sense when we're actually inside a
+                    // ModalBottomSheet (Compact) — on the AdaptiveSheet dialog path it
+                    // has no anchors attached to anything, so we dismiss directly there.
+                    if (windowSize == WindowSize.Compact) {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            if (!sheetState.isVisible) onDismiss()
+                        }
+                    } else {
+                        onDismiss()
                     }
                 }
             ) {

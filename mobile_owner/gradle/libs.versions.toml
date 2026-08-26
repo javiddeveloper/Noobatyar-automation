@@ -28,6 +28,7 @@ coil3 = "3.5.0"
 haze = "1.7.2"
 firebaseBom = "34.18.0"
 googleServices = "4.5.0"
+kotlinxBrowser = "0.5.0"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
@@ -63,6 +64,12 @@ ktor-client-logginig = { module = "io.ktor:ktor-client-logging", version.ref = "
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+
+# kotlinx.browser (window/document/localStorage) — split out of the stdlib
+# into its own artifact for Kotlin/Wasm; see composeApp/build.gradle.kts's
+# wasmJsMain block for where it is used.
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
 
 # Chucker
 chucker-library = { module = "com.github.chuckerteam.chucker:library", version.ref = "chucker" }

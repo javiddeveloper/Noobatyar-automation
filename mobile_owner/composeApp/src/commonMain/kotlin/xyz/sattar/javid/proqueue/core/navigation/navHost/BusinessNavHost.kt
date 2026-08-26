@@ -5,6 +5,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import xyz.sattar.javid.proqueue.core.navigation.AppScreens
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.feature.businessList.BusinessListScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
@@ -18,6 +20,9 @@ fun BusinessNavHost(
 ) {
     val navController = rememberNavController()
 
+    // Capped at the host for the same reason as AuthNavHost: both screens
+    // here are card lists / forms, not data-dense views.
+    AppScaffold(maxWidth = ContentWidth.List) {
     NavHost(
         navController = navController,
         startDestination = AppScreens.BusinessList
@@ -51,5 +56,6 @@ fun BusinessNavHost(
                 }
             )
         }
+    }
     }
 }

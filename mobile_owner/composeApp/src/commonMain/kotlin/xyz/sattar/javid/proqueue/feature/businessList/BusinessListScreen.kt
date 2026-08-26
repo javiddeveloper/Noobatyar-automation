@@ -29,6 +29,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -161,7 +162,9 @@ fun BusinessListScreenContent(
         }
     ) { paddingValues ->
 
-        Box(
+        // AppScaffold is a pass-through Box at Compact/Medium (unchanged
+        // layout); only Expanded centers and width-caps this content.
+        AppScaffold(
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)

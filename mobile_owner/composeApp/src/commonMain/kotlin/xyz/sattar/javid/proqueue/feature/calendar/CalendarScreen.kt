@@ -27,6 +27,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.back
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 
@@ -116,12 +117,15 @@ fun CalendarScreenContent(
             )
         }
     ) { paddingValues ->
-        Column(
+        // AppScaffold is a pass-through Box at Compact/Medium (unchanged
+        // layout); only Expanded centers and width-caps this content.
+        AppScaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
         ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             // Days Row
             DaysHeader(
                 selectedDate = uiState.selectedDate,
@@ -163,6 +167,7 @@ fun CalendarScreenContent(
                     }
                 )
             }
+        }
         }
     }
 }

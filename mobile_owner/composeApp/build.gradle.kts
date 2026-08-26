@@ -2,6 +2,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
 import org.gradle.kotlin.dsl.buildkonfig
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -88,6 +89,16 @@ kotlin {
         }
     }
 
+    // Owner web panel — see docs/OWNER_WEB_PLAN.md. Resolves cleanly now that
+    // Room (section 5) is confined to roomMain, which this target does not
+    // fall back to. `binaries.executable()` is what actually produces a
+    // runnable browser bundle rather than just a library.
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
+
     sourceSets {
        androidMain.dependencies {
            implementation(compose.preview)
@@ -158,6 +169,15 @@ kotlin {
             // Image picker. See the androidMain block above for why this
             // moved out of commonMain.
             implementation(libs.peekaboo.image.picker)
+        }
+        val wasmJsMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.js)
+                implementation(libs.ktor.client.logginig)
+                // window/document/localStorage — see core/prefs/PreferencesManager.wasmJs.kt,
+                // core/network/TokenManager.wasmJs.kt, core/utils/ContactActions.wasmJs.kt.
+                implementation(libs.kotlinx.browser)
+            }
         }
     }
 }

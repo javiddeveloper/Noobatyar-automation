@@ -51,7 +51,12 @@ import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.AppThemeMode
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.AdaptiveSheet
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
 import xyz.sattar.javid.proqueue.core.ui.components.ModerationBadge
 import xyz.sattar.javid.proqueue.core.ui.components.ModerationBanner
@@ -80,6 +85,7 @@ fun SettingsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showNotificationToast by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
+    val windowSize = LocalWindowSize.current
     val themeMode by ThemeStateHolder.themeMode.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -114,7 +120,7 @@ fun SettingsScreen(
     }
 
     if (showThemeSheet) {
-        ModalBottomSheet(
+        AdaptiveSheet(
             onDismissRequest = { showThemeSheet = false },
             sheetState = sheetState
         ) {
@@ -124,9 +130,15 @@ fun SettingsScreen(
                     ThemeStateHolder.setThemeMode(mode)
                     scope.launch {
                         PreferencesManager.setThemeMode(mode)
-                        sheetState.hide()
+                        // sheetState.hide() only has anchors on AdaptiveSheet's
+                        // Compact (real ModalBottomSheet) path — see the note on
+                        // AdaptiveSheet. On the dialog path, dismiss directly or
+                        // the picker would never close.
+                        if (windowSize == WindowSize.Compact) {
+                            sheetState.hide()
+                        }
                     }.invokeOnCompletion {
-                        if (!sheetState.isVisible) {
+                        if (windowSize != WindowSize.Compact || !sheetState.isVisible) {
                             showThemeSheet = false
                         }
                     }
@@ -197,6 +209,12 @@ fun SettingsScreen(
     )
 }
 
+/**
+ * Picks the layout by window width. Compact keeps the existing phone screen
+ * (a single vertical stack of full-width cards) untouched; Medium/Expanded
+ * get the desktop layout that arranges groups into a grid instead of one
+ * long scroll — see [SettingsWebContent].
+ */
 @Composable
 fun SettingsContent(
     modifier: Modifier = Modifier,
@@ -215,6 +233,62 @@ fun SettingsContent(
     onChangeBusiness: () -> Unit = {},
     onAdvancedSettings: () -> Unit
 ) {
+    if (LocalWindowSize.current == WindowSize.Compact) {
+        SettingsPhoneContent(
+            modifier = modifier,
+            uiState = uiState,
+            snackbarHostState = snackbarHostState,
+            userName = userName,
+            userPhone = userPhone,
+            subscription = subscription,
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            onIntent = onIntent,
+            onShowThemeSheet = onShowThemeSheet,
+            onShowDeleteDialog = onShowDeleteDialog,
+            onLogout = onLogout,
+            onAdvancedSettings = onAdvancedSettings
+        )
+    } else {
+        SettingsWebContent(
+            modifier = modifier,
+            uiState = uiState,
+            snackbarHostState = snackbarHostState,
+            userName = userName,
+            userPhone = userPhone,
+            subscription = subscription,
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            onIntent = onIntent,
+            onShowThemeSheet = onShowThemeSheet,
+            onShowDeleteDialog = onShowDeleteDialog,
+            onLogout = onLogout,
+            onAdvancedSettings = onAdvancedSettings
+        )
+    }
+}
+
+/**
+ * Phone layout — unchanged. A single vertical stack of full-width cards,
+ * which is the right pattern at phone width. See [SettingsWebContent] for
+ * the desktop grid.
+ */
+@Composable
+private fun SettingsPhoneContent(
+    modifier: Modifier = Modifier,
+    uiState: SettingsState,
+    snackbarHostState: SnackbarHostState,
+    userName: String?,
+    userPhone: String?,
+    subscription: xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto?,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onIntent: (SettingsIntent) -> Unit,
+    onShowThemeSheet: () -> Unit,
+    onShowDeleteDialog: () -> Unit,
+    onLogout: () -> Unit,
+    onAdvancedSettings: () -> Unit
+) {
     // No top app bar here: the profile hero below is this screen's header, so a
     // separate toolbar showing the business title would just overlap it. We only
     // reserve the status-bar inset so the hero sits below the status bar.
@@ -230,6 +304,9 @@ fun SettingsContent(
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
+        // AppScaffold is a pass-through Box at Compact (unchanged layout);
+        // only Medium/Expanded center and width-cap this content.
+        AppScaffold(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -263,154 +340,307 @@ fun SettingsContent(
             // shine animation to draw the owner in (upsell to premium features).
             AdvancedSettingsPromoCard(onClick = onAdvancedSettings)
 
-            // Business actions: change + delete, grouped together.
-            SettingsCard {
-                Column {
-                    SettingsItem(
-                        icon = Icons.Rounded.Factory,
-                        title = stringResource(Res.string.change_business),
-                        subtitle = null,
-                        onClick = { onIntent(SettingsIntent.OnChangeBusinessClick) },
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+            BusinessActionsCard(uiState = uiState, onIntent = onIntent, onShowDeleteDialog = onShowDeleteDialog)
 
-                    HorizontalDivider()
+            MessagingCard(onIntent = onIntent)
 
-                    SettingsItem(
-                        icon = Icons.Rounded.Edit,
-                        title = stringResource(Res.string.edit_business_title),
-                        subtitle = null,
-                        onClick = {
-                            uiState.currentBusiness?.let { business ->
-                                onIntent(SettingsIntent.OnEditBusinessClick(business.id))
-                            }
-                        },
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+            ThemeAboutCard(onShowThemeSheet = onShowThemeSheet, onIntent = onIntent)
 
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Delete,
-                        title = stringResource(Res.string.delete_business),
-                        subtitle = null,
-                        onClick = onShowDeleteDialog,
-                        tint = MaterialTheme.colorScheme.error,
-                        centerVertically = true
-                    )
-                }
-            }
-
-            // Options Card
-            SettingsCard {
-                Column {
-                    // Its own row rather than an inline switch+textfield card —
-                    // this is a nav list, and a form sitting between two other
-                    // rows broke the rhythm of it. The actual editor lives on
-                    // EmergencyNoticeScreen.
-                    SettingsItem(
-                        icon = Icons.Rounded.Campaign,
-                        title = stringResource(Res.string.notice_section_title),
-                        subtitle = stringResource(Res.string.notice_settings_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnEmergencyNoticeClick) }
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Message,
-                        title = stringResource(Res.string.messages_auto_item),
-                        subtitle = stringResource(Res.string.messages_auto_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnMessagesClick) }
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Sms,
-                        title = stringResource(Res.string.sms_report_title),
-                        subtitle = stringResource(Res.string.sms_report_settings_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnSmsReportClick) }
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Notifications,
-                        title = stringResource(Res.string.reminders_notifications_item),
-                        subtitle = stringResource(Res.string.reminders_notifications_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnNotificationsClick) }
-                    )
-                }
-            }
-
-            // Appearance & Info Card
-            SettingsCard {
-                Column {
-                    SettingsItem(
-                        icon = Icons.Rounded.Palette,
-                        title = stringResource(Res.string.theme_appearance),
-                        subtitle = stringResource(Res.string.theme_settings),
-                        onClick = onShowThemeSheet
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsItem(
-                        icon = Icons.Rounded.Info,
-                        title = stringResource(Res.string.about_us_label),
-                        subtitle = stringResource(Res.string.about_us_subtitle),
-                        onClick = { onIntent(SettingsIntent.OnAboutClick) }
-                    )
-                }
-            }
-
-            // Logout (previously reached via the top-bar avatar, which this screen
-            // no longer shows).
-            SettingsCard {
-                SettingsItem(
-                    icon = Icons.Rounded.Logout,
-                    title = stringResource(Res.string.logout_label),
-                    subtitle = null,
-                    onClick = onLogout,
-                    tint = MaterialTheme.colorScheme.error,
-                    centerVertically = true
-                )
-            }
+            LogoutCard(onLogout = onLogout)
 
             // Subtle Noobatyar branding footer (moved out of the header, which now
             // belongs to the owner's own identity).
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Image(
-                        painter = painterResource(Res.drawable.main_icon),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp).alpha(0.7f)
-                    )
-                    Text(
-                        text = stringResource(Res.string.appName),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = "${stringResource(Res.string.app_version)} ${uiState.appVersion}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
+            SettingsFooter(appVersion = uiState.appVersion)
 
             BottomBarSpacer()
         }
         }
+        }
+    }
+}
+
+/**
+ * Desktop layout. The identity hero and the advanced-settings promo stay
+ * full-width banners (they read fine stretched — a promo band and a status
+ * summary aren't "list rows"). Everything else — business actions,
+ * messaging/notifications, theme & about, logout — becomes its own panel
+ * card and those panels are arranged into a grid instead of one long
+ * single-column scroll, so a desktop owner sees most of settings without
+ * scrolling. Two columns at Expanded (>1000dp); one narrower column at
+ * Medium (600-1000dp), where a second column would squeeze rows enough to
+ * wrap the longer Persian subtitles.
+ */
+@Composable
+private fun SettingsWebContent(
+    modifier: Modifier = Modifier,
+    uiState: SettingsState,
+    snackbarHostState: SnackbarHostState,
+    userName: String?,
+    userPhone: String?,
+    subscription: xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.SubscriptionDto?,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onIntent: (SettingsIntent) -> Unit,
+    onShowThemeSheet: () -> Unit,
+    onShowDeleteDialog: () -> Unit,
+    onLogout: () -> Unit,
+    onAdvancedSettings: () -> Unit
+) {
+    val isExpanded = LocalWindowSize.current == WindowSize.Expanded
+
+    Scaffold(
+        contentWindowInsets = WindowInsets.statusBars,
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())
+        ) {
+        AppScaffold(
+            modifier = Modifier.fillMaxSize(),
+            maxWidth = if (isExpanded) ContentWidth.Wide else ContentWidth.List
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ProfileHeaderCard(
+                userName = userName,
+                userPhone = userPhone,
+                business = uiState.currentBusiness,
+                subscription = subscription
+            )
+
+            uiState.currentBusiness?.let { business ->
+                ModerationBanner(
+                    business = business,
+                    onEditClick = { onIntent(SettingsIntent.OnEditBusinessClick(business.id)) }
+                )
+            }
+
+            AdvancedSettingsPromoCard(onClick = onAdvancedSettings)
+
+            if (isExpanded) {
+                // Two columns, alternating group assignment (biggest group
+                // first into each column) so the columns land at roughly
+                // even height instead of one trailing far past the other:
+                // business(3 rows) + theme&about(2 rows) vs
+                // messaging(4 rows) + logout(1 row).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        BusinessActionsCard(uiState = uiState, onIntent = onIntent, onShowDeleteDialog = onShowDeleteDialog)
+                        ThemeAboutCard(onShowThemeSheet = onShowThemeSheet, onIntent = onIntent)
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        MessagingCard(onIntent = onIntent)
+                        LogoutCard(onLogout = onLogout)
+                    }
+                }
+            } else {
+                // Medium: still panel cards (not phone rows), just one
+                // column — two columns at this width would wrap subtitles.
+                BusinessActionsCard(uiState = uiState, onIntent = onIntent, onShowDeleteDialog = onShowDeleteDialog)
+                MessagingCard(onIntent = onIntent)
+                ThemeAboutCard(onShowThemeSheet = onShowThemeSheet, onIntent = onIntent)
+                LogoutCard(onLogout = onLogout)
+            }
+
+            SettingsFooter(appVersion = uiState.appVersion)
+
+            BottomBarSpacer()
+        }
+        }
+        }
+    }
+}
+
+/** Business actions: change + edit + delete, grouped together. Extracted so
+ *  the phone stack and the desktop grid render the exact same card instead
+ *  of two copies that could drift apart. */
+@Composable
+private fun BusinessActionsCard(
+    uiState: SettingsState,
+    onIntent: (SettingsIntent) -> Unit,
+    onShowDeleteDialog: () -> Unit
+) {
+    SettingsCard {
+        Column {
+            SettingsItem(
+                icon = Icons.Rounded.Factory,
+                title = stringResource(Res.string.change_business),
+                subtitle = null,
+                onClick = { onIntent(SettingsIntent.OnChangeBusinessClick) },
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider()
+
+            SettingsItem(
+                icon = Icons.Rounded.Edit,
+                title = stringResource(Res.string.edit_business_title),
+                subtitle = null,
+                onClick = {
+                    uiState.currentBusiness?.let { business ->
+                        onIntent(SettingsIntent.OnEditBusinessClick(business.id))
+                    }
+                },
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider()
+
+            // Destructive action: red tint plus a divider above it so it
+            // can't be mistaken for (or misclicked as) a neutral row, on
+            // phone or in the desktop grid alike.
+            SettingsItem(
+                icon = Icons.Rounded.Delete,
+                title = stringResource(Res.string.delete_business),
+                subtitle = null,
+                onClick = onShowDeleteDialog,
+                tint = MaterialTheme.colorScheme.error,
+                centerVertically = true
+            )
+        }
+    }
+}
+
+/** Messaging & notifications group. */
+@Composable
+private fun MessagingCard(onIntent: (SettingsIntent) -> Unit) {
+    SettingsCard {
+        Column {
+            // Its own row rather than an inline switch+textfield card —
+            // this is a nav list, and a form sitting between two other
+            // rows broke the rhythm of it. The actual editor lives on
+            // EmergencyNoticeScreen.
+            SettingsItem(
+                icon = Icons.Rounded.Campaign,
+                title = stringResource(Res.string.notice_section_title),
+                subtitle = stringResource(Res.string.notice_settings_subtitle),
+                onClick = { onIntent(SettingsIntent.OnEmergencyNoticeClick) }
+            )
+
+            HorizontalDivider()
+
+            SettingsItem(
+                icon = Icons.Rounded.Message,
+                title = stringResource(Res.string.messages_auto_item),
+                subtitle = stringResource(Res.string.messages_auto_subtitle),
+                onClick = { onIntent(SettingsIntent.OnMessagesClick) }
+            )
+
+            HorizontalDivider()
+
+            SettingsItem(
+                icon = Icons.Rounded.Sms,
+                title = stringResource(Res.string.sms_report_title),
+                subtitle = stringResource(Res.string.sms_report_settings_subtitle),
+                onClick = { onIntent(SettingsIntent.OnSmsReportClick) }
+            )
+
+            HorizontalDivider()
+
+            SettingsItem(
+                icon = Icons.Rounded.Notifications,
+                title = stringResource(Res.string.reminders_notifications_item),
+                subtitle = stringResource(Res.string.reminders_notifications_subtitle),
+                onClick = { onIntent(SettingsIntent.OnNotificationsClick) }
+            )
+        }
+    }
+}
+
+/** Theme & app-info group. */
+@Composable
+private fun ThemeAboutCard(
+    onShowThemeSheet: () -> Unit,
+    onIntent: (SettingsIntent) -> Unit
+) {
+    SettingsCard {
+        Column {
+            SettingsItem(
+                icon = Icons.Rounded.Palette,
+                title = stringResource(Res.string.theme_appearance),
+                subtitle = stringResource(Res.string.theme_settings),
+                onClick = onShowThemeSheet
+            )
+
+            HorizontalDivider()
+
+            SettingsItem(
+                icon = Icons.Rounded.Info,
+                title = stringResource(Res.string.about_us_label),
+                subtitle = stringResource(Res.string.about_us_subtitle),
+                onClick = { onIntent(SettingsIntent.OnAboutClick) }
+            )
+        }
+    }
+}
+
+/** Logout (previously reached via the top-bar avatar, which this screen no
+ *  longer shows). Its own single-row card so it stays visually separate
+ *  from the neutral groups. */
+@Composable
+private fun LogoutCard(onLogout: () -> Unit) {
+    SettingsCard {
+        SettingsItem(
+            icon = Icons.Rounded.Logout,
+            title = stringResource(Res.string.logout_label),
+            subtitle = null,
+            onClick = onLogout,
+            tint = MaterialTheme.colorScheme.error,
+            centerVertically = true
+        )
+    }
+}
+
+/** Subtle Noobatyar branding footer. */
+@Composable
+private fun SettingsFooter(appVersion: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Image(
+                painter = painterResource(Res.drawable.main_icon),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp).alpha(0.7f)
+            )
+            Text(
+                text = stringResource(Res.string.appName),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "${stringResource(Res.string.app_version)} $appVersion",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
     }
 }
 

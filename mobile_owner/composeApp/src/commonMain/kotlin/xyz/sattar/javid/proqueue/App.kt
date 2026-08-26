@@ -2,8 +2,10 @@ package xyz.sattar.javid.proqueue
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -23,6 +25,8 @@ import xyz.sattar.javid.proqueue.core.navigation.navHost.MainNavHost
 import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 import xyz.sattar.javid.proqueue.core.ui.components.UiMessage
 import xyz.sattar.javid.proqueue.core.ui.components.showToasty
@@ -86,9 +90,17 @@ fun App() {
     }
 
     AppTheme(themeMode = themeMode) {
+        // Root width probe for the adaptive layout (docs/OWNER_WEB_PLAN.md
+        // section ۸): everything below reads its bucket from LocalWindowSize
+        // instead of measuring the window itself. maxWidth here is in dp
+        // already (BoxWithConstraints), matching the plan's breakpoint table.
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val windowSize = WindowSize.of(maxWidth)
+        CompositionLocalProvider(LocalWindowSize provides windowSize) {
         Box(modifier = Modifier.fillMaxSize()) {
-        // Handle Version Update (no iOS store listing yet, so skip this gate on iOS)
-        if (!AppInfo.isIOS) {
+        // Handle Version Update (no iOS store listing yet, so skip this gate on
+        // iOS; no store/version concept on the web either, see AppInfo.isWeb)
+        if (!AppInfo.isIOS && !AppInfo.isWeb) {
             VersionHandler()
         }
 
@@ -138,6 +150,8 @@ fun App() {
         }
 
         ToastyHost(hostState = globalSnackbarHostState)
+        }
+        }
         }
     }
 }

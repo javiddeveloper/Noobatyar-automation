@@ -13,6 +13,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,7 +82,10 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
@@ -209,6 +214,51 @@ fun HomeScreenContent(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
+        // AppScaffold caps width from Medium up (centers, max 1100dp);
+        // Compact is a pass-through. Below that, Compact keeps the original
+        // single-column LazyColumn untouched; Medium/Expanded get the
+        // dashboard layout built for a wide viewport.
+        AppScaffold(modifier = Modifier.fillMaxSize()) {
+            if (LocalWindowSize.current == WindowSize.Compact) {
+                HomePhoneContent(
+                    modifier = modifier,
+                    uiState = uiState,
+                    visible = visible,
+                    paddingValues = paddingValues,
+                    onIntent = onIntent,
+                    onNavigateToVisitors = onNavigateToVisitors,
+                    onNavigateToAddons = onNavigateToAddons
+                )
+            } else {
+                HomeWebContent(
+                    modifier = modifier,
+                    uiState = uiState,
+                    visible = visible,
+                    paddingValues = paddingValues,
+                    onIntent = onIntent,
+                    onNavigateToVisitors = onNavigateToVisitors,
+                    onNavigateToAddons = onNavigateToAddons
+                )
+            }
+        }
+        }
+        }
+    }
+/**
+ * Phone layout — untouched. A single scrolling LazyColumn: date header, stat
+ * grid, trend chart, usage meter, booking link, plan banners, in that order.
+ * See [HomeWebContent] for the Medium/Expanded dashboard.
+ */
+@Composable
+private fun HomePhoneContent(
+    modifier: Modifier = Modifier,
+    uiState: HomeState,
+    visible: Boolean,
+    paddingValues: PaddingValues,
+    onIntent: (HomeIntent) -> Unit,
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit,
+    onNavigateToAddons: () -> Unit
+) {
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
@@ -342,7 +392,230 @@ fun HomeScreenContent(
 
             item { BottomBarSpacer() }
         }
+}
+
+/**
+ * Desktop/tablet dashboard (Medium and Expanded): a stat row across the top,
+ * then a two-column body — trend chart + booking link in the wider primary
+ * column, usage meter + plan banners in the narrower secondary column. In
+ * RTL the first [Row] child lands on the right, where a Persian reader looks
+ * first, so the primary column is listed first.
+ *
+ * There is no appointment/queue list in [HomeState] to put in the primary
+ * column (the phone layout only ever shows a *count* via [QueueStatRow]), so
+ * the trend chart — the closest thing to "today's queue activity" backed by
+ * real state — anchors that column instead. Every handler below is the exact
+ * same lambda the phone layout wires up; only the arrangement differs.
+ */
+@Composable
+private fun HomeWebContent(
+    modifier: Modifier = Modifier,
+    uiState: HomeState,
+    visible: Boolean,
+    paddingValues: PaddingValues,
+    onIntent: (HomeIntent) -> Unit,
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit,
+    onNavigateToAddons: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
+
+        // هدر تاریخ — عیناً همان کامپوننت صفحه‌ی موبایل
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                animationSpec = tween(500, delayMillis = 150)
+            )
+        ) {
+            DateHeader(
+                todayAppointmentsCount = uiState.stats.totalAppointments.takeIf { uiState.statsLoaded }
+            )
         }
+
+        // آمار داشبورد — در دسکتاپ یک سطر کامل به‌جای گرید ۲×۲
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                animationSpec = tween(500, delayMillis = 200)
+            )
+        ) {
+            when {
+                !uiState.statsLoaded -> HomeDashboardShimmer()
+                else -> DashboardStatsRowWeb(
+                    stats = uiState.stats,
+                    peopleInQueue = uiState.queue.size,
+                    onStatClick = { status -> onNavigateToVisitors(VisitorsNavArgs(status = status, tab = 0)) },
+                    onQueueClick = { onNavigateToVisitors(VisitorsNavArgs(tab = 1)) }
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // ستون اصلی (سمت راست در RTL): نمودار روند + لینک نوبت‌گیری
+            Column(
+                modifier = Modifier.weight(0.62f),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 250)
+                    )
+                ) {
+                    if (!uiState.chartLoaded) {
+                        HomeChartShimmer()
+                    } else if (uiState.dailyCounts.isNotEmpty()) {
+                        NeonLineChart(
+                            counts = uiState.dailyCounts.map { it.count },
+                            onClick = {
+                                val today = DateTimeUtils.startOfTodayMillis()
+                                val sevenDaysAgo = today - 6L * 24 * 60 * 60 * 1000L
+                                onNavigateToVisitors(
+                                    VisitorsNavArgs(dateFrom = sevenDaysAgo, dateTo = DateTimeUtils.systemCurrentMilliseconds())
+                                )
+                            }
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 350)
+                    )
+                ) {
+                    if (uiState.business == null && uiState.isLoading) {
+                        HomeButtonShimmer()
+                    } else if (uiState.business != null) {
+                        BookingLinkButton(uiState.business)
+                    }
+                }
+            }
+
+            // ستون فرعی (سمت چپ در RTL): مصرف‌سنج + بنرهای پلن
+            Column(
+                modifier = Modifier.weight(0.38f),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 300)
+                    )
+                ) {
+                    if (!uiState.entitlementsLoaded) {
+                        HomeUsageShimmer()
+                    } else if (uiState.entitlements != null) {
+                        UsageMeterSection(
+                            entitlements = uiState.entitlements,
+                            onNavigateToAddons = onNavigateToAddons
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                        animationSpec = tween(500, delayMillis = 400)
+                    )
+                ) {
+                    if (!uiState.plansLoaded) {
+                        HomePlanBannerShimmer()
+                    } else if (uiState.plans.isNotEmpty()) {
+                        PlanBannerSection(
+                            plans = uiState.plans,
+                            onPlanClick = { plan ->
+                                onIntent(HomeIntent.PurchasePlan(plan.id))
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        BottomBarSpacer()
+    }
+}
+
+/**
+ * Desktop stat row: the same four counts as [DashboardStatsSection] plus the
+ * queue count (phone-only shows that via the wide [QueueStatRow] banner), all
+ * as equal-width [StatCard]s in one row. At the Wide content cap (1100dp)
+ * that's ~200dp per card; at Medium (~800dp minus padding) still comfortably
+ * above 140dp — both well within what [StatCard] already renders on a phone's
+ * ~164dp half-width card, so none of these five need to wrap their label.
+ */
+@Composable
+private fun DashboardStatsRowWeb(
+    stats: DashboardStats,
+    peopleInQueue: Int,
+    onStatClick: (status: String?) -> Unit,
+    onQueueClick: () -> Unit
+) {
+    val isDark = !MaterialTheme.colorScheme.surface.let { color ->
+        (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            modifier = Modifier.weight(1f),
+            title = "تکمیل شده",
+            value = stats.completedAppointments.toString(),
+            containerColor = if (isDark) Color(0xFF1B5E20).copy(alpha = 0.4f) else Color(0xFFE8F5E9),
+            contentColor = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E7D32),
+            icon = Icons.Rounded.CheckCircle,
+            onClick = { onStatClick("COMPLETED") }
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            title = "کل مراجعین",
+            value = stats.totalVisitors.toString(),
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (isDark) 0.4f else 0.7f),
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            icon = Icons.Rounded.People,
+            onClick = { onStatClick(null) }
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            title = "عدم حضور",
+            value = stats.noShowAppointments.toString(),
+            containerColor = if (isDark) Color(0xFFB71C1C).copy(alpha = 0.4f) else Color(0xFFFFEBEE),
+            contentColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFC62828),
+            icon = Icons.Rounded.Cancel,
+            onClick = { onStatClick("NO_SHOW") }
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            title = "لغو شده",
+            value = stats.cancelledAppointments.toString(),
+            containerColor = if (isDark) Color(0xFF4A148C).copy(alpha = 0.4f) else Color(0xFFF3E5F5),
+            contentColor = if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A),
+            icon = Icons.Rounded.EventBusy,
+            onClick = { onStatClick("CANCELLED") }
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            title = "افراد در صف",
+            value = peopleInQueue.toString(),
+            // Same blue used by the phone's QueueStatRow, so the "queue" tile
+            // reads as the same concept in both layouts.
+            containerColor = if (isDark) Color(0xFF01579B).copy(alpha = 0.35f) else Color(0xFFE1F5FE),
+            contentColor = if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD),
+            icon = Icons.Rounded.Timer,
+            onClick = onQueueClick
+        )
     }
 }
 

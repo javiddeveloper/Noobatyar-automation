@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -17,9 +19,12 @@ import androidx.compose.ui.Modifier
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import xyz.sattar.javid.proqueue.core.ui.LocalHazeState
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
@@ -32,7 +37,10 @@ import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.PaymentNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.PendingVisitorsFilter
+import xyz.sattar.javid.proqueue.core.ui.components.AppNavigationRail
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.feature.createAppointment.CreateAppointmentScreen
 import xyz.sattar.javid.proqueue.feature.createVisitor.CreateVisitorRoute
 import xyz.sattar.javid.proqueue.feature.home.HomeScreen
@@ -114,7 +122,26 @@ fun MainNavHost(
         } == true
     } ?: MainTab.Home
 
+    // Same tab-switch logic as before extraction — only the container that
+    // triggers it (bottom bar vs rail) differs by window size below.
+    val onTabSelected: (MainTab) -> Unit = { tab ->
+        if (selectedTab != tab) {
+            navController.navigate(tab.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
+    val windowSize = LocalWindowSize.current
+
     CompositionLocalProvider(LocalHazeState provides hazeState) {
+    if (windowSize == WindowSize.Compact) {
+    // Compact: unchanged from before this file gained an adaptive layout —
+    // same Scaffold, same floating BottomNavigationBar.
     Scaffold(
         bottomBar = {
             AnimatedVisibility(
@@ -129,17 +156,7 @@ fun MainNavHost(
                 BottomNavigationBar(
                     tabs = tabs,
                     selectedTab = selectedTab,
-                    onTabSelected = { tab ->
-                        if (selectedTab != tab) {
-                            navController.navigate(tab.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    }
+                    onTabSelected = onTabSelected
                 )
             }
         }
@@ -148,11 +165,78 @@ fun MainNavHost(
         // The bottom bar floats (with a gradient scrim), so screens scroll under
         // it with no solid gap. Tab screens add BottomBarSpacer / FabClearance
         // so the last items and FABs clear the bar.
+        MainNavGraph(
+            navController = navController,
+            hazeState = hazeState,
+            onChangeBusiness = onChangeBusiness,
+            onNavigateToLogin = onNavigateToLogin,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+    } else {
+    // Medium/Expanded: a standard NavigationRail instead of the floating
+    // bottom bar. BottomNavigationBar is a heavily custom shape (cutout
+    // notch for the floating home button) that only makes sense as a
+    // phone-width bottom bar, so it is not reused here — same tabs/icons,
+    // a plain rail container.
+    //
+    // RTL: the whole app is forced LayoutDirection.Rtl (Theme.kt), so a Row's
+    // "start" edge is the right-hand edge of the screen. Placing the rail as
+    // the Row's first child therefore lands it on the right without any
+    // manual mirroring — Compose resolves Row order against the ambient
+    // LayoutDirection automatically.
+    Row(modifier = Modifier.fillMaxSize()) {
+        // fillMaxHeight here is what the old bare AnimatedVisibility{NavigationRail}
+        // was missing — without it the rail only took the height its content
+        // needed, which under Row's default top alignment left it pinned to
+        // y=0 with no room for a header, reading as jammed into the corner.
+        AnimatedVisibility(
+            visible = shouldShowBottomBar,
+            modifier = Modifier.fillMaxHeight()
+        ) {
+            AppNavigationRail(
+                tabs = tabs,
+                selectedTab = selectedTab,
+                onTabSelected = onTabSelected
+            )
+        }
+        // Capped here rather than per-screen so every destination in the
+        // graph is covered, not just the handful that were wrapped
+        // individually — a screen added later inherits this for free.
+        AppScaffold(
+            modifier = Modifier.weight(1f),
+            maxWidth = ContentWidth.Wide
+        ) {
+            MainNavGraph(
+                navController = navController,
+                hazeState = hazeState,
+                onChangeBusiness = onChangeBusiness,
+                onNavigateToLogin = onNavigateToLogin,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+    }
+    }
+}
+
+/**
+ * The tab graph itself, factored out of [MainNavHost] so the Compact
+ * (bottom bar) and Medium/Expanded (rail) branches can share it verbatim
+ * instead of duplicating ~300 lines of `composable<>` destinations.
+ */
+@Composable
+private fun MainNavGraph(
+    navController: NavHostController,
+    hazeState: HazeState,
+    onChangeBusiness: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+    modifier: Modifier = Modifier
+) {
         NavHost(
             navController = navController,
             startDestination = AppScreens.Home,
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = modifier
                 .hazeSource(hazeState)
         ) {
             composable<AppScreens.Home> {
@@ -445,6 +529,4 @@ fun MainNavHost(
                 )
             }
         }
-    }
-    }
 }

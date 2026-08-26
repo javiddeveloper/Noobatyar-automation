@@ -27,6 +27,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarDefaults
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
@@ -182,7 +183,9 @@ fun LastVisitorsScreenContent(
             }
         }
     ) { paddingValues ->
-        Box(
+        // AppScaffold is a pass-through Box at Compact/Medium (unchanged
+        // layout); only Expanded centers and width-caps this content.
+        AppScaffold(
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)

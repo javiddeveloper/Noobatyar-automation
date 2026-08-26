@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0F0F0F">
+    <title>نوبت‌یار</title>
+    <style>
+        /*
+         * No-white-flash background per docs/OWNER_WEB_PLAN.md section 7.3:
+         * the wasm bundle takes a couple of seconds to boot, and until it
+         * does the browser is showing this document as-is. #0F0F0F matches
+         * ui/theme/Color.kt's DarkBackground exactly, and the wasmJs default
+         * theme is dark (PreferencesManager.wasmJs.kt, section 7.2), so this
+         * is the color that's actually correct to show first, not a filler.
+         */
+        html, body {
+            background: #0F0F0F;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+        #compose-loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Vazirmatn, sans-serif;
+            color: #8B5CF6;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div id="compose-loading">نوبت‌یار</div>
+    <script src="composeApp.js"></script>
+</body>
+</html>
