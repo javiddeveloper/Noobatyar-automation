@@ -93,6 +93,7 @@ IP خام (`93.127.223.93`) عمداً در `ALLOWED_HOSTS` باقی مانده 
 | `MELIPAYAMAK_FROM` | — | شماره فرستنده پیامک |
 | `FCM_CREDENTIALS_FILE` | — | مسیر فایل JSON سرویس‌اکانت فایربیس برای اعلان پوش اپ اونر. خالی = پوش غیرفعال (بقیه‌ی سیستم دست‌نخورده کار می‌کند). راهنما: [docs/FCM_SETUP.md](../docs/FCM_SETUP.md) |
 | `FCM_PROJECT_ID` | از داخل همان JSON | فقط اگر بخواهی صریح override کنی |
+| `FCM_WEBPUSH_CLICK_URL` | `https://panel.noobatyar.ir/` | آدرسی که با کلیک روی پوش در پنل وب اونر باز می‌شود. دامنه‌ی پنل هنوز قطعی نیست (بخش ۱۴ `docs/OWNER_WEB_PLAN.md`)؛ همین که مشخص شد این متغیر را ست کن — نیازی به تغییر کد نیست |
 | `GUNICORN_WORKERS` | `4` | تعداد workerها (پیشنهاد: `2*CPU+1`؛ روی سرور تک‌هسته‌ای فعلی عمداً `2` ست شده) |
 | `JWT_ACCESS_HOURS` | `24` | عمر access token (ساعت) |
 | `JWT_REFRESH_DAYS` | `14` | عمر refresh token (روز) |

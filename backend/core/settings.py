@@ -290,3 +290,9 @@ FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID', '')
 # Must match the channel the Android app creates, or Android 8+ silently drops
 # every notification (see ProQueueApp / PushMessagingService in mobile_owner).
 FCM_ANDROID_CHANNEL_ID = os.getenv('FCM_ANDROID_CHANNEL_ID', 'appointment_reminders')
+# Where a browser sends the owner when they click a web-panel push notification
+# (FCM's webpush.fcm_options.link). The owner web panel (docs/OWNER_WEB_PLAN.md,
+# phase 2.5) has no fixed domain yet — section ۱۴ of that doc lists it as an open
+# question between panel.noobatyar.ir and app.noobatyar.ir/owner — so this is a
+# provisional default, safe to override without a code change once it is decided.
+FCM_WEBPUSH_CLICK_URL = os.getenv('FCM_WEBPUSH_CLICK_URL', 'https://panel.noobatyar.ir/')

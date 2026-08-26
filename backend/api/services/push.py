@@ -149,6 +149,28 @@ def send_to_token(token: str, title: str, body: str, data: dict | None = None) -
             'apns': {
                 'payload': {'aps': {'sound': 'default'}},
             },
+            # Owner web panel (docs/OWNER_WEB_PLAN.md ۱۰.۱): DeviceToken already
+            # accepts platform=WEB and send_to_user() fans out to every active
+            # token regardless of platform, so a WEB row reaches this branch too.
+            # Without this block the notification still shows — the top-level
+            # `notification` above covers that — but bare, with the browser's
+            # generic icon and no click destination.
+            # FCM_ANDROID_CHANNEL_ID is Android-only (it names a channel created
+            # by ProQueueApp.onCreate, see NOTIFICATIONS.md ۴); webpush has no
+            # notion of a channel, so it is not reused here.
+            # Icon/badge are given as paths, not full URLs: the browser resolves
+            # them against the service worker's own origin when it calls
+            # `showNotification()`, which is where the web panel's PWA manifest
+            # (docs/OWNER_WEB_PLAN.md ۸.۲) is expected to serve them from.
+            'webpush': {
+                'notification': {
+                    'icon': '/icons/icon-192.png',
+                    'badge': '/icons/badge-72.png',
+                },
+                'fcm_options': {
+                    'link': getattr(settings, 'FCM_WEBPUSH_CLICK_URL', 'https://panel.noobatyar.ir/'),
+                },
+            },
         }
     }
 
