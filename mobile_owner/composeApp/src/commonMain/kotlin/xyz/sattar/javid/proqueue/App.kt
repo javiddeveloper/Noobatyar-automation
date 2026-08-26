@@ -1,8 +1,10 @@
 package xyz.sattar.javid.proqueue
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -97,7 +99,15 @@ fun App() {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val windowSize = WindowSize.of(maxWidth)
         CompositionLocalProvider(LocalWindowSize provides windowSize) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        // Painted at the root so no region can ever fall through to the
+        // web canvas's white clear colour — on wasmJs anything Compose
+        // does not draw over shows up as a white gap, not as the page
+        // background.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
         // Handle Version Update (no iOS store listing yet, so skip this gate on
         // iOS; no store/version concept on the web either, see AppInfo.isWeb)
         if (!AppInfo.isIOS && !AppInfo.isWeb) {

@@ -1,9 +1,11 @@
 package xyz.sattar.javid.proqueue.core.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +49,19 @@ fun AppScaffold(
     if (LocalWindowSize.current == WindowSize.Compact) {
         Box(modifier = modifier, content = content)
     } else {
-        Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
+        // fillMaxSize on the OUTER box is load-bearing, not decoration. Without
+        // it the box wraps its (capped) child instead of spanning the window,
+        // so contentAlignment has nothing to centre within and the content
+        // pins to the layout-start edge — which under the app's forced RTL is
+        // the right-hand side, leaving the rest of the window unpainted and
+        // showing the canvas's white clear colour. That is exactly what
+        // shipped and looked broken on a 1280px window.
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.TopCenter
+        ) {
             Box(modifier = Modifier.widthIn(max = maxWidth).fillMaxSize(), content = content)
         }
     }
