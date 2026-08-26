@@ -26,9 +26,13 @@ import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.permissions.rememberNotificationPermissionLauncher
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
@@ -67,8 +71,31 @@ fun NotificationsScreen(
     )
 }
 
+/**
+ * Picks the layout by window width. Compact keeps the existing phone screen
+ * untouched; anything wider gets the desktop panel layout — see
+ * [NotificationsWebContent].
+ */
 @Composable
 fun NotificationsScreenContent(
+    uiState: NotificationsState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onIntent: (NotificationsIntent) -> Unit
+) {
+    if (LocalWindowSize.current == WindowSize.Compact) {
+        NotificationsPhoneContent(uiState, snackbarHostState, onNavigateBack, onIntent)
+    } else {
+        NotificationsWebContent(uiState, snackbarHostState, onNavigateBack, onIntent)
+    }
+}
+
+/**
+ * Phone layout — unchanged. A single scrolling column of the two settings
+ * cards. See [NotificationsWebContent] for the desktop panel grid.
+ */
+@Composable
+private fun NotificationsPhoneContent(
     uiState: NotificationsState,
     snackbarHostState: SnackbarHostState,
     onNavigateBack: () -> Unit,
@@ -77,12 +104,12 @@ fun NotificationsScreenContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         stringResource(Res.string.notifications),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -111,104 +138,7 @@ fun NotificationsScreenContent(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Settings Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(androidx.compose.foundation.shape.CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Notifications,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = stringResource(Res.string.enable_notifications),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Switch(
-                            checked = uiState.isNotificationsEnabled,
-                            onCheckedChange = { onIntent(NotificationsIntent.ToggleNotifications(it)) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                    Text(
-                        text = "با فعال‌سازی، نزدیک زمان هر نوبت یک یادآوری برای شما ارسال می‌شود تا به مشتری یادآوری کنید و احتمال عدم حضور کاهش یابد.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Reminder Time Input
-                    if (uiState.isNotificationsEnabled) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = stringResource(Res.string.notification_reminder_time),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            AppTextField(
-                                value = uiState.reminderMinutes,
-                                onValueChange = { onIntent(NotificationsIntent.UpdateReminderMinutes(it)) },
-                                label = "زمان یادآوری (دقیقه)",
-                                keyboardType = KeyboardType.Number,
-                                maxLength = 3,
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Timer,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            )
-                            Text(
-                                text = stringResource(Res.string.notification_reminder_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            EnableNotificationsCard(uiState = uiState, onIntent = onIntent)
 
             // Client-reminder card. The switch above only governs the owner's
             // own reminder; nothing on this screen used to reach the client at
@@ -216,105 +146,7 @@ fun NotificationsScreenContent(
             // (enable_reminder_sms / reminder_delivery) were unreachable from
             // the app and every business sat on their defaults.
             if (uiState.isNotificationsEnabled) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(androidx.compose.foundation.shape.CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Sms,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "یادآوری برای مشتری",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            Switch(
-                                checked = uiState.remindClient,
-                                onCheckedChange = { onIntent(NotificationsIntent.ToggleRemindClient(it)) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        }
-
-                        if (uiState.remindClient) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                            Text(
-                                text = stringResource(Res.string.reminder_delivery_title),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(
-                                    selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
-                                    onClick = {
-                                        onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.MANUAL.value))
-                                    },
-                                    label = { Text(stringResource(Res.string.reminder_delivery_manual_title)) }
-                                )
-                                FilterChip(
-                                    selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
-                                    onClick = {
-                                        onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.PANEL.value))
-                                    },
-                                    label = { Text(stringResource(Res.string.reminder_delivery_panel_title)) }
-                                )
-                            }
-                            Text(
-                                text = if (uiState.reminderDelivery == ReminderDelivery.PANEL.value) {
-                                    stringResource(Res.string.reminder_delivery_panel_description)
-                                } else {
-                                    stringResource(Res.string.reminder_delivery_manual_description)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (!uiState.canUsePanelDelivery) {
-                                Text(
-                                    text = stringResource(Res.string.reminder_delivery_panel_locked),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                }
+                ClientReminderCard(uiState = uiState, onIntent = onIntent)
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -326,6 +158,331 @@ fun NotificationsScreenContent(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * Desktop layout. Same two cards as the phone screen (extracted so both
+ * paths render the exact same widgets — no drift in the entitlement/quota
+ * gating baked into [ClientReminderCard]). At [WindowSize.Expanded] they sit
+ * side by side as two panels instead of one long single-column form; at
+ * [WindowSize.Medium] they stay stacked since a second column would squeeze
+ * the Persian copy into wrapping. When notifications are disabled the client
+ * card doesn't render at all (same as phone), so the two-column split is
+ * skipped in that case too — otherwise the second column would just be a
+ * blank panel next to the enable card.
+ */
+@Composable
+private fun NotificationsWebContent(
+    uiState: NotificationsState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onIntent: (NotificationsIntent) -> Unit
+) {
+    val isExpanded = LocalWindowSize.current == WindowSize.Expanded
+    val showTwoColumns = isExpanded && uiState.isNotificationsEnabled
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(Res.string.notifications),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = null
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        AppScaffold(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            maxWidth = if (isExpanded) ContentWidth.Wide else ContentWidth.List
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (showTwoColumns) {
+                    // Row's first child lands on the right under the app's
+                    // forced RTL layout direction, so the primary on/off
+                    // switch (read first) sits on the right and the
+                    // client-reminder panel it unlocks sits to its left.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            EnableNotificationsCard(uiState = uiState, onIntent = onIntent)
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ClientReminderCard(uiState = uiState, onIntent = onIntent)
+                        }
+                    }
+                } else {
+                    EnableNotificationsCard(uiState = uiState, onIntent = onIntent)
+                    if (uiState.isNotificationsEnabled) {
+                        ClientReminderCard(uiState = uiState, onIntent = onIntent)
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                AppButton(
+                    text = stringResource(Res.string.save_settings),
+                    onClick = { onIntent(NotificationsIntent.SaveSettings) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+/**
+ * The owner's own reminder toggle + lead-time input. Shared verbatim by
+ * [NotificationsPhoneContent] and [NotificationsWebContent].
+ */
+@Composable
+private fun EnableNotificationsCard(
+    uiState: NotificationsState,
+    onIntent: (NotificationsIntent) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Notifications,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(Res.string.enable_notifications),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Switch(
+                    checked = uiState.isNotificationsEnabled,
+                    onCheckedChange = { onIntent(NotificationsIntent.ToggleNotifications(it)) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            Text(
+                text = "با فعال‌سازی، نزدیک زمان هر نوبت یک یادآوری برای شما ارسال می‌شود تا به مشتری یادآوری کنید و احتمال عدم حضور کاهش یابد.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Reminder Time Input
+            if (uiState.isNotificationsEnabled) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(Res.string.notification_reminder_time),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    AppTextField(
+                        value = uiState.reminderMinutes,
+                        onValueChange = { onIntent(NotificationsIntent.UpdateReminderMinutes(it)) },
+                        label = "زمان یادآوری (دقیقه)",
+                        keyboardType = KeyboardType.Number,
+                        maxLength = 3,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                    Text(
+                        text = stringResource(Res.string.notification_reminder_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Client-reminder settings: MANUAL vs PANEL delivery choice. This is where
+ * the entitlement gating lives — [NotificationsState.canUsePanelDelivery]
+ * comes straight from the plan check in [NotificationsViewModel] and is only
+ * read here, never altered. Shared verbatim by [NotificationsPhoneContent]
+ * and [NotificationsWebContent] so that gating can't drift between the two
+ * layouts.
+ */
+@Composable
+private fun ClientReminderCard(
+    uiState: NotificationsState,
+    onIntent: (NotificationsIntent) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Sms,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "یادآوری برای مشتری",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Switch(
+                    checked = uiState.remindClient,
+                    onCheckedChange = { onIntent(NotificationsIntent.ToggleRemindClient(it)) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+
+            if (uiState.remindClient) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                Text(
+                    text = stringResource(Res.string.reminder_delivery_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
+                        onClick = {
+                            onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.MANUAL.value))
+                        },
+                        label = { Text(stringResource(Res.string.reminder_delivery_manual_title)) }
+                    )
+                    FilterChip(
+                        selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
+                        onClick = {
+                            onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.PANEL.value))
+                        },
+                        label = { Text(stringResource(Res.string.reminder_delivery_panel_title)) }
+                    )
+                }
+                Text(
+                    text = if (uiState.reminderDelivery == ReminderDelivery.PANEL.value) {
+                        stringResource(Res.string.reminder_delivery_panel_description)
+                    } else {
+                        stringResource(Res.string.reminder_delivery_manual_description)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (!uiState.canUsePanelDelivery) {
+                    Text(
+                        text = stringResource(Res.string.reminder_delivery_panel_locked),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }

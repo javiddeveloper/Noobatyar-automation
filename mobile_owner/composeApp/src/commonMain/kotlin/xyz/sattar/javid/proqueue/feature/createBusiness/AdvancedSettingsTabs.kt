@@ -1,5 +1,6 @@
 package xyz.sattar.javid.proqueue.feature.createBusiness
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +27,8 @@ import org.jetbrains.compose.resources.stringResource
 import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.coming_soon_badge
 import proqueue.composeapp.generated.resources.coming_soon_hint
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
@@ -68,22 +72,7 @@ fun AdvancedSettingsTabs(
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("پرداخت", "ظرفیت و بیعانه", "یادآوری")
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = androidx.compose.ui.graphics.Color.Transparent
-        ) {
-            tabs.forEachIndexed { index, label ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { Text(label, style = MaterialTheme.typography.labelLarge) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+    val tabContent: @Composable () -> Unit = {
         when (selectedTab) {
             0 -> PaymentTab(
                 entitlements = entitlements,
@@ -114,6 +103,70 @@ fun AdvancedSettingsTabs(
                 onDepositAmount = onDepositAmount
             )
             2 -> RemindersTab(entitlements = entitlements, plans = plans, onUpgrade = onUpgrade)
+        }
+    }
+
+    // Expanded gets a side rail instead of a top TabRow: at 1920px a strip of
+    // three tabs pinned above a width-capped column wastes the extra height a
+    // desktop window has to spare, where a rail uses that height and leaves
+    // more room for the tab body itself. Compact/Medium keep the original
+    // TabRow — a rail needs more horizontal room than a phone or a narrow
+    // tablet window has.
+    if (LocalWindowSize.current == WindowSize.Expanded) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // First child lands on the right under the app's forced RTL
+            // layout (ui/theme/Theme.kt) — the same side a Persian reader's
+            // eye starts from, which is where a section list belongs.
+            Column(
+                modifier = Modifier.width(200.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                tabs.forEachIndexed { index, label ->
+                    val selected = selectedTab == index
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedTab = index },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    ) {
+                        Text(
+                            label,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                tabContent()
+            }
+        }
+    } else {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent
+            ) {
+                tabs.forEachIndexed { index, label ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(label, style = MaterialTheme.typography.labelLarge) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            tabContent()
         }
     }
 }

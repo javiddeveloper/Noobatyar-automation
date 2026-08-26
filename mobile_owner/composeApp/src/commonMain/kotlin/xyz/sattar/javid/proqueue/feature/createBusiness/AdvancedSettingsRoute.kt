@@ -22,6 +22,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.accept
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
 
@@ -167,11 +169,19 @@ fun AdvancedSettingsRoute(
                 }
             }
         } else {
+            // AppScaffold is a pass-through Box at Compact (unchanged
+            // layout); Medium/Expanded center and width-cap it, matching the
+            // rest of the desktop panel. Wide rather than List: at Expanded
+            // this content is the tab rail plus the tab body side by side,
+            // which is dense like a dashboard, not a card list.
+            AppScaffold(
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                maxWidth = ContentWidth.Wide
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(paddingValues)
                     .padding(horizontal = 16.dp)
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -201,6 +211,7 @@ fun AdvancedSettingsRoute(
                     onPaymentLink = { paymentLink = it }
                 )
 
+            }
             }
         }
     }

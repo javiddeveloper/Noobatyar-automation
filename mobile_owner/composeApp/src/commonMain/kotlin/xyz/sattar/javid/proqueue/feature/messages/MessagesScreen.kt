@@ -28,8 +28,12 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.core.utils.toPersianDigits
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
@@ -62,16 +66,54 @@ fun MessagesScreen(
         viewModel.sendIntent(MessagesIntent.Load)
     }
 
+    MessagesScreenContent(
+        uiState = uiState,
+        snackbarHostState = snackbarHostState,
+        onNavigateBack = onNavigateBack,
+        onIntent = viewModel::sendIntent
+    )
+}
+
+/**
+ * Picks the layout by window width. Compact keeps the existing phone screen
+ * untouched; anything wider gets the desktop editor-beside-preview layout —
+ * see [MessagesWebContent].
+ */
+@Composable
+fun MessagesScreenContent(
+    uiState: MessagesState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onIntent: (MessagesIntent) -> Unit
+) {
+    if (LocalWindowSize.current == WindowSize.Compact) {
+        MessagesPhoneContent(uiState, snackbarHostState, onNavigateBack, onIntent)
+    } else {
+        MessagesWebContent(uiState, snackbarHostState, onNavigateBack, onIntent)
+    }
+}
+
+/**
+ * Phone layout — unchanged. One long vertical stack of cards. See
+ * [MessagesWebContent] for the desktop editor/preview split.
+ */
+@Composable
+private fun MessagesPhoneContent(
+    uiState: MessagesState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onIntent: (MessagesIntent) -> Unit
+) {
     Scaffold(
         snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         stringResource(Res.string.messages_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -95,199 +137,325 @@ fun MessagesScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Delivery Card — who actually sends the reminder. This is the first
-            // decision on the screen: the message being written below reaches the
-            // client either from the owner's SIM or from the server.
-            SettingsCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(Res.string.reminder_delivery_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(Res.string.reminder_delivery_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    DeliveryOption(
-                        icon = Icons.Rounded.PhoneAndroid,
-                        title = stringResource(Res.string.reminder_delivery_manual_title),
-                        description = stringResource(Res.string.reminder_delivery_manual_description),
-                        selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
-                        locked = false,
-                        onClick = {
-                            viewModel.sendIntent(MessagesIntent.SetDelivery(ReminderDelivery.MANUAL.value))
-                        }
-                    )
-
-                    DeliveryOption(
-                        icon = Icons.Rounded.CloudUpload,
-                        title = stringResource(Res.string.reminder_delivery_panel_title),
-                        description = stringResource(Res.string.reminder_delivery_panel_description),
-                        selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
-                        locked = !uiState.canUsePanelDelivery,
-                        lockedHint = stringResource(Res.string.reminder_delivery_panel_locked),
-                        onClick = {
-                            viewModel.sendIntent(MessagesIntent.SetDelivery(ReminderDelivery.PANEL.value))
-                        },
-                        onUpgrade = {
-                            viewModel.sendIntent(MessagesIntent.UpgradeForPanelDelivery)
-                        }
-                    )
-                }
-            }
-
-            // Lead-time Card — the «{minutes}» in the template used to come from
-            // a preference the owner had no way of seeing from this screen.
-            SettingsCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Schedule,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(Res.string.reminder_lead_time_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = stringResource(Res.string.reminder_lead_time_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                    ) {
-                        reminderLeadTimeOptions.forEach { minutes ->
-                            FilterChip(
-                                selected = uiState.reminderMinutes == minutes,
-                                onClick = { viewModel.sendIntent(MessagesIntent.SetReminder(minutes)) },
-                                label = { Text("${minutes.toString().toPersianDigits()} دقیقه") },
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Editor Card — variables + text field together, so it's clear the
-            // chips insert into the message being edited.
-            SettingsCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(Res.string.message_text),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "با لمس هر متغیر، آن را به متن اضافه کنید؛ هنگام ارسال با اطلاعات واقعی مشتری جایگزین می‌شود.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                    ) {
-                        MessageToken.entries.forEach { token ->
-                            TokenChip(label = token.label) {
-                                viewModel.sendIntent(MessagesIntent.InsertToken(token.token))
-                            }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = uiState.template,
-                        onValueChange = { viewModel.sendIntent(MessagesIntent.UpdateTemplate(it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 4,
-                        maxLines = 8,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                        )
-                    )
-                }
-            }
-
-            // Preview Card — rendered as an incoming SMS bubble.
-            SettingsCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(Res.string.messages_preview_label),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(
-                            topStart = 18.dp,
-                            topEnd = 4.dp,
-                            bottomStart = 18.dp,
-                            bottomEnd = 18.dp
-                        )
-                    ) {
-                        Text(
-                            text = uiState.preview,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(14.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f
-                        )
-                    }
-                }
-            }
-
-            // Ready Templates
-            SettingsCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(Res.string.messages_ready_subtitle),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                    ) {
-                        uiState.readyTemplates.forEachIndexed { index, tpl ->
-                            SuggestionChip(
-                                onClick = { viewModel.sendIntent(MessagesIntent.ApplyReadyTemplate(tpl)) },
-                                label = { Text("الگو ${index + 1}") },
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            DeliveryCard(uiState = uiState, onIntent = onIntent)
+            LeadTimeCard(uiState = uiState, onIntent = onIntent)
+            EditorCard(uiState = uiState, onIntent = onIntent)
+            PreviewCard(uiState = uiState)
+            ReadyTemplatesCard(uiState = uiState, onIntent = onIntent)
 
             Spacer(modifier = Modifier.weight(1f))
 
             AppButton(
-                onClick = { viewModel.sendIntent(MessagesIntent.Save) },
+                onClick = { onIntent(MessagesIntent.Save) },
                 text = stringResource(Res.string.messages_save),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * Desktop layout. The delivery-channel choice and lead-time chips stay
+ * full-width banners above the fold (they're one decision each, not a list).
+ * The template editor and its live preview/token reference — the part that
+ * benefits most from width — become two side-by-side columns at
+ * [WindowSize.Expanded] instead of three stacked cards. At
+ * [WindowSize.Medium] there isn't room for two columns without squeezing the
+ * editor too narrow to be useful, so it stays a single stacked column, same
+ * as phone but width-capped.
+ *
+ * Every card is the exact same composable used by [MessagesPhoneContent], so
+ * the token set, template storage and delivery-channel entitlement gating
+ * ([MessagesState.canUsePanelDelivery]) can't drift between the two layouts.
+ */
+@Composable
+private fun MessagesWebContent(
+    uiState: MessagesState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onIntent: (MessagesIntent) -> Unit
+) {
+    val isExpanded = LocalWindowSize.current == WindowSize.Expanded
+
+    Scaffold(
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(Res.string.messages_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        AppScaffold(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            maxWidth = ContentWidth.Wide
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DeliveryCard(uiState = uiState, onIntent = onIntent)
+                LeadTimeCard(uiState = uiState, onIntent = onIntent)
+
+                if (isExpanded) {
+                    // Row's first child lands on the right under the app's
+                    // forced RTL layout direction. The editor is the thing
+                    // being worked on, so it takes the right (primary)
+                    // column; the read-only preview and ready-made templates
+                    // sit to its left as reference material.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            EditorCard(uiState = uiState, onIntent = onIntent)
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            PreviewCard(uiState = uiState)
+                            ReadyTemplatesCard(uiState = uiState, onIntent = onIntent)
+                        }
+                    }
+                } else {
+                    EditorCard(uiState = uiState, onIntent = onIntent)
+                    PreviewCard(uiState = uiState)
+                    ReadyTemplatesCard(uiState = uiState, onIntent = onIntent)
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                AppButton(
+                    onClick = { onIntent(MessagesIntent.Save) },
+                    text = stringResource(Res.string.messages_save),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+/** Delivery Card — who actually sends the reminder. This is the first
+ * decision on the screen: the message being written below reaches the
+ * client either from the owner's SIM or from the server. */
+@Composable
+private fun DeliveryCard(uiState: MessagesState, onIntent: (MessagesIntent) -> Unit) {
+    SettingsCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(Res.string.reminder_delivery_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(Res.string.reminder_delivery_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            DeliveryOption(
+                icon = Icons.Rounded.PhoneAndroid,
+                title = stringResource(Res.string.reminder_delivery_manual_title),
+                description = stringResource(Res.string.reminder_delivery_manual_description),
+                selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
+                locked = false,
+                onClick = {
+                    onIntent(MessagesIntent.SetDelivery(ReminderDelivery.MANUAL.value))
+                }
+            )
+
+            DeliveryOption(
+                icon = Icons.Rounded.CloudUpload,
+                title = stringResource(Res.string.reminder_delivery_panel_title),
+                description = stringResource(Res.string.reminder_delivery_panel_description),
+                selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
+                locked = !uiState.canUsePanelDelivery,
+                lockedHint = stringResource(Res.string.reminder_delivery_panel_locked),
+                onClick = {
+                    onIntent(MessagesIntent.SetDelivery(ReminderDelivery.PANEL.value))
+                },
+                onUpgrade = {
+                    onIntent(MessagesIntent.UpgradeForPanelDelivery)
+                }
+            )
+        }
+    }
+}
+
+/** Lead-time Card — the «{minutes}» in the template used to come from a
+ * preference the owner had no way of seeing from this screen. */
+@Composable
+private fun LeadTimeCard(uiState: MessagesState, onIntent: (MessagesIntent) -> Unit) {
+    SettingsCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(Res.string.reminder_lead_time_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = stringResource(Res.string.reminder_lead_time_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+            ) {
+                reminderLeadTimeOptions.forEach { minutes ->
+                    FilterChip(
+                        selected = uiState.reminderMinutes == minutes,
+                        onClick = { onIntent(MessagesIntent.SetReminder(minutes)) },
+                        label = { Text("${minutes.toString().toPersianDigits()} دقیقه") },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Editor Card — variables + text field together, so it's clear the chips
+ * insert into the message being edited. */
+@Composable
+private fun EditorCard(uiState: MessagesState, onIntent: (MessagesIntent) -> Unit) {
+    SettingsCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(Res.string.message_text),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "با لمس هر متغیر، آن را به متن اضافه کنید؛ هنگام ارسال با اطلاعات واقعی مشتری جایگزین می‌شود.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+            ) {
+                MessageToken.entries.forEach { token ->
+                    TokenChip(label = token.label) {
+                        onIntent(MessagesIntent.InsertToken(token.token))
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = uiState.template,
+                onValueChange = { onIntent(MessagesIntent.UpdateTemplate(it)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
+                maxLines = 8,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
+        }
+    }
+}
+
+/** Preview Card — rendered as an incoming SMS bubble. */
+@Composable
+private fun PreviewCard(uiState: MessagesState) {
+    SettingsCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(Res.string.messages_preview_label),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(
+                    topStart = 18.dp,
+                    topEnd = 4.dp,
+                    bottomStart = 18.dp,
+                    bottomEnd = 18.dp
+                )
+            ) {
+                Text(
+                    text = uiState.preview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(14.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f
+                )
+            }
+        }
+    }
+}
+
+/** Ready Templates */
+@Composable
+private fun ReadyTemplatesCard(uiState: MessagesState, onIntent: (MessagesIntent) -> Unit) {
+    SettingsCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(Res.string.messages_ready_subtitle),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+            ) {
+                uiState.readyTemplates.forEachIndexed { index, tpl ->
+                    SuggestionChip(
+                        onClick = { onIntent(MessagesIntent.ApplyReadyTemplate(tpl)) },
+                        label = { Text("الگو ${index + 1}") },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
         }
     }
 }

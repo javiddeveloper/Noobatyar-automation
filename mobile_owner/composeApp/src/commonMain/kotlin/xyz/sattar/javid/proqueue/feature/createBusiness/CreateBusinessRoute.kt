@@ -98,6 +98,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.AddLocation
 import coil3.compose.AsyncImage
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 
 
 @Composable
@@ -540,409 +547,82 @@ fun CreateBusinessScreen(
             // new business gets the "waiting for approval" notice below first.
             onIntent(CreateBusinessIntent.BusinessCreated)
         }
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .imePadding()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Why the owner is here: a rejected/suspended business shows the
-            // reviewer's note right above the fields they need to fix.
-            uiState.business?.let { saved ->
-                ModerationBanner(business = saved)
-                if (saved.moderationStatus != null &&
-                    saved.moderationStatus != ModerationStatus.APPROVED
-                ) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-            }
-
-            // Avatar Section
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape)
-                    .clickable {
-                        singleImagePicker.launch()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (logoBytes != null) {
-                    val bitmap = remember(logoBytes) {
-                        logoBytes.toImageBitmapOrNull()
-                    }
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap,
-                            contentDescription = "Logo",
-                            modifier = Modifier.fillMaxSize().clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Text(
-                            "عکس انتخاب شد",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else if (!uiState.business?.logoPath.isNullOrEmpty()) {
-                    val path = uiState.business!!.logoPath!!
-                    val url = if (path.startsWith("http")) path else "${xyz.sattar.javid.proqueue.core.AppConfig.BASE_URL}$path"
-                    AsyncImage(
-                        model = url,
-                        contentDescription = "Business Logo",
-                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AddPhotoAlternate,
-                        contentDescription = "Add Logo",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val selectedCategoryText = category.persianName
-
-            Box(modifier = Modifier.fillMaxWidth().clickable {
-                if (!uiState.isLoading) showCategorySheet = true
-            }) {
-                AppTextField(
-                    value = selectedCategoryText,
-                    onValueChange = {},
-                    label = "دسته‌بندی",
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Category,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    enabled = false, // Disable to act just as a clickable button
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AppTextField(
-                value = title,
-                onValueChange = onTitle,
-                label = stringResource(Res.string.business_name),
-                maxLength = 50,
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Factory,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                isError = titleError != null,
-                errorMessage = titleError,
-                enabled = !uiState.isLoading,
+        if (LocalWindowSize.current == WindowSize.Compact) {
+            CreateBusinessPhoneContent(
+                modifier = modifier,
+                paddingValues = paddingValues,
+                uiState = uiState,
+                category = category,
+                title = title,
+                onTitle = onTitle,
+                titleError = titleError,
+                bio = bio,
+                onBio = onBio,
+                defaultProgress = defaultProgress,
+                defaultProgressError = defaultProgressError,
+                services = services,
+                onToggleService = onToggleService,
+                allowClientAddService = allowClientAddService,
+                onAllowClientAddService = onAllowClientAddService,
+                workStartHour = workStartHour,
+                workEndHour = workEndHour,
+                workHoursError = workHoursError,
+                onWorkStartHour = onWorkStartHour,
+                onWorkEndHour = onWorkEndHour,
+                phone = phone,
+                onPhone = onPhone,
+                phoneError = phoneError,
+                address = address,
+                onAddress = onAddress,
+                addressError = addressError,
+                allowAnonymousView = allowAnonymousView,
+                onAllowAnonymousView = onAllowAnonymousView,
+                notifyOwnerBySms = notifyOwnerBySms,
+                onNotifyOwnerBySms = onNotifyOwnerBySms,
+                logoBytes = logoBytes,
+                onLogoPickerClick = { singleImagePicker.launch() },
+                onCategoryClick = { if (!uiState.isLoading) showCategorySheet = true },
+                onDurationClick = { if (!uiState.isLoading) showDurationSheet = true },
+                onServicesClick = { if (!uiState.isLoading) showServicesSheet = true }
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AppTextField(
-                value = bio,
-                onValueChange = onBio,
-                label = "معرفی کسب‌وکار (Bio)",
-                maxLength = 50,
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Factory,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                enabled = !uiState.isLoading,
+        } else {
+            CreateBusinessWebContent(
+                modifier = modifier,
+                paddingValues = paddingValues,
+                uiState = uiState,
+                category = category,
+                title = title,
+                onTitle = onTitle,
+                titleError = titleError,
+                bio = bio,
+                onBio = onBio,
+                defaultProgress = defaultProgress,
+                defaultProgressError = defaultProgressError,
+                services = services,
+                onToggleService = onToggleService,
+                allowClientAddService = allowClientAddService,
+                onAllowClientAddService = onAllowClientAddService,
+                workStartHour = workStartHour,
+                workEndHour = workEndHour,
+                workHoursError = workHoursError,
+                onWorkStartHour = onWorkStartHour,
+                onWorkEndHour = onWorkEndHour,
+                phone = phone,
+                onPhone = onPhone,
+                phoneError = phoneError,
+                address = address,
+                onAddress = onAddress,
+                addressError = addressError,
+                allowAnonymousView = allowAnonymousView,
+                onAllowAnonymousView = onAllowAnonymousView,
+                notifyOwnerBySms = notifyOwnerBySms,
+                onNotifyOwnerBySms = onNotifyOwnerBySms,
+                logoBytes = logoBytes,
+                onLogoPickerClick = { singleImagePicker.launch() },
+                onCategoryClick = { if (!uiState.isLoading) showCategorySheet = true },
+                onDurationClick = { if (!uiState.isLoading) showDurationSheet = true },
+                onServicesClick = { if (!uiState.isLoading) showServicesSheet = true }
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Duration is picked from a fixed 5-minute ladder rather than typed:
-            // free text let owners save slots the calendar can't lay out.
-            Box(modifier = Modifier.fillMaxWidth().clickable {
-                if (!uiState.isLoading) showDurationSheet = true
-            }) {
-                AppTextField(
-                    value = defaultProgress.toIntOrNull()?.let { formatServiceDuration(it) } ?: "",
-                    onValueChange = {},
-                    label = stringResource(Res.string.default_time_service),
-                    isError = defaultProgressError != null,
-                    errorMessage = defaultProgressError,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false, // Disable to act just as a clickable button
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── Service menu ──
-            // Defined once here, then reused everywhere a service has to be
-            // named: the owner's own booking screen, and the client's public
-            // booking page. A client who picks "رنگ مو" instead of typing a
-            // sentence is a slot the owner can actually plan — which is the
-            // whole reason this moved out of the free-text description.
-            Box(modifier = Modifier.fillMaxWidth().clickable {
-                if (!uiState.isLoading) showServicesSheet = true
-            }) {
-                AppTextField(
-                    value = if (services.isEmpty()) "" else "${services.size} خدمت انتخاب شده",
-                    onValueChange = {},
-                    label = "لیست خدمات",
-                    placeholder = "خدماتی که ارائه می‌دهید را انتخاب کنید",
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Category,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false, // Disable to act just as a clickable button
-                )
-            }
-
-            if (services.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                SelectedServiceChipsRow(
-                    selected = services,
-                    onRemove = onToggleService
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .clickable { onAllowClientAddService(!allowClientAddService) },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "مشتری بتواند خدمت خارج از لیست اضافه کند",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f)
-                    )
-                    androidx.compose.material3.Switch(
-                        checked = allowClientAddService,
-                        onCheckedChange = { onAllowClientAddService(it) }
-                    )
-                }
-                Text(
-                    text = "اگر خاموش باشد، مشتری هنگام رزرو فقط از همین لیست " +
-                            "انتخاب می‌کند و نمی‌تواند خدمت جدیدی بنویسد.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                AppTextField(
-                    enabled = !uiState.isLoading,
-                    value = workStartHour,
-                    onValueChange = onWorkStartHour,
-                    label = stringResource(Res.string.work_start_hour),
-                    isError = workHoursError != null,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    keyboardType = KeyboardType.Number,
-                    placeholder = stringResource(Res.string.example_work_start)
-                )
-
-                AppTextField(
-                    enabled = !uiState.isLoading,
-                    value = workEndHour,
-                    onValueChange = onWorkEndHour,
-                    label = stringResource(Res.string.work_end_hour),
-                    isError = workHoursError != null,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    keyboardType = KeyboardType.Number,
-                    placeholder = stringResource(Res.string.example_work_end)
-                )
-            }
-
-            if (workHoursError != null) {
-                Text(
-                    text = workHoursError,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AppTextField(
-                enabled = !uiState.isLoading,
-                maxLength = 11,
-                value = phone,
-                onValueChange = onPhone,
-                label = stringResource(Res.string.phone),
-                isError = phoneError != null,
-                errorMessage = phoneError,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardType = KeyboardType.Phone
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AppTextField(
-                enabled = !uiState.isLoading,
-                value = address,
-                onValueChange = onAddress,
-                label = stringResource(Res.string.address),
-                maxLength = 100,
-                isError = addressError != null,
-                errorMessage = addressError,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.AddLocation,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                maxLine = 3,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clickable { onAllowAnonymousView(!allowAnonymousView) },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "نمایش اطلاعات تماس به کاربران مهمان",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                androidx.compose.material3.Switch(
-                    checked = allowAnonymousView,
-                    onCheckedChange = { onAllowAnonymousView(it) }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .clickable { onNotifyOwnerBySms(!notifyOwnerBySms) },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "اطلاع‌رسانی پیامکی نوبت جدید به خودم",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    androidx.compose.material3.Switch(
-                        checked = notifyOwnerBySms,
-                        onCheckedChange = { onNotifyOwnerBySms(it) }
-                    )
-                }
-                Text(
-                    text = "این پیامک از سهمیه‌ی پیامک شما کم می‌شود. اگر نوبت‌های " +
-                            "جدید را در همین اپ دنبال می‌کنید، خاموش کردنش هزینه‌ی هر " +
-                            "نوبت را یک پیامک کمتر می‌کند.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Emergency notice is configured on its own screen, reachable from
-            // Settings (feature/settings/EmergencyNoticeScreen.kt) — not shown
-            // here anymore. Its value is still loaded and saved above so
-            // editing the business from this screen doesn't drop it.
-
-            // Advanced settings (payment / capacity / reminders) now live on a
-            // separate screen, reachable from the profile. The values are still
-            // loaded and saved here so editing the business doesn't drop them.
-
-            // Spacer replaced by bottomBar button
-
-
-            if (uiState.business != null) {
-                Text(uiState.business.title)
-            }
         }
     }
 
@@ -1081,6 +761,745 @@ fun CreateBusinessScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Phone layout — unchanged. The exact original single-column form: avatar,
+ * category, name, bio, duration, services, toggles, hours, phone, address,
+ * remaining toggles. See [CreateBusinessWebContent] for the desktop layout.
+ */
+@Composable
+private fun CreateBusinessPhoneContent(
+    modifier: Modifier = Modifier,
+    paddingValues: androidx.compose.foundation.layout.PaddingValues,
+    uiState: CreateBusinessState,
+    category: BusinessCategory,
+    title: String,
+    onTitle: (String) -> Unit,
+    titleError: String?,
+    bio: String,
+    onBio: (String) -> Unit,
+    defaultProgress: String,
+    defaultProgressError: String?,
+    services: List<String>,
+    onToggleService: (String) -> Unit,
+    allowClientAddService: Boolean,
+    onAllowClientAddService: (Boolean) -> Unit,
+    workStartHour: String,
+    workEndHour: String,
+    workHoursError: String?,
+    onWorkStartHour: (String) -> Unit,
+    onWorkEndHour: (String) -> Unit,
+    phone: String,
+    onPhone: (String) -> Unit,
+    phoneError: String?,
+    address: String,
+    onAddress: (String) -> Unit,
+    addressError: String?,
+    allowAnonymousView: Boolean,
+    onAllowAnonymousView: (Boolean) -> Unit,
+    notifyOwnerBySms: Boolean,
+    onNotifyOwnerBySms: (Boolean) -> Unit,
+    logoBytes: ByteArray?,
+    onLogoPickerClick: () -> Unit,
+    onCategoryClick: () -> Unit,
+    onDurationClick: () -> Unit,
+    onServicesClick: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(paddingValues)
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Why the owner is here: a rejected/suspended business shows the
+        // reviewer's note right above the fields they need to fix.
+        uiState.business?.let { saved ->
+            ModerationBanner(business = saved)
+            if (saved.moderationStatus != null &&
+                saved.moderationStatus != ModerationStatus.APPROVED
+            ) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        LogoPickerAvatar(uiState = uiState, logoBytes = logoBytes, onClick = onLogoPickerClick)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        CategoryPickerField(uiState = uiState, category = category, onClick = onCategoryClick)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        BusinessTitleField(uiState = uiState, title = title, onTitle = onTitle, titleError = titleError)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        BusinessBioField(uiState = uiState, bio = bio, onBio = onBio)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        DurationPickerField(
+            uiState = uiState,
+            defaultProgress = defaultProgress,
+            defaultProgressError = defaultProgressError,
+            onClick = onDurationClick
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        ServicesSection(
+            uiState = uiState,
+            services = services,
+            onToggleService = onToggleService,
+            onClick = onServicesClick
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        AllowClientAddServiceToggle(
+            allowClientAddService = allowClientAddService,
+            onAllowClientAddService = onAllowClientAddService
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        WorkHoursSection(
+            uiState = uiState,
+            workStartHour = workStartHour,
+            workEndHour = workEndHour,
+            workHoursError = workHoursError,
+            onWorkStartHour = onWorkStartHour,
+            onWorkEndHour = onWorkEndHour
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        BusinessPhoneField(uiState = uiState, phone = phone, onPhone = onPhone, phoneError = phoneError)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        BusinessAddressField(uiState = uiState, address = address, onAddress = onAddress, addressError = addressError)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        AllowAnonymousViewToggle(
+            allowAnonymousView = allowAnonymousView,
+            onAllowAnonymousView = onAllowAnonymousView
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        NotifyOwnerBySmsToggle(
+            notifyOwnerBySms = notifyOwnerBySms,
+            onNotifyOwnerBySms = onNotifyOwnerBySms
+        )
+
+        // Emergency notice is configured on its own screen, reachable from
+        // Settings (feature/settings/EmergencyNoticeScreen.kt) — not shown
+        // here anymore. Its value is still loaded and saved above so
+        // editing the business from this screen doesn't drop it.
+
+        // Advanced settings (payment / capacity / reminders) now live on a
+        // separate screen, reachable from the profile. The values are still
+        // loaded and saved here so editing the business doesn't drop them.
+
+        // Spacer replaced by bottomBar button
+
+
+        if (uiState.business != null) {
+            Text(uiState.business.title)
+        }
+    }
+}
+
+/**
+ * Desktop layout. A single long column reads as tiring at 1920px, so the
+ * logo/cropper gets its own side panel and the text fields split into two
+ * columns inside a width-capped area. Every field is the same shared
+ * composable the phone column uses, just re-arranged — no handler, no
+ * validation and no field was duplicated or altered.
+ *
+ * RTL: in the outer [Row], the first child lands on the *right* (the app
+ * forces RTL in ui/theme/Theme.kt). The logo panel goes first so a Persian
+ * reader meets the business's identity before its fields, then the two
+ * field columns fill the rest.
+ */
+@Composable
+private fun CreateBusinessWebContent(
+    modifier: Modifier = Modifier,
+    paddingValues: androidx.compose.foundation.layout.PaddingValues,
+    uiState: CreateBusinessState,
+    category: BusinessCategory,
+    title: String,
+    onTitle: (String) -> Unit,
+    titleError: String?,
+    bio: String,
+    onBio: (String) -> Unit,
+    defaultProgress: String,
+    defaultProgressError: String?,
+    services: List<String>,
+    onToggleService: (String) -> Unit,
+    allowClientAddService: Boolean,
+    onAllowClientAddService: (Boolean) -> Unit,
+    workStartHour: String,
+    workEndHour: String,
+    workHoursError: String?,
+    onWorkStartHour: (String) -> Unit,
+    onWorkEndHour: (String) -> Unit,
+    phone: String,
+    onPhone: (String) -> Unit,
+    phoneError: String?,
+    address: String,
+    onAddress: (String) -> Unit,
+    addressError: String?,
+    allowAnonymousView: Boolean,
+    onAllowAnonymousView: (Boolean) -> Unit,
+    notifyOwnerBySms: Boolean,
+    onNotifyOwnerBySms: (Boolean) -> Unit,
+    logoBytes: ByteArray?,
+    onLogoPickerClick: () -> Unit,
+    onCategoryClick: () -> Unit,
+    onDurationClick: () -> Unit,
+    onServicesClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(paddingValues),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = ContentWidth.Wide)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            uiState.business?.let { saved ->
+                ModerationBanner(business = saved)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Logo panel — its own card beside the fields rather than
+                // sitting in the flow, so the cropper trigger reads as a
+                // deliberate identity block, not just the first form field.
+                Card(
+                    modifier = Modifier.widthIn(min = 220.dp, max = 260.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "لوگو کسب‌وکار",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        LogoPickerAvatar(uiState = uiState, logoBytes = logoBytes, onClick = onLogoPickerClick)
+                    }
+                }
+
+                // Field columns — weighted so they share whatever width the
+                // 1100dp cap leaves after the fixed logo panel.
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CategoryPickerField(uiState = uiState, category = category, onClick = onCategoryClick)
+                        BusinessTitleField(uiState = uiState, title = title, onTitle = onTitle, titleError = titleError)
+                        BusinessBioField(uiState = uiState, bio = bio, onBio = onBio)
+                        DurationPickerField(
+                            uiState = uiState,
+                            defaultProgress = defaultProgress,
+                            defaultProgressError = defaultProgressError,
+                            onClick = onDurationClick
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        ServicesSection(
+                            uiState = uiState,
+                            services = services,
+                            onToggleService = onToggleService,
+                            onClick = onServicesClick
+                        )
+                        WorkHoursSection(
+                            uiState = uiState,
+                            workStartHour = workStartHour,
+                            workEndHour = workEndHour,
+                            workHoursError = workHoursError,
+                            onWorkStartHour = onWorkStartHour,
+                            onWorkEndHour = onWorkEndHour
+                        )
+                        BusinessPhoneField(uiState = uiState, phone = phone, onPhone = onPhone, phoneError = phoneError)
+                        BusinessAddressField(uiState = uiState, address = address, onAddress = onAddress, addressError = addressError)
+                    }
+                }
+            }
+
+            // Toggles span the full width below the two columns — each is a
+            // single row plus a helper line, so squeezing one into a half
+            // column would wrap its Persian sentence awkwardly.
+            AllowClientAddServiceToggle(
+                allowClientAddService = allowClientAddService,
+                onAllowClientAddService = onAllowClientAddService
+            )
+            AllowAnonymousViewToggle(
+                allowAnonymousView = allowAnonymousView,
+                onAllowAnonymousView = onAllowAnonymousView
+            )
+            NotifyOwnerBySmsToggle(
+                notifyOwnerBySms = notifyOwnerBySms,
+                onNotifyOwnerBySms = onNotifyOwnerBySms
+            )
+
+            if (uiState.business != null) {
+                Text(uiState.business.title)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+/** Avatar/logo picker — opens [rememberImagePicker], which hands its result
+ *  to [ImageCropperDialog] back in [CreateBusinessScreen]. Only where this
+ *  sits changes between phone and web; the picker/cropper flow itself does
+ *  not. */
+@Composable
+private fun LogoPickerAvatar(
+    uiState: CreateBusinessState,
+    logoBytes: ByteArray?,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (logoBytes != null) {
+            val bitmap = remember(logoBytes) {
+                logoBytes.toImageBitmapOrNull()
+            }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = "Logo",
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    "عکس انتخاب شد",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else if (!uiState.business?.logoPath.isNullOrEmpty()) {
+            val path = uiState.business!!.logoPath!!
+            val url = if (path.startsWith("http")) path else "${xyz.sattar.javid.proqueue.core.AppConfig.BASE_URL}$path"
+            AsyncImage(
+                model = url,
+                contentDescription = "Business Logo",
+                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.AddPhotoAlternate,
+                contentDescription = "Add Logo",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(40.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryPickerField(
+    uiState: CreateBusinessState,
+    category: BusinessCategory,
+    onClick: () -> Unit
+) {
+    val selectedCategoryText = category.persianName
+
+    Box(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        AppTextField(
+            value = selectedCategoryText,
+            onValueChange = {},
+            label = "دسته‌بندی",
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Category,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            enabled = false, // Disable to act just as a clickable button
+        )
+    }
+}
+
+@Composable
+private fun BusinessTitleField(
+    uiState: CreateBusinessState,
+    title: String,
+    onTitle: (String) -> Unit,
+    titleError: String?
+) {
+    AppTextField(
+        value = title,
+        onValueChange = onTitle,
+        label = stringResource(Res.string.business_name),
+        maxLength = 50,
+        modifier = Modifier.fillMaxWidth(),
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Factory,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        isError = titleError != null,
+        errorMessage = titleError,
+        enabled = !uiState.isLoading,
+    )
+}
+
+@Composable
+private fun BusinessBioField(
+    uiState: CreateBusinessState,
+    bio: String,
+    onBio: (String) -> Unit
+) {
+    AppTextField(
+        value = bio,
+        onValueChange = onBio,
+        label = "معرفی کسب‌وکار (Bio)",
+        maxLength = 50,
+        modifier = Modifier.fillMaxWidth(),
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Factory,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        enabled = !uiState.isLoading,
+    )
+}
+
+@Composable
+private fun DurationPickerField(
+    uiState: CreateBusinessState,
+    defaultProgress: String,
+    defaultProgressError: String?,
+    onClick: () -> Unit
+) {
+    // Duration is picked from a fixed 5-minute ladder rather than typed:
+    // free text let owners save slots the calendar can't lay out.
+    Box(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        AppTextField(
+            value = defaultProgress.toIntOrNull()?.let { formatServiceDuration(it) } ?: "",
+            onValueChange = {},
+            label = stringResource(Res.string.default_time_service),
+            isError = defaultProgressError != null,
+            errorMessage = defaultProgressError,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false, // Disable to act just as a clickable button
+        )
+    }
+}
+
+/** Service picker field plus its selected-services chip row — the two
+ *  always travel together, in both layouts. */
+@Composable
+private fun ServicesSection(
+    uiState: CreateBusinessState,
+    services: List<String>,
+    onToggleService: (String) -> Unit,
+    onClick: () -> Unit
+) {
+    // ── Service menu ──
+    // Defined once here, then reused everywhere a service has to be
+    // named: the owner's own booking screen, and the client's public
+    // booking page. A client who picks "رنگ مو" instead of typing a
+    // sentence is a slot the owner can actually plan — which is the
+    // whole reason this moved out of the free-text description.
+    Box(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        AppTextField(
+            value = if (services.isEmpty()) "" else "${services.size} خدمت انتخاب شده",
+            onValueChange = {},
+            label = "لیست خدمات",
+            placeholder = "خدماتی که ارائه می‌دهید را انتخاب کنید",
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Category,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false, // Disable to act just as a clickable button
+        )
+    }
+
+    if (services.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        SelectedServiceChipsRow(
+            selected = services,
+            onRemove = onToggleService
+        )
+    }
+}
+
+@Composable
+private fun AllowClientAddServiceToggle(
+    allowClientAddService: Boolean,
+    onAllowClientAddService: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .clickable { onAllowClientAddService(!allowClientAddService) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "مشتری بتواند خدمت خارج از لیست اضافه کند",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            androidx.compose.material3.Switch(
+                checked = allowClientAddService,
+                onCheckedChange = { onAllowClientAddService(it) }
+            )
+        }
+        Text(
+            text = "اگر خاموش باشد، مشتری هنگام رزرو فقط از همین لیست " +
+                    "انتخاب می‌کند و نمی‌تواند خدمت جدیدی بنویسد.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun WorkHoursSection(
+    uiState: CreateBusinessState,
+    workStartHour: String,
+    workEndHour: String,
+    workHoursError: String?,
+    onWorkStartHour: (String) -> Unit,
+    onWorkEndHour: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        AppTextField(
+            enabled = !uiState.isLoading,
+            value = workStartHour,
+            onValueChange = onWorkStartHour,
+            label = stringResource(Res.string.work_start_hour),
+            isError = workHoursError != null,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.weight(1f),
+            keyboardType = KeyboardType.Number,
+            placeholder = stringResource(Res.string.example_work_start)
+        )
+
+        AppTextField(
+            enabled = !uiState.isLoading,
+            value = workEndHour,
+            onValueChange = onWorkEndHour,
+            label = stringResource(Res.string.work_end_hour),
+            isError = workHoursError != null,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.weight(1f),
+            keyboardType = KeyboardType.Number,
+            placeholder = stringResource(Res.string.example_work_end)
+        )
+    }
+
+    if (workHoursError != null) {
+        Text(
+            text = workHoursError,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun BusinessPhoneField(
+    uiState: CreateBusinessState,
+    phone: String,
+    onPhone: (String) -> Unit,
+    phoneError: String?
+) {
+    AppTextField(
+        enabled = !uiState.isLoading,
+        maxLength = 11,
+        value = phone,
+        onValueChange = onPhone,
+        label = stringResource(Res.string.phone),
+        isError = phoneError != null,
+        errorMessage = phoneError,
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Phone,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier.fillMaxWidth(),
+        keyboardType = KeyboardType.Phone
+    )
+}
+
+@Composable
+private fun BusinessAddressField(
+    uiState: CreateBusinessState,
+    address: String,
+    onAddress: (String) -> Unit,
+    addressError: String?
+) {
+    AppTextField(
+        enabled = !uiState.isLoading,
+        value = address,
+        onValueChange = onAddress,
+        label = stringResource(Res.string.address),
+        maxLength = 100,
+        isError = addressError != null,
+        errorMessage = addressError,
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.AddLocation,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        maxLine = 3,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun AllowAnonymousViewToggle(
+    allowAnonymousView: Boolean,
+    onAllowAnonymousView: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clickable { onAllowAnonymousView(!allowAnonymousView) },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "نمایش اطلاعات تماس به کاربران مهمان",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        androidx.compose.material3.Switch(
+            checked = allowAnonymousView,
+            onCheckedChange = { onAllowAnonymousView(it) }
+        )
+    }
+}
+
+@Composable
+private fun NotifyOwnerBySmsToggle(
+    notifyOwnerBySms: Boolean,
+    onNotifyOwnerBySms: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .clickable { onNotifyOwnerBySms(!notifyOwnerBySms) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "اطلاع‌رسانی پیامکی نوبت جدید به خودم",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            androidx.compose.material3.Switch(
+                checked = notifyOwnerBySms,
+                onCheckedChange = { onNotifyOwnerBySms(it) }
+            )
+        }
+        Text(
+            text = "این پیامک از سهمیه‌ی پیامک شما کم می‌شود. اگر نوبت‌های " +
+                    "جدید را در همین اپ دنبال می‌کنید، خاموش کردنش هزینه‌ی هر " +
+                    "نوبت را یک پیامک کمتر می‌کند.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

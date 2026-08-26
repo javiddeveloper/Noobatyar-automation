@@ -5,6 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +30,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarDefaults
@@ -102,8 +108,35 @@ fun LastVisitorsScreen(
     )
 }
 
+/**
+ * Picks the layout by window width. Compact keeps the existing phone screen
+ * (single-column tabs + LazyColumn) untouched; Medium/Expanded get a
+ * multi-column card grid instead — see [LastVisitorsWebContent] for why a
+ * two-pane master-detail wasn't used here.
+ */
 @Composable
 fun LastVisitorsScreenContent(
+    modifier: Modifier = Modifier,
+    uiState: LastVisitorsState,
+    onIntent: (LastVisitorsIntent) -> Unit,
+    onNavigateToLogin: () -> Unit = {},
+    onChangeBusiness: () -> Unit = {},
+    onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String
+) {
+    if (LocalWindowSize.current == WindowSize.Compact) {
+        LastVisitorsPhoneContent(modifier, uiState, onIntent, onNavigateToLogin, onChangeBusiness, onGenerateMessage)
+    } else {
+        LastVisitorsWebContent(modifier, uiState, onIntent, onNavigateToLogin, onChangeBusiness, onGenerateMessage)
+    }
+}
+
+/**
+ * Phone layout — unchanged. Single-column tabs + LazyColumn, both for the
+ * visitors list and the queue list. See [LastVisitorsWebContent] for the
+ * desktop grid.
+ */
+@Composable
+private fun LastVisitorsPhoneContent(
     modifier: Modifier = Modifier,
     uiState: LastVisitorsState,
     onIntent: (LastVisitorsIntent) -> Unit,
@@ -338,6 +371,279 @@ fun LastVisitorsScreenContent(
                                     onIntent(LastVisitorsIntent.OnAppointmentClick(visitorId))
                                 }
                             )
+                        }
+                    }
+                }
+            }
+
+            if (uiState.showFilterSheet) {
+                FilterBottomSheet(
+                    filter = uiState.filter,
+                    onDismiss = { onIntent(LastVisitorsIntent.ShowFilterSheet(false)) },
+                    onFilterChanged = { onIntent(LastVisitorsIntent.OnFilterChanged(it)) },
+                    onClearFilter = { onIntent(LastVisitorsIntent.ClearFilter) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Desktop layout.
+ *
+ * This screen was flagged as the best master-detail candidate in the app
+ * (list on one side, selected visitor's detail beside it), but tapping a row
+ * here currently fires [LastVisitorsIntent.OnAppointmentClick] /
+ * `OnEditAppointment`, which [HandleEvents] turns into a *navigation* to a
+ * separate `VisitorDetails`/edit destination — there is no "selected
+ * visitor" ViewModel state to drive an inline detail pane. Building that
+ * would mean adding new ViewModel state and changing navigation semantics,
+ * which is out of scope for a re-layout. So instead: same tabs/Scaffold/FAB
+ * as phone, but the single-column LazyColumn becomes a multi-column
+ * LazyVerticalGrid (2 columns at Expanded, still 1 at Medium — a second
+ * column at ~800dp would squeeze [AppointmentCard]'s meta strip into
+ * wrapping), reusing the exact same card composables so nothing about a row
+ * itself had to change.
+ */
+@Composable
+private fun LastVisitorsWebContent(
+    modifier: Modifier = Modifier,
+    uiState: LastVisitorsState,
+    onIntent: (LastVisitorsIntent) -> Unit,
+    onNavigateToLogin: () -> Unit = {},
+    onChangeBusiness: () -> Unit = {},
+    onGenerateMessage: (Long, String, String, String, Long, String, Int?) -> String
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let {
+            snackbarHostState.showToasty(it)
+            onIntent(LastVisitorsIntent.ClearMessage)
+        }
+    }
+
+    val columns = if (LocalWindowSize.current == WindowSize.Expanded) 2 else 1
+
+    Scaffold(
+        contentWindowInsets = WindowInsets(0),
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        topBar = {
+            MainTopAppBar(
+                onNavigateToLogin = onNavigateToLogin,
+                onChangeBusiness = onChangeBusiness,
+                actions = {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable(enabled = !uiState.isLoading) {
+                                onIntent(LastVisitorsIntent.LoadAppointments)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = stringResource(Res.string.refresh),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable { onIntent(LastVisitorsIntent.ShowFilterSheet(true)) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FilterList,
+                            contentDescription = "فیلتر",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    onIntent(LastVisitorsIntent.OnCreateAppointmentClick)
+                },
+                modifier = Modifier.padding(bottom = BottomBarDefaults.FabClearance),
+                containerColor = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = stringResource(Res.string.create_appointment)
+                )
+            }
+        }
+    ) { paddingValues ->
+        AppScaffold(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(top = paddingValues.calculateTopPadding())
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        LastVisitorsListShimmer()
+                        BottomBarSpacer()
+                    }
+                }
+
+                uiState.appointments.isEmpty() -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SectionTabs(
+                            labels = listOf(
+                                stringResource(Res.string.visitors_tab),
+                                stringResource(Res.string.queue_tab),
+                            ),
+                            selectedIndex = uiState.selectedTab,
+                            onSelected = { index -> onIntent(LastVisitorsIntent.OnTabSelected(index)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            EmptyState(
+                                icon = Icons.Rounded.EventNote,
+                                title = stringResource(Res.string.empty_appointments_title),
+                                subtitle = stringResource(Res.string.empty_appointments_subtitle)
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SectionTabs(
+                            labels = listOf(
+                                stringResource(Res.string.visitors_tab),
+                                stringResource(Res.string.queue_tab),
+                            ),
+                            selectedIndex = uiState.selectedTab,
+                            onSelected = { index -> onIntent(LastVisitorsIntent.OnTabSelected(index)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        if (uiState.selectedTab == 1) {
+                            val now = DateTimeUtils.systemCurrentMilliseconds()
+                            val waiting = uiState.appointments
+                                .filter { it.appointment.status == "WAITING" || it.appointment.status == "PENDING_APPROVAL" || it.appointment.status == "PENDING_VERIFICATION" }
+                                .sortedBy { abs(it.appointment.appointmentDate - now) }
+
+                            TotalCountHeader(
+                                title = stringResource(Res.string.people_in_queue_count),
+                                count = waiting.size
+                            )
+
+                            if (waiting.isEmpty()) {
+                                EmptyState(
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                                    icon = Icons.Rounded.EventNote,
+                                    title = stringResource(Res.string.empty_appointments_title),
+                                    subtitle = stringResource(Res.string.empty_appointments_subtitle)
+                                )
+                            } else {
+                                val queueItems = waiting.map { item ->
+                                    val duration = (item.appointment.serviceDuration
+                                        ?: item.business.defaultServiceDuration) * 60 * 1000L
+                                    QueueItem(
+                                        appointment = item.appointment,
+                                        visitorName = item.visitor.fullName,
+                                        visitorPhone = item.visitor.phoneNumber,
+                                        estimatedStartTime = item.appointment.appointmentDate,
+                                        estimatedEndTime = item.appointment.appointmentDate + duration
+                                    )
+                                }
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(columns),
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    gridItems(queueItems) { queueItem ->
+                                        QueueItemCard(
+                                            item = queueItem,
+                                            onRemove = {
+                                                onIntent(
+                                                    LastVisitorsIntent.OnDeleteAppointment(
+                                                        queueItem.appointment.id
+                                                    )
+                                                )
+                                            },
+                                            onComplete = {
+                                                when (queueItem.appointment.status) {
+                                                    "PENDING_APPROVAL", "PENDING_VERIFICATION" -> {
+                                                        // Verify/Approve receipt → move to WAITING
+                                                        onIntent(LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "WAITING"))
+                                                    }
+                                                    else -> onIntent(LastVisitorsIntent.OnMarkCompleted(queueItem.appointment.id))
+                                                }
+                                            },
+                                            onNoShow = {
+                                                when (queueItem.appointment.status) {
+                                                    "PENDING_APPROVAL", "PENDING_VERIFICATION" -> {
+                                                        // Reject receipt → CANCELLED
+                                                        onIntent(LastVisitorsIntent.OnUpdateStatus(queueItem.appointment.id, "CANCELLED"))
+                                                    }
+                                                    else -> onIntent(LastVisitorsIntent.OnMarkNoShow(queueItem.appointment.id))
+                                                }
+                                            },
+                                            onSendMessage = { appointmentId, type, content, businessTitle ->
+                                                onIntent(
+                                                    LastVisitorsIntent.OnSendMessage(
+                                                        appointmentId = appointmentId,
+                                                        type = type,
+                                                        content = content,
+                                                        businessTitle = businessTitle
+                                                    )
+                                                )
+                                            },
+                                            onItemClick = {
+                                                onIntent(
+                                                    LastVisitorsIntent.OnEditAppointment(
+                                                        queueItem.appointment.id
+                                                    )
+                                                )
+                                            },
+                                            onGenerateMessage = onGenerateMessage
+                                        )
+                                    }
+                                    item(span = { GridItemSpan(maxLineSpan) }) { BottomBarSpacer() }
+                                }
+                            }
+                        } else {
+                            TotalCountHeader(
+                                title = stringResource(Res.string.total_visitors_count),
+                                count = uiState.totalCount
+                            )
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(columns),
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                gridItems(uiState.appointments) { appointment ->
+                                    AppointmentCard(
+                                        appointmentWithDetails = appointment,
+                                        onEditClick = { onIntent(LastVisitorsIntent.OnEditAppointment(appointment.appointment.id)) },
+                                        onDeleteClick = { onIntent(LastVisitorsIntent.OnDeleteAppointment(appointment.appointment.id)) },
+                                        onItemClick = { onIntent(LastVisitorsIntent.OnAppointmentClick(appointment.appointment.visitorId)) }
+                                    )
+                                }
+                                item(span = { GridItemSpan(maxLineSpan) }) { BottomBarSpacer() }
+                            }
                         }
                     }
                 }
