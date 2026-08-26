@@ -42,6 +42,25 @@ const nextConfig = {
       { source: '/media/:path*', destination: `${target}/media/:path*` },
     ];
   },
+
+  // The service worker script itself must never be served from HTTP cache —
+  // otherwise a browser that cached an old /sw.js from a previous deploy
+  // keeps running stale caching logic indefinitely. `updateViaCache: 'none'`
+  // on the registration call (ServiceWorkerRegistration.tsx) covers the same
+  // concern client-side; this is the server-side half.
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
