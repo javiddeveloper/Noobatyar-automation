@@ -1,9 +1,7 @@
 package xyz.sattar.javid.proqueue.data.repository.business
 
-import xyz.sattar.javid.proqueue.data.localDataSource.business.BusinessDao
-import xyz.sattar.javid.proqueue.data.localDataSource.business.toDomain
-import xyz.sattar.javid.proqueue.data.localDataSource.business.toEntity
-import xyz.sattar.javid.proqueue.data.localDataSource.business.toRequestDto
+import xyz.sattar.javid.proqueue.data.localDataSource.business.BusinessLocalSource
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.toDomain
 import xyz.sattar.javid.proqueue.domain.BusinessRepository
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 
@@ -17,12 +15,12 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPage
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 
 class BusinessRepositoryImpl(
-    private val businessDao: BusinessDao,
+    private val businessDao: BusinessLocalSource,
     private val businessApiService: BusinessApiService
 ) : BusinessRepository {
     override suspend fun upsertBusiness(business: Business): Boolean {
         return try {
-            businessDao.upsertBusiness(business.toEntity())
+            businessDao.upsertBusiness(business)
             true
         } catch (e: Exception) {
             false
@@ -31,16 +29,14 @@ class BusinessRepositoryImpl(
 
     override suspend fun loadAllBusiness(): List<Business> {
         return try {
-            businessDao.loadAllBusiness().map { it.toDomain() }
+            businessDao.loadAllBusiness()
         } catch (e: Exception) {
             emptyList()
         }
     }
 
     override fun loadAllBusinessFlow(): Flow<List<Business>> {
-        return businessDao.loadAllBusinessFlow().map { entities ->
-            entities.map { it.toDomain() }
-        }
+        return businessDao.loadAllBusinessFlow()
     }
 
     override suspend fun fetchAndCacheBusinesses(page: Int, pageSize: Int): Boolean {
@@ -50,8 +46,8 @@ class BusinessRepositoryImpl(
                     if (page == 1) {
                         businessDao.clearAllBusinesses()
                     }
-                    val entities = response.data.results.map { it.toEntity() }
-                    businessDao.upsertBusinesses(entities)
+                    val businesses = response.data.results.map { it.toDomain() }
+                    businessDao.upsertBusinesses(businesses)
                     true
                 }
                 is ApiResponse.Error -> false
@@ -63,7 +59,7 @@ class BusinessRepositoryImpl(
 
     override suspend fun getBusinessById(businessId: Long): Business? {
         return try {
-            businessDao.getBusinessById(businessId)?.toDomain()
+            businessDao.getBusinessById(businessId)
         } catch (e: Exception) {
             null
         }
@@ -90,9 +86,9 @@ class BusinessRepositoryImpl(
         return try {
             when (val response = businessApiService.createBusiness(business)) {
                 is ApiResponse.Success -> {
-                    val entity = response.data.toEntity()
-                    businessDao.upsertBusiness(entity)
-                    entity.toDomain()
+                    val created = response.data.toDomain()
+                    businessDao.upsertBusiness(created)
+                    created
                 }
                 // ApiException, not a bare Exception: callers need the status
                 // code to tell "your plan doesn't include this" (403) apart from
@@ -108,9 +104,9 @@ class BusinessRepositoryImpl(
         return try {
             when (val response = businessApiService.updateBusiness(business.id, business)) {
                 is ApiResponse.Success -> {
-                    val entity = response.data.toEntity()
-                    businessDao.upsertBusiness(entity)
-                    entity.toDomain()
+                    val updated = response.data.toDomain()
+                    businessDao.upsertBusiness(updated)
+                    updated
                 }
                 // ApiException, not a bare Exception: callers need the status
                 // code to tell "your plan doesn't include this" (403) apart from

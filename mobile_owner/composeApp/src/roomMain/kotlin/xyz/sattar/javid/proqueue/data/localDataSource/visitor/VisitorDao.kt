@@ -16,12 +16,12 @@ interface VisitorDao {
     suspend fun getVisitorById(visitorId: Long): VisitorEntity?
 
     @Query("""
-        SELECT DISTINCT * FROM Visitor 
+        SELECT DISTINCT * FROM Visitor
         WHERE (:query IS NULL OR fullName LIKE '%' || :query || '%' OR phoneNumber LIKE '%' || :query || '%')
-        ORDER BY fullName ASC 
+        ORDER BY fullName ASC
         LIMIT :limit OFFSET :offset
     """)
-    suspend fun getVisitors(limit: Int, offset: Int, query: String? = null): List<VisitorEntity>
+    suspend fun getVisitors(limit: Int, offset: Int, query: String?): List<VisitorEntity>
 
     @Query("DELETE FROM Visitor")
     suspend fun clearAllVisitors()

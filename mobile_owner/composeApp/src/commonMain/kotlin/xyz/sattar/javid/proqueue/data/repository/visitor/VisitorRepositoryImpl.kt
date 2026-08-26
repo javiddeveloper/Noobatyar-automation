@@ -1,17 +1,16 @@
 package xyz.sattar.javid.proqueue.data.repository.visitor
 
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
-import xyz.sattar.javid.proqueue.data.localDataSource.visitor.VisitorDao
-import xyz.sattar.javid.proqueue.data.localDataSource.visitor.toDomain
-import xyz.sattar.javid.proqueue.data.localDataSource.visitor.toEntity
-import xyz.sattar.javid.proqueue.data.localDataSource.visitor.toRequestDto
+import xyz.sattar.javid.proqueue.data.localDataSource.visitor.VisitorLocalSource
 import xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.VisitorApiService
+import xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.model.toDomain
+import xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.model.toRequestDto
 import xyz.sattar.javid.proqueue.domain.VisitorPaging
 import xyz.sattar.javid.proqueue.domain.VisitorRepository
 import xyz.sattar.javid.proqueue.domain.model.visitor.Visitor
 
 class VisitorRepositoryImpl(
-    private val visitorDao: VisitorDao,
+    private val visitorDao: VisitorLocalSource,
     private val visitorApiService: VisitorApiService
 ) : VisitorRepository {
 
@@ -25,8 +24,8 @@ class VisitorRepositoryImpl(
                     if (page == 1 && query.isNullOrEmpty()) {
                         visitorDao.clearAllVisitors()
                     }
-                    val entities = response.data.results.map { it.toEntity() }
-                    visitorDao.upsertVisitors(entities)
+                    val visitors = response.data.results.map { it.toDomain() }
+                    visitorDao.upsertVisitors(visitors)
                     hasMore = response.data.next != null
                     totalCount = response.data.count
                 }
@@ -35,7 +34,7 @@ class VisitorRepositoryImpl(
         } catch (e: Exception) {}
 
         val offset = (page - 1) * pageSize
-        val items = visitorDao.getVisitors(pageSize, offset, query).map { it.toDomain() }
+        val items = visitorDao.getVisitors(pageSize, offset, query)
         
         if (totalCount == 0 && items.isNotEmpty()) {
             hasMore = items.size >= pageSize
@@ -55,24 +54,24 @@ class VisitorRepositoryImpl(
             if (visitorId > 0) {
                 when (val response = visitorApiService.getVisitorById(visitorId)) {
                     is ApiResponse.Success -> {
-                        val entity = response.data.toEntity()
-                        visitorDao.upsertVisitor(entity)
-                        return entity.toDomain()
+                        val visitor = response.data.toDomain()
+                        visitorDao.upsertVisitor(visitor)
+                        return visitor
                     }
                     is ApiResponse.Error -> {}
                 }
             }
         } catch (e: Exception) {}
-        return visitorDao.getVisitorById(visitorId)?.toDomain()
+        return visitorDao.getVisitorById(visitorId)
     }
 
     private suspend fun createVisitorRemote(visitor: Visitor): Visitor? {
         return try {
             when (val response = visitorApiService.createVisitor(visitor.toRequestDto())) {
                 is ApiResponse.Success -> {
-                    val entity = response.data.toEntity()
-                    visitorDao.upsertVisitor(entity)
-                    entity.toDomain()
+                    val created = response.data.toDomain()
+                    visitorDao.upsertVisitor(created)
+                    created
                 }
                 is ApiResponse.Error -> throw Exception(response.message)
             }
@@ -86,7 +85,7 @@ class VisitorRepositoryImpl(
         if (remoteVisitor != null) {
             return remoteVisitor.id
         }
-        return visitorDao.upsertVisitor(visitor.toEntity())
+        return visitorDao.upsertVisitor(visitor)
     }
 
     override suspend fun updateVisitor(visitor: Visitor): Boolean {
@@ -94,8 +93,7 @@ class VisitorRepositoryImpl(
             if (visitor.id > 0) {
                 when (val response = visitorApiService.updateVisitor(visitor.id, visitor.toRequestDto())) {
                     is ApiResponse.Success -> {
-                        val entity = response.data.toEntity()
-                        visitorDao.upsertVisitor(entity)
+                        visitorDao.upsertVisitor(response.data.toDomain())
                         return true
                     }
                     is ApiResponse.Error -> {

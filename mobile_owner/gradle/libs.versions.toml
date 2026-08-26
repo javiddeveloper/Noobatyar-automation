@@ -1,7 +1,6 @@
 [versions]
 buildkonfig = "0.15.1"
 peekaboo = "0.5.2"
-easycrop = "0.1.1"
 agp = "8.13.2"
 android-compileSdk = "36"
 android-minSdk = "24"
@@ -38,7 +37,6 @@ haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-materials = { module = "dev.chrisbanes.haze:haze-materials", version.ref = "haze" }
 coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", version.ref = "peekaboo" }
-easycrop = { module = "io.github.mr0xf00:easycrop", version.ref = "easycrop" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }

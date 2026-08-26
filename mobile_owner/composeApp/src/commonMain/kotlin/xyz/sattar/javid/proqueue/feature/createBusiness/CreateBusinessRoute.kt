@@ -89,9 +89,8 @@ import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import androidx.compose.foundation.layout.Box
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import kotlin.String
-import com.preat.peekaboo.image.picker.SelectionMode
-import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
-import com.preat.peekaboo.image.picker.toImageBitmap
+import xyz.sattar.javid.proqueue.core.utils.rememberImagePicker
+import xyz.sattar.javid.proqueue.core.utils.toImageBitmapOrNull
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
@@ -344,33 +343,23 @@ fun CreateBusinessScreen(
     var showCategorySheet by remember { mutableStateOf(false) }
     var showDurationSheet by remember { mutableStateOf(false) }
     var showServicesSheet by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     // Save action parked behind the "this goes back for review" confirmation.
     var pendingSubmit by remember { mutableStateOf<(() -> Unit)?>(null) }
-    
+
     // Photo waiting to be cropped: the picker hands over the raw file, and the
     // cropper turns it into the square logo that actually gets uploaded.
     var pendingCrop by remember { mutableStateOf<ByteArray?>(null) }
 
-    val singleImagePicker = rememberImagePickerLauncher(
-        selectionMode = SelectionMode.Single,
-        scope = scope,
-        onResult = { byteArrays ->
-            val bytes = byteArrays.firstOrNull()
-            if (bytes != null) {
-                pendingCrop = bytes
-            }
+    val singleImagePicker = rememberImagePicker(
+        onSingleImagePicked = { bytes ->
+            pendingCrop = bytes
         }
     )
 
     pendingCrop?.let { raw ->
         val cropBitmap = remember(raw) {
-            try {
-                raw.toImageBitmap()
-            } catch (e: Exception) {
-                null
-            }
+            raw.toImageBitmapOrNull()
         }
         if (cropBitmap != null) {
             ImageCropperDialog(
@@ -587,11 +576,7 @@ fun CreateBusinessScreen(
             ) {
                 if (logoBytes != null) {
                     val bitmap = remember(logoBytes) {
-                        try {
-                            logoBytes.toImageBitmap()
-                        } catch (e: Exception) {
-                            null
-                        }
+                        logoBytes.toImageBitmapOrNull()
                     }
                     if (bitmap != null) {
                         Image(
@@ -609,7 +594,7 @@ fun CreateBusinessScreen(
                     }
                 } else if (!uiState.business?.logoPath.isNullOrEmpty()) {
                     val path = uiState.business!!.logoPath!!
-                    val url = if (path.startsWith("http")) path else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}$path"
+                    val url = if (path.startsWith("http")) path else "${xyz.sattar.javid.proqueue.core.AppConfig.BASE_URL}$path"
                     AsyncImage(
                         model = url,
                         contentDescription = "Business Logo",

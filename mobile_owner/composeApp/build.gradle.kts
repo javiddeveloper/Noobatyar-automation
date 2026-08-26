@@ -49,6 +49,22 @@ buildkonfig {
 
 
 kotlin {
+    // Room (and sqlite-bundled under it) has no web target — see
+    // docs/OWNER_WEB_PLAN.md section 5. "roomMain" is an intermediate source
+    // set that only androidMain and iosMain fall back to, so every Room type
+    // (AppDatabase, the DAOs, the @Entity classes) can live somewhere a
+    // future wasmJs target never compiles against, while Android/iOS keep
+    // seeing exactly what they saw before this source set existed.
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("room") {
+                withAndroidTarget()
+                withIos()
+            }
+        }
+    }
+
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
@@ -87,6 +103,10 @@ kotlin {
            // fine and just never obtains a token at runtime.
            implementation(project.dependencies.platform(libs.firebase.bom))
            implementation(libs.firebase.messaging)
+           // Image picker. Only androidMain/iosMain use it now — feature/
+           // code goes through our own core/utils/ImagePicker.kt expect/actual
+           // instead, since peekaboo has no web target.
+           implementation(libs.peekaboo.image.picker)
        }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -105,8 +125,6 @@ kotlin {
             // Serialization
             implementation(libs.kotlinx.serialization.json)
             // koin
-            implementation(libs.androidx.room.runtime)
-            implementation(libs.sqlite.bundled)
             api(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
@@ -116,9 +134,10 @@ kotlin {
             // navigation
             implementation(libs.navigation.compose)
 
-            // Image Picker & Cropper
-            implementation(libs.peekaboo.image.picker)
-            implementation(libs.easycrop)
+            // Image loading. The picker itself (peekaboo) lives in
+            // androidMain/iosMain only — see core/utils/ImagePicker.kt.
+            // easycrop was removed: ImageCropperDialog.kt is hand-written and
+            // never used it.
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
 
@@ -126,10 +145,19 @@ kotlin {
             implementation(libs.haze)
             implementation(libs.haze.materials)
         }
+        val roomMain by getting {
+            dependencies {
+                implementation(libs.androidx.room.runtime)
+                implementation(libs.sqlite.bundled)
+            }
+        }
         iosMain.dependencies {
             implementation(libs.sqldelight.native.driver)
             implementation(libs.ktor.client.darwin)
             implementation(libs.ktor.client.logginig)
+            // Image picker. See the androidMain block above for why this
+            // moved out of commonMain.
+            implementation(libs.peekaboo.image.picker)
         }
     }
 }

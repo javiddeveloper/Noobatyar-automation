@@ -12,8 +12,8 @@ interface AppointmentDao {
 
     @Transaction
     @Query("""
-        SELECT * FROM Appointment 
-        WHERE businessId = :businessId 
+        SELECT * FROM Appointment
+        WHERE businessId = :businessId
         AND DATE(appointmentDate/1000, 'unixepoch', 'localtime') = DATE(:date/1000, 'unixepoch', 'localtime')
         AND status IN ('WAITING', 'PENDING_APPROVAL', 'PENDING_VERIFICATION')
         ORDER BY ABS(appointmentDate - :date) ASC

@@ -1,8 +1,6 @@
 package xyz.sattar.javid.proqueue.data.repository.message
 
-import xyz.sattar.javid.proqueue.data.localDataSource.message.MessageDao
-import xyz.sattar.javid.proqueue.data.localDataSource.message.toDomain
-import xyz.sattar.javid.proqueue.data.localDataSource.message.toEntity
+import xyz.sattar.javid.proqueue.data.localDataSource.message.MessageLocalSource
 import xyz.sattar.javid.proqueue.domain.MessageRepository
 import xyz.sattar.javid.proqueue.domain.model.message.Message
 
@@ -11,12 +9,12 @@ import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 
 class MessageRepositoryImpl(
-    private val messageDao: MessageDao,
+    private val messageDao: MessageLocalSource,
     private val visitorApiService: VisitorApiService
 ) : MessageRepository {
     override suspend fun insertMessage(message: Message): Boolean {
         return try {
-            messageDao.insertMessage(message.toEntity())
+            messageDao.insertMessage(message)
             true
         } catch (_: Exception) {
             false
@@ -25,7 +23,7 @@ class MessageRepositoryImpl(
 
     override suspend fun getAppointmentMessages(appointmentId: Long): List<Message> {
         return try {
-            messageDao.getAppointmentMessages(appointmentId).map { it.toDomain() }
+            messageDao.getAppointmentMessages(appointmentId)
         } catch (_: Exception) {
             emptyList()
         }
@@ -33,7 +31,7 @@ class MessageRepositoryImpl(
 
     override suspend fun getMessagesForVisitorAndBusiness(visitorId: Long, businessId: Long): List<Message> {
         return try {
-            messageDao.getMessagesForVisitorAndBusiness(visitorId, businessId).map { it.toDomain() }
+            messageDao.getMessagesForVisitorAndBusiness(visitorId, businessId)
         } catch (_: Exception) {
             emptyList()
         }

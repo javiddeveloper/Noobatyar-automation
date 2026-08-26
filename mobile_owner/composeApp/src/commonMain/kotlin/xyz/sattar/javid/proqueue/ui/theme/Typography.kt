@@ -6,9 +6,23 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.Font
+import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.yakan_bold
+import proqueue.composeapp.generated.resources.yakan_medium
+import proqueue.composeapp.generated.resources.yekan_regular
 
+// Was an expect/actual with Android and iOS actuals that were
+// character-for-character identical (both just load Res.font.* via
+// compose-resources, which is already multiplatform). Folded into commonMain
+// as part of web-readiness prep — one fewer platform seam to reimplement for
+// a wasmJs target later.
 @Composable
-expect fun yakanFontFamily(): FontFamily
+fun yakanFontFamily() = FontFamily(
+    Font(Res.font.yekan_regular, FontWeight.Normal),
+    Font(Res.font.yakan_medium, FontWeight.Medium),
+    Font(Res.font.yakan_bold, FontWeight.Bold)
+)
 
 @Composable
 fun appTypography() = Typography(

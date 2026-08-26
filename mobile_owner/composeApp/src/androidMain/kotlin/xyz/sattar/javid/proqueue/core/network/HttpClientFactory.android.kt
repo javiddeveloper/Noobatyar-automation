@@ -35,7 +35,7 @@ actual object HttpClientFactory {
         }
         install(AuthInterceptor)
         install(DefaultRequest) {
-            url("${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}/api/")
+            url("${xyz.sattar.javid.proqueue.core.AppConfig.BASE_URL}/api/")
         }
     }
 }

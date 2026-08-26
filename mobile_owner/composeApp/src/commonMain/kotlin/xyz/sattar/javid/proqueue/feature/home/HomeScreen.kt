@@ -906,7 +906,7 @@ fun StatCard(
 fun BookingLinkButton(business: Business) {
     val uniqueCode = business.uniqueCode ?: return
     val clipboard = LocalClipboardManager.current
-    val link = "${xyz.sattar.javid.proqueue.BuildKonfig.BOOKING_BASE_URL}/b/$uniqueCode"
+    val link = "${xyz.sattar.javid.proqueue.core.AppConfig.BOOKING_BASE_URL}/b/$uniqueCode"
 
     var copied by remember { mutableStateOf(false) }
 

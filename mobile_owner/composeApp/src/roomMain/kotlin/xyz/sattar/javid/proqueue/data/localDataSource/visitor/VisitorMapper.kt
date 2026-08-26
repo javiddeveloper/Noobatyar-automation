@@ -1,7 +1,6 @@
 package xyz.sattar.javid.proqueue.data.localDataSource.visitor
 
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
-import xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.model.CreateVisitorRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.model.VisitorDto
 import xyz.sattar.javid.proqueue.domain.model.visitor.Visitor
 
@@ -19,11 +18,9 @@ fun Visitor.toEntity() = VisitorEntity(
     createdAt = createdAt,
 )
 
-fun Visitor.toRequestDto() = CreateVisitorRequestDto(
-    fullName = fullName,
-    phoneNumber = phoneNumber
-)
-
+// Kept for reference/symmetry with the other *Dao mappers; no longer called
+// now that VisitorRepositoryImpl goes DTO -> domain directly (see
+// data/remoteDataSource/visitor/model/VisitorModelsMapper.kt, commonMain).
 fun VisitorDto.toEntity() = VisitorEntity(
     id = id,
     fullName = fullName,

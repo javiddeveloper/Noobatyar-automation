@@ -630,7 +630,7 @@ private fun ProfileHeaderCard(
                             ) {
                                 if (business.logoPath.isNotEmpty()) {
                                     val url = if (business.logoPath.startsWith("http")) business.logoPath
-                                    else "${xyz.sattar.javid.proqueue.BuildKonfig.BASE_URL}${business.logoPath}"
+                                    else "${xyz.sattar.javid.proqueue.core.AppConfig.BASE_URL}${business.logoPath}"
                                     AsyncImage(
                                         model = url,
                                         contentDescription = null,
