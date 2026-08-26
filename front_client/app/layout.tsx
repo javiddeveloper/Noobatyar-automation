@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import ThemeToggle from './components/ThemeToggle';
+import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 
 export const metadata: Metadata = {
   title: 'نوبت‌یار | رزرو آنلاین نوبت',
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div id="app-shell">
           <ThemeToggle />
+          <ServiceWorkerRegistration />
           {children}
         </div>
       </body>
