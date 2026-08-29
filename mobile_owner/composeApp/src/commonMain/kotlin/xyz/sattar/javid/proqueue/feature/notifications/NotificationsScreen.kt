@@ -25,6 +25,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.permissions.rememberNotificationPermissionLauncher
+import xyz.sattar.javid.proqueue.core.utils.AppInfo
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
 import xyz.sattar.javid.proqueue.core.ui.WindowSize
@@ -165,13 +166,12 @@ private fun NotificationsPhoneContent(
 /**
  * Desktop layout. Same two cards as the phone screen (extracted so both
  * paths render the exact same widgets — no drift in the entitlement/quota
- * gating baked into [ClientReminderCard]). At [WindowSize.Expanded] they sit
- * side by side as two panels instead of one long single-column form; at
- * [WindowSize.Medium] they stay stacked since a second column would squeeze
- * the Persian copy into wrapping. When notifications are disabled the client
- * card doesn't render at all (same as phone), so the two-column split is
- * skipped in that case too — otherwise the second column would just be a
- * blank panel next to the enable card.
+ * gating baked into [ClientReminderCard]), always stacked rather than side
+ * by side: these are short settings forms, not a dashboard, and a two-column
+ * split just left a big gap under whichever card was shorter. Width-capped
+ * at Form (the same measure CreateVisitorRoute uses) instead of Wide, which
+ * is also why the save button reads sized-for-a-form now instead of
+ * stretching across a nearly-full-width panel.
  */
 @Composable
 private fun NotificationsWebContent(
@@ -180,9 +180,6 @@ private fun NotificationsWebContent(
     onNavigateBack: () -> Unit,
     onIntent: (NotificationsIntent) -> Unit
 ) {
-    val isExpanded = LocalWindowSize.current == WindowSize.Expanded
-    val showTwoColumns = isExpanded && uiState.isNotificationsEnabled
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -211,7 +208,7 @@ private fun NotificationsWebContent(
     ) { paddingValues ->
         AppScaffold(
             modifier = Modifier.fillMaxSize().padding(paddingValues),
-            maxWidth = if (isExpanded) ContentWidth.Wide else ContentWidth.List
+            maxWidth = ContentWidth.Form
         ) {
             Column(
                 modifier = Modifier
@@ -223,36 +220,12 @@ private fun NotificationsWebContent(
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (showTwoColumns) {
-                    // Row's first child lands on the right under the app's
-                    // forced RTL layout direction, so the primary on/off
-                    // switch (read first) sits on the right and the
-                    // client-reminder panel it unlocks sits to its left.
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            EnableNotificationsCard(uiState = uiState, onIntent = onIntent)
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            ClientReminderCard(uiState = uiState, onIntent = onIntent)
-                        }
-                    }
-                } else {
-                    EnableNotificationsCard(uiState = uiState, onIntent = onIntent)
-                    if (uiState.isNotificationsEnabled) {
-                        ClientReminderCard(uiState = uiState, onIntent = onIntent)
-                    }
+                EnableNotificationsCard(uiState = uiState, onIntent = onIntent)
+                if (uiState.isNotificationsEnabled) {
+                    ClientReminderCard(uiState = uiState, onIntent = onIntent)
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 AppButton(
                     text = stringResource(Res.string.save_settings),
@@ -451,13 +424,23 @@ private fun ClientReminderCard(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
-                        onClick = {
-                            onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.MANUAL.value))
-                        },
-                        label = { Text(stringResource(Res.string.reminder_delivery_manual_title)) }
-                    )
+                    // MANUAL opens the device's own SMS app (core/utils/
+                    // ContactActions — openSms) — a desktop browser has no
+                    // SIM card or SMS app to hand that off to, so this
+                    // option is dropped on web instead of shown disabled.
+                    // The stored value isn't touched: an owner already on
+                    // MANUAL keeps that setting until they explicitly pick
+                    // PANEL, which is what actually starts spending SMS
+                    // quota (docs/NOTIFICATIONS.md — never silently).
+                    if (!AppInfo.isWeb) {
+                        FilterChip(
+                            selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
+                            onClick = {
+                                onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.MANUAL.value))
+                            },
+                            label = { Text(stringResource(Res.string.reminder_delivery_manual_title)) }
+                        )
+                    }
                     FilterChip(
                         selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
                         onClick = {
@@ -466,15 +449,23 @@ private fun ClientReminderCard(
                         label = { Text(stringResource(Res.string.reminder_delivery_panel_title)) }
                     )
                 }
-                Text(
-                    text = if (uiState.reminderDelivery == ReminderDelivery.PANEL.value) {
-                        stringResource(Res.string.reminder_delivery_panel_description)
-                    } else {
-                        stringResource(Res.string.reminder_delivery_manual_description)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (AppInfo.isWeb) {
+                    Text(
+                        text = "روی وب سیم‌کارت وجود ندارد، پس یادآوری فقط با پیامک پنل قابل ارسال است.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = if (uiState.reminderDelivery == ReminderDelivery.PANEL.value) {
+                            stringResource(Res.string.reminder_delivery_panel_description)
+                        } else {
+                            stringResource(Res.string.reminder_delivery_manual_description)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 if (!uiState.canUsePanelDelivery) {
                     Text(
                         text = stringResource(Res.string.reminder_delivery_panel_locked),

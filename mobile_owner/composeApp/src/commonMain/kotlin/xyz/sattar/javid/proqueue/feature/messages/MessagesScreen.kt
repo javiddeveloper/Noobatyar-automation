@@ -34,6 +34,7 @@ import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
+import xyz.sattar.javid.proqueue.core.utils.AppInfo
 import xyz.sattar.javid.proqueue.core.utils.toPersianDigits
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
@@ -279,16 +280,27 @@ private fun DeliveryCard(uiState: MessagesState, onIntent: (MessagesIntent) -> U
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            DeliveryOption(
-                icon = Icons.Rounded.PhoneAndroid,
-                title = stringResource(Res.string.reminder_delivery_manual_title),
-                description = stringResource(Res.string.reminder_delivery_manual_description),
-                selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
-                locked = false,
-                onClick = {
-                    onIntent(MessagesIntent.SetDelivery(ReminderDelivery.MANUAL.value))
-                }
-            )
+            // MANUAL hands the message off to the device's own SMS app
+            // (core/utils/ContactActions — openSms). A desktop browser has
+            // no SIM card or SMS app to hand that off to, so this option is
+            // dropped on web instead of shown disabled — there's nothing to
+            // "unlock" the way the entitlement-gated PANEL option below has.
+            // The stored value isn't touched: an owner already on MANUAL
+            // keeps it until they explicitly pick PANEL, which is what
+            // actually starts spending SMS quota (docs/NOTIFICATIONS.md —
+            // never silently).
+            if (!AppInfo.isWeb) {
+                DeliveryOption(
+                    icon = Icons.Rounded.PhoneAndroid,
+                    title = stringResource(Res.string.reminder_delivery_manual_title),
+                    description = stringResource(Res.string.reminder_delivery_manual_description),
+                    selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
+                    locked = false,
+                    onClick = {
+                        onIntent(MessagesIntent.SetDelivery(ReminderDelivery.MANUAL.value))
+                    }
+                )
+            }
 
             DeliveryOption(
                 icon = Icons.Rounded.CloudUpload,

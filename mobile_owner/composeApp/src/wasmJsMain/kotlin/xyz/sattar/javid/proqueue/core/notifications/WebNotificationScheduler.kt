@@ -1,5 +1,7 @@
 package xyz.sattar.javid.proqueue.core.notifications
 
+import xyz.sattar.javid.proqueue.core.permissions.jsHasNotificationPermission
+
 // A real no-op, not a debt — see docs/OWNER_WEB_PLAN.md section 10.3. Local
 // alarms only ever covered appointments created inside this same app process
 // staying open, which a browser tab cannot promise; server-side push (FCM,
@@ -23,5 +25,9 @@ class WebNotificationScheduler : NotificationScheduler {
         // No-op: see class kdoc.
     }
 
-    override suspend fun hasPermission(): Boolean = false
+    // Was hardcoded false — meaning the Notifications screen's toggle always
+    // reported "not granted" even after the browser had already granted it,
+    // and every "enable" toggle detoured through a permission prompt it
+    // didn't need. Reads the real, already-decided browser state instead.
+    override suspend fun hasPermission(): Boolean = jsHasNotificationPermission()
 }

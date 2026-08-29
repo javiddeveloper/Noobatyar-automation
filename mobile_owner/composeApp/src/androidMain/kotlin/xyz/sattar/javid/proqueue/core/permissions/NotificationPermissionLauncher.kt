@@ -34,3 +34,6 @@ actual fun rememberNotificationPermissionLauncher(onResult: (Boolean) -> Unit): 
         }
     }
 }
+
+@Composable
+actual fun rememberNotificationPermissionDenied(): Boolean = false
