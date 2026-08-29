@@ -70,6 +70,16 @@ class NotificationsViewModel(
                     emit(NotificationsState.PartialState.NotificationsEnabledChanged(true))
                 } else {
                     emit(NotificationsState.PartialState.NotificationsEnabledChanged(false))
+                    // Denied silently left the toggle looking broken — it just
+                    // snapped back off with no explanation. Once denied, no
+                    // website/app can re-trigger the OS/browser prompt; the
+                    // owner has to flip it in their own browser/system
+                    // settings, so at least tell them that instead of nothing.
+                    sendEvent(
+                        NotificationsEvent.ShowError(
+                            "اجازه ارسال اعلان داده نشد. برای فعال‌سازی، دسترسی اعلان این برنامه را از تنظیمات مرورگر یا سیستم خود فعال کنید."
+                        )
+                    )
                 }
             }
         }

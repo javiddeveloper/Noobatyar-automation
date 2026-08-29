@@ -491,6 +491,7 @@ fun HandleEffects(
             NotificationsEvent.NavigateBack -> onNavigateBack()
             NotificationsEvent.ShowSavedConfirmation -> showSnackbar(savedMessage)
             NotificationsEvent.RequestPermission -> onRequestPermission()
+            is NotificationsEvent.ShowError -> showSnackbar(event.message)
         }
     }
 }
