@@ -7,6 +7,13 @@ class ClientAppointmentSerializer(serializers.ModelSerializer):
     appointment_date = serializers.SerializerMethodField()
     queue_position = serializers.SerializerMethodField()
     estimated_turn_time = serializers.SerializerMethodField()
+    # Plain booleans, not the timestamps themselves — the visitor's own
+    # appointment view only needs "was I reminded", not exactly when. See
+    # Appointment.reminder_sent_at / reminder_visitor_push_sent_at for the
+    # underlying fields (owner's own push reminder, reminder_push_sent_at, is
+    # deliberately not exposed here — it's about the owner, not this visitor).
+    reminder_sms_sent = serializers.SerializerMethodField()
+    reminder_push_sent = serializers.SerializerMethodField()
 
     class Meta:
         model = Appointment
@@ -16,8 +23,16 @@ class ClientAppointmentSerializer(serializers.ModelSerializer):
             'appointment_date',
             'status',
             'queue_position',
-            'estimated_turn_time'
+            'estimated_turn_time',
+            'reminder_sms_sent',
+            'reminder_push_sent',
         ]
+
+    def get_reminder_sms_sent(self, obj):
+        return obj.reminder_sent_at is not None
+
+    def get_reminder_push_sent(self, obj):
+        return obj.reminder_visitor_push_sent_at is not None
 
     def get_appointment_date(self, obj):
         if obj.appointment_date:
