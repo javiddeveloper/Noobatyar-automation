@@ -111,6 +111,7 @@ import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.isTrialPlan
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 
@@ -704,7 +705,8 @@ private fun PlanCardWeb(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val (gradientColors, badgeIcon, badgeLabel) = planVisuals(plan)
+    val (gradientColors, badgeIcon) = planVisuals(plan)
+    val badgeLabel = plan.name
     val gradient = Brush.linearGradient(colors = gradientColors)
 
     Card(
@@ -916,31 +918,35 @@ private fun PlanBannerPhoneContent(
  * fall back to, so 💎🚀🌿⚡🌱 rendered as tofu/missing-glyph boxes on the web
  * panel — which is what showed up looking like a stray "۰" before each name.
  */
-private fun planVisuals(plan: PlanDto): Triple<List<Color>, androidx.compose.ui.graphics.vector.ImageVector, String> = when {
-    plan.name.contains("پرو پلاس") -> Triple(
+private fun planVisuals(plan: PlanDto): Pair<List<Color>, androidx.compose.ui.graphics.vector.ImageVector> = when {
+    plan.name.contains("پرو پلاس") -> Pair(
         listOf(Color(0xFF4A148C), Color(0xFF6A1B9A), Color(0xFFE65100)),
-        Icons.Rounded.Diamond,
-        "پرو پلاس"
+        Icons.Rounded.Diamond
     )
-    plan.name.contains("پرو") -> Triple(
+    plan.name.contains("پرو") -> Pair(
         listOf(Color(0xFF1A237E), Color(0xFF283593), Color(0xFF7C4DFF)),
-        Icons.Rounded.RocketLaunch,
-        "پرو"
+        Icons.Rounded.RocketLaunch
     )
-    plan.name.contains("اکو") -> Triple(
+    plan.name.contains("اکو") -> Pair(
         listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)),
-        Icons.Rounded.Eco,
-        "اکو"
+        Icons.Rounded.Eco
     )
-    plan.name.contains("پایه") -> Triple(
+    plan.name.contains("پایه") -> Pair(
         listOf(Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF1976D2)),
-        Icons.Rounded.Bolt,
-        "پایه"
+        Icons.Rounded.Bolt
     )
-    else -> Triple(
+    plan.isTrialPlan -> Pair(
         listOf(Color(0xFF37474F), Color(0xFF455A64), Color(0xFF607D8B)),
-        Icons.Rounded.Spa,
-        "آزمایشی"
+        Icons.Rounded.Spa
+    )
+    // A plan whose name matches none of the above no longer gets mislabelled
+    // as "آزمایشی" (trial) just because it fell through every other case —
+    // the badge itself always shows plan.name verbatim (see call sites), so
+    // this branch only picks a neutral fallback colour/icon for a tier the
+    // client doesn't specifically recognize by name.
+    else -> Pair(
+        listOf(Color(0xFF4A4458), Color(0xFF5C5470), Color(0xFF6D6489)),
+        Icons.Rounded.WorkspacePremium
     )
 }
 
@@ -950,7 +956,8 @@ fun PlanBannerItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val (gradientColors, badgeIcon, badgeLabel) = planVisuals(plan)
+    val (gradientColors, badgeIcon) = planVisuals(plan)
+    val badgeLabel = plan.name
 
     val gradient = Brush.linearGradient(colors = gradientColors)
 

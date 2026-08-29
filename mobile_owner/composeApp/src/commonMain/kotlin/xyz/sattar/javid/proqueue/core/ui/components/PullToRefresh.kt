@@ -188,13 +188,43 @@ fun PullToRefreshBox(
 
         if (LocalWindowSize.current != WindowSize.Compact) {
             DesktopRefreshButton(
-                isRefreshing = isRefreshing,
+                // A local backend can answer in well under a second, which
+                // made the spinner just flash — not enough for the owner to
+                // register that anything happened. This only stretches how
+                // long the *icon* shows spinning; onRefresh() itself still
+                // fires immediately below, so the real refresh isn't delayed.
+                isRefreshing = rememberMinDurationVisible(isRefreshing, MinRefreshVisibleMs),
                 onRefresh = onRefresh,
                 topPadding = indicatorTopPadding,
                 modifier = Modifier.align(Alignment.TopEnd)
             )
         }
     }
+}
+
+private const val MinRefreshVisibleMs = 1500L
+
+/**
+ * Turns true the instant [value] does, but only turns false [minMs] after it
+ * last turned true — so a refresh that completes almost instantly still
+ * reads as having happened, instead of flashing the spinner for a frame.
+ */
+@OptIn(kotlin.time.ExperimentalTime::class)
+@Composable
+private fun rememberMinDurationVisible(value: Boolean, minMs: Long): Boolean {
+    var visible by remember { mutableStateOf(value) }
+    var startedAt by remember { mutableStateOf(0L) }
+    LaunchedEffect(value) {
+        if (value) {
+            startedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
+            visible = true
+        } else if (visible) {
+            val elapsed = kotlin.time.Clock.System.now().toEpochMilliseconds() - startedAt
+            if (elapsed < minMs) delay(minMs - elapsed)
+            visible = false
+        }
+    }
+    return visible
 }
 
 /**
