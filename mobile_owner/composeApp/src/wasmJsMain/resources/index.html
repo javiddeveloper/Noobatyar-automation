@@ -21,19 +21,62 @@
             height: 100%;
         }
 
+        /*
+         * Same Yakan Bold the app itself uses (ui/theme/Typography.kt), not a
+         * system-font stand-in — this text renders before the wasm bundle
+         * (and with it Compose's own font loading) exists, so it needs its
+         * own @font-face pointed at the same file Compose Resources packs
+         * for wasmJs: composeResources/<module>/font/, confirmed by reading
+         * the actual build output rather than guessed.
+         */
+        @font-face {
+            font-family: "Yakan";
+            src: url("composeResources/proqueue.composeapp.generated.resources/font/yakan_bold.ttf") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+            font-display: block;
+        }
+
         #compose-loading {
             position: fixed;
             inset: 0;
+            z-index: 1;
+            /* Opaque on purpose: #compose-root sits right underneath and
+               starts painting as soon as Compose mounts, which can be well
+               before the minimum-display timer lets this overlay fade —
+               without its own background it would be transparent and the
+               app would show through early. */
+            background: #0F0F0F;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Vazirmatn, sans-serif;
+            font-family: "Yakan", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             color: #EDE9FE;
             font-size: 20px;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: 1px;
+            transition: opacity 0.25s ease;
+        }
+
+        #compose-loading.nb-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /*
+         * Compose mounts into this sibling instead of document.body directly
+         * (see main.kt): ComposeViewport takes ownership of whatever element
+         * it's given and clears its content, which would wipe #compose-loading
+         * out from under it the instant the wasm module finishes booting —
+         * before the minimum-display timer below ever got a say. Keeping them
+         * as separate elements means Compose can mount and start rendering
+         * underneath while the loading screen keeps covering it on top.
+         */
+        #compose-root {
+            position: fixed;
+            inset: 0;
         }
 
         /*
@@ -94,6 +137,7 @@
     </style>
 </head>
 <body>
+    <div id="compose-root"></div>
     <div id="compose-loading">
         <div class="nb-mark-wrap">
             <svg class="nb-mark" viewBox="78 90 356 356" aria-hidden="true" focusable="false">
@@ -107,6 +151,26 @@
         </div>
         <span>نوبت‌یار</span>
     </div>
+    <script>
+        // Boot-timer for the loading screen above: main.kt (wasmJsMain) calls
+        // window.__nbHideLoading() once Compose has mounted into #compose-root
+        // and started rendering. This enforces the loader staying on screen
+        // for at least MIN_MS regardless of how fast the wasm module actually
+        // loaded, so a warm-cache reload doesn't just flash the mark for a
+        // frame — every refresh shows the same, deliberate boot moment.
+        (function () {
+            var MIN_MS = 2000;
+            var bootStart = Date.now();
+            window.__nbHideLoading = function () {
+                var elapsed = Date.now() - bootStart;
+                var remaining = Math.max(0, MIN_MS - elapsed);
+                setTimeout(function () {
+                    var el = document.getElementById("compose-loading");
+                    if (el) el.classList.add("nb-hidden");
+                }, remaining);
+            };
+        })();
+    </script>
     <!--
       Firebase JS SDK (compat build) for FCM web push — see
       core/push/FirebaseMessagingInterop.kt and docs/OWNER_WEB_PLAN.md
