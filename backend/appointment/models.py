@@ -153,6 +153,18 @@ class Appointment(models.Model):
         )
     )
 
+    reminder_visitor_push_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "When the client's push reminder was sent (null = not yet). A "
+            "third, independent stamp alongside reminder_sent_at (client SMS) "
+            "and reminder_push_sent_at (owner's push) — same reasoning: one "
+            "shared stamp would make one channel silently suppress another."
+        )
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

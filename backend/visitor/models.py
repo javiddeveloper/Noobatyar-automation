@@ -95,6 +95,77 @@ class SmsLog(models.Model):
         return f"SMS to {recipient} at {self.sent_at}"
 
 
+class VisitorDeviceToken(models.Model):
+    """
+    An FCM registration token for one browser/device a visitor has granted
+    notification permission on. Mirrors ``api.models.DeviceToken`` (the
+    owner-side equivalent) field-for-field, kept as a separate model rather
+    than widening that one because a Visitor is not an ``api.User`` — it is a
+    distinct, phone-identified, platform-wide identity (see the Visitor
+    docstring above).
+
+    ``token`` is unique across the table, not per visitor, for the same
+    reason as the owner-side model: FCM hands the same token to whoever is
+    signed in on that browser, so a second visitor logging in on a shared
+    device has to move the row rather than duplicate it.
+    """
+
+    PLATFORM_CHOICES = [('WEB', 'وب')]  # front_client is web-only for now
+
+    visitor = models.ForeignKey(Visitor, on_delete=models.CASCADE, related_name='device_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES, default='WEB')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'visitor_device_token'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.visitor.phone_number} · {self.platform}"
+
+
+class PushLog(models.Model):
+    """
+    Delivery record for a push notification sent to a visitor's device.
+
+    Same shape and status vocabulary as SmsLog above, deliberately, so the
+    two can be queried/joined side by side per appointment (the whole point
+    being to show an owner or a visitor "was this reminder delivered by push,
+    by SMS, both, or neither"). No SKIPPED_QUOTA status here — push is free,
+    there is nothing to skip for lack of credit.
+    """
+
+    STATUS_CHOICES = [
+        ('SENT', 'Sent'),
+        ('FAILED', 'Failed'),
+    ]
+
+    business = models.ForeignKey('business.Business', on_delete=models.CASCADE, related_name='push_logs')
+    visitor = models.ForeignKey(Visitor, on_delete=models.CASCADE, related_name='push_logs')
+    # Null when the send isn't tied to one specific appointment (future
+    # promotional pushes, say) — SET_NULL rather than CASCADE so the log
+    # outlives the appointment it was about.
+    appointment = models.ForeignKey(
+        'appointment.Appointment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='push_logs',
+    )
+    title = models.CharField(max_length=255)
+    body = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    error_detail = models.TextField(blank=True, null=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'push_log'
+        ordering = ['-sent_at']
+
+    def __str__(self):
+        return f"Push to {self.visitor.phone_number} at {self.sent_at}"
+
+
 class VisitorArchive(models.Model):
     """An owner hiding a visitor from their own contact list.
 
