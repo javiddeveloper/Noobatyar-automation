@@ -65,17 +65,28 @@ fun ImageCropperDialog(
         onDismissRequest = { if (!isWorking) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(
+        // fillMaxWidth().aspectRatio(1f) sized the square to the viewport's
+        // *width* alone. On a phone (width < height) that always fits; on a
+        // wide desktop window (width >> height) it made the square many times
+        // taller than the screen, so it overflowed top and bottom and only a
+        // sliver of the crop circle was ever visible — the header/footer chrome
+        // then floated on top of that overflow. BoxWithConstraints computes an
+        // explicit side that respects *both* dimensions instead, reserving
+        // room for the header/footer/instructions so the circle never collides
+        // with them on a short window either.
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.95f))
         ) {
+            val chromeReserved = 200.dp
+            val squareSide = (minOf(maxWidth, maxHeight - chromeReserved) - 48.dp)
+                .coerceIn(120.dp, 560.dp)
+
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .padding(24.dp)
+                    .size(squareSide)
                     // Without this the photo is drawn past the square and spills
                     // across the screen undimmed, outside the scrim.
                     .clipToBounds()
@@ -128,7 +139,7 @@ fun ImageCropperDialog(
 
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .widthIn(max = 480.dp)
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
                     .padding(8.dp),
@@ -147,7 +158,7 @@ fun ImageCropperDialog(
 
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .widthIn(max = 480.dp)
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(24.dp),
