@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.*
@@ -175,6 +176,41 @@ fun NotificationsScreenContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // isNotificationsEnabled is the saved server setting, shared
+                    // across every device/browser the owner uses — it stays true
+                    // even when THIS browser hasn't granted permission (granted
+                    // elsewhere, e.g. the Android app, or simply not decided yet
+                    // here). Without this, the switch reads "on" while this exact
+                    // browser silently can't deliver anything, which is what looked
+                    // like a broken toggle to begin with.
+                    if (uiState.isNotificationsEnabled && !uiState.hasPermission) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.errorContainer)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.NotificationsOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "این مرورگر اجازه نمایش اعلان را نداده، پس یادآوری‌ها روی همین دستگاه دیده نمی‌شوند.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { onIntent(NotificationsIntent.ToggleNotifications(true)) }) {
+                                Text("اجازه بده", color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                        }
+                    }
 
                     // Reminder Time Input
                     if (uiState.isNotificationsEnabled) {
