@@ -47,4 +47,5 @@ sealed class NotificationsEvent {
     object NavigateBack : NotificationsEvent()
     object ShowSavedConfirmation : NotificationsEvent()
     object RequestPermission : NotificationsEvent()
+    data class ShowError(val message: String) : NotificationsEvent()
 }
