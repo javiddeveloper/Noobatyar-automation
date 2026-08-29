@@ -21,6 +21,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.Res
 import proqueue.composeapp.generated.resources.accept
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
@@ -84,6 +86,38 @@ fun AdvancedSettingsRoute(
         }
     }
 
+    val onSubmit: (xyz.sattar.javid.proqueue.domain.model.business.Business) -> Unit = { business ->
+        viewModel.sendIntent(
+            CreateBusinessIntent.CreateBusiness(
+                title = business.title,
+                category = business.category,
+                phone = business.phone,
+                address = business.address,
+                defaultProgress = business.defaultServiceDuration.toString(),
+                workStartHour = business.workStartHour,
+                workEndHour = business.workEndHour,
+                allowAnonymousView = business.allowAnonymousView,
+                notifyOwnerBySms = business.notifyOwnerBySms,
+                bio = business.bio,
+                logoBytes = business.logoBytes,
+                maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
+                depositMode = depositMode,
+                depositAmount = depositAmount.toIntOrNull() ?: 0,
+                acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
+                cardNumber = cardNumber,
+                cardOwnerName = cardOwnerName,
+                merchantId = merchantId,
+                paymentLink = paymentLink,
+                // Owned by other screens (business edit / reminder
+                // messages) — passed through unchanged so saving this tab
+                // can't reset them to their defaults.
+                noticeEnabled = business.noticeEnabled,
+                noticeMessage = business.noticeMessage,
+                reminderDelivery = business.reminderDelivery
+            )
+        )
+    }
+
     Scaffold(
         snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
@@ -107,7 +141,12 @@ fun AdvancedSettingsRoute(
         },
         bottomBar = {
             val business = uiState.business
-            if (business != null) {
+            // Compact only: a full-width button welded to the viewport edge
+            // is the phone pattern this whole panel has been moving away
+            // from — Medium/Expanded render the same button inline below
+            // instead (via the shared onSubmit lambda so both places call
+            // the exact same intent).
+            if (business != null && LocalWindowSize.current == WindowSize.Compact) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.background,
@@ -115,38 +154,7 @@ fun AdvancedSettingsRoute(
                 ) {
                     AppButton(
                         text = stringResource(Res.string.accept),
-                        onClick = {
-                            viewModel.sendIntent(
-                                CreateBusinessIntent.CreateBusiness(
-                                    title = business.title,
-                                    category = business.category,
-                                    phone = business.phone,
-                                    address = business.address,
-                                    defaultProgress = business.defaultServiceDuration.toString(),
-                                    workStartHour = business.workStartHour,
-                                    workEndHour = business.workEndHour,
-                                    allowAnonymousView = business.allowAnonymousView,
-                                    notifyOwnerBySms = business.notifyOwnerBySms,
-                                    bio = business.bio,
-                                    logoBytes = business.logoBytes,
-                                    maxAppointmentsPerHour = maxAppointmentsPerHour.toIntOrNull(),
-                                    depositMode = depositMode,
-                                    depositAmount = depositAmount.toIntOrNull() ?: 0,
-                                    acceptedPaymentMethods = acceptedPaymentMethods.joinToString(","),
-                                    cardNumber = cardNumber,
-                                    cardOwnerName = cardOwnerName,
-                                    merchantId = merchantId,
-                                    paymentLink = paymentLink,
-                                    // Owned by other screens (business edit /
-                                    // reminder messages) — passed through
-                                    // unchanged so saving this tab can't reset
-                                    // them to their defaults.
-                                    noticeEnabled = business.noticeEnabled,
-                                    noticeMessage = business.noticeMessage,
-                                    reminderDelivery = business.reminderDelivery
-                                )
-                            )
-                        },
+                        onClick = { onSubmit(business) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp)
@@ -210,6 +218,17 @@ fun AdvancedSettingsRoute(
                     paymentLink = paymentLink,
                     onPaymentLink = { paymentLink = it }
                 )
+
+                if (LocalWindowSize.current != WindowSize.Compact) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AppButton(
+                        text = stringResource(Res.string.accept),
+                        onClick = { onSubmit(business) },
+                        modifier = Modifier.fillMaxWidth(),
+                        isLoading = uiState.isLoading
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
 
             }
             }

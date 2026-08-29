@@ -7,6 +7,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.HourglassEmpty
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -70,7 +73,11 @@ fun AdvancedSettingsTabs(
     onPaymentLink: (String) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("پرداخت", "ظرفیت و بیعانه", "یادآوری")
+    val tabs = listOf(
+        Triple("پرداخت", Icons.Rounded.Payments, "روش‌های دریافت وجه"),
+        Triple("ظرفیت و بیعانه", Icons.Rounded.Groups, "سقف نوبت و پیش‌پرداخت"),
+        Triple("یادآوری", Icons.Rounded.NotificationsActive, "پیامک و اعلان یادآوری")
+    )
 
     val tabContent: @Composable () -> Unit = {
         when (selectedTab) {
@@ -121,26 +128,46 @@ fun AdvancedSettingsTabs(
             // layout (ui/theme/Theme.kt) — the same side a Persian reader's
             // eye starts from, which is where a section list belongs.
             Column(
-                modifier = Modifier.width(200.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.width(220.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                tabs.forEachIndexed { index, label ->
+                tabs.forEachIndexed { index, (label, icon, hint) ->
                     val selected = selectedTab == index
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedTab = index },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
                     ) {
-                        Text(
-                            label,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Column {
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    hint,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selected)
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -155,7 +182,7 @@ fun AdvancedSettingsTabs(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent
             ) {
-                tabs.forEachIndexed { index, label ->
+                tabs.forEachIndexed { index, (label, _, _) ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
