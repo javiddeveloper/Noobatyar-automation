@@ -222,8 +222,14 @@ export async function getBusinessByCode(code: string): Promise<Business> {
   const data = await apiFetch<{
     results: Business[];
     count: number;
-  }>(`/api/client/business/?search=${code}`);
-  const biz = data.results?.find((b) => b.unique_code === code);
+  }>(`/api/client/business/?search=${encodeURIComponent(code)}`);
+  // Matched case-insensitively, like the server-side `unique_code__iexact`
+  // lookup that produced these results: codes can be set by hand in the admin
+  // and may contain lowercase letters, so a URL typed in another casing must
+  // still land on the business the API already found.
+  const biz = data.results?.find(
+    (b) => b.unique_code.toLowerCase() === code.toLowerCase()
+  );
   // The public listing only contains businesses the API is willing to serve, so
   // "absent from the results" is the same condition as a 404 on the detail
   // endpoint — report it as one, so callers get the not-available screen rather

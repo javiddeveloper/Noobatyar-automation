@@ -173,13 +173,20 @@ class BusinessAdmin(admin.ModelAdmin):
     # status edited on this form would change what the public sees with no
     # BusinessModerationLog row behind it, i.e. an unattributable decision.
     # Use the review queue or the changelist actions instead — both log.
+    #
+    # `unique_code` used to be listed here as system-set. It no longer is: the
+    # code is the public URL of the booking page and operators need to be able
+    # to hand out a vanity one. It stays *generated* by default (blank on the
+    # form → Business.save() makes an 8-character code), so nothing changes for
+    # a business nobody edits. Editing it is a real, visible decision — the
+    # field's help text says that old links stop working, and Business.clean()
+    # rejects a code that collides with another one case-insensitively.
     readonly_fields = (
         'moderation_status',
         'moderation_note',
         'moderation_reviewed_by',
         'moderation_reviewed_at',
         'moderation_submitted_at',
-        'unique_code',
         'created_at',
         'updated_at',
     )
