@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import BusinessUnavailable from '@/app/components/BusinessUnavailable';
 import BusinessNotice from '@/app/components/BusinessNotice';
+import { schedulePushPrompt } from '@/lib/push';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -203,6 +204,12 @@ export default function BookingPage({ params }: Props) {
         token,
         selectedServices
       );
+
+      // Scheduled regardless of which branch below fires — a customer who
+      // still owes a deposit wants the reminder just as much as one who
+      // doesn't, and the prompt itself no-ops silently if permission is
+      // already decided (see PushPermissionPrompt).
+      schedulePushPrompt();
 
       if (requires_payment) {
         showToast('✅ نوبت با موفقیت قفل شد. در حال انتقال به درگاه پرداخت...');

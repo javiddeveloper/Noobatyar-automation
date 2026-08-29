@@ -334,6 +334,15 @@ export async function getMe(token: string): Promise<Visitor> {
   });
 }
 
+/** Register (or refresh) this browser's FCM token against the signed-in visitor. */
+export async function registerDeviceToken(deviceToken: string, visitorToken: string): Promise<void> {
+  await apiFetch('/api/client/auth/devices/register/', {
+    method: 'POST',
+    headers: { Authorization: `Visitor ${visitorToken}` },
+    body: JSON.stringify({ token: deviceToken }),
+  });
+}
+
 export async function getMyActivity(token: string): Promise<ActivityEntry[]> {
   // Paginated like the appointments endpoint; tolerate a bare array too.
   const data = await apiFetch<ActivityEntry[] | { results: ActivityEntry[] }>(
