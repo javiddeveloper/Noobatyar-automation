@@ -36,6 +36,24 @@
 </head>
 <body>
     <div id="compose-loading">نوبت‌یار</div>
+    <!--
+      Firebase JS SDK (compat build) for FCM web push — see
+      core/push/FirebaseMessagingInterop.kt and docs/OWNER_WEB_PLAN.md
+      section 10.1. Vendored locally under vendor/firebase/ rather than
+      loaded from Google's CDN: this app is served to users in Iran, where
+      gstatic.com and most public CDNs are unreachable (see
+      backend/docs/ADMIN_PANEL.md section 3 for the same constraint on the
+      admin panel's fonts) — a CDN script tag wouldn't degrade gracefully
+      for them, it would just never load, ever, for the whole audience.
+      Serving it from this app's own origin instead means it loads exactly
+      as reliably as composeApp.js itself. Must come before composeApp.js so
+      the `firebase` global exists once Kotlin needs it. If it's missing for
+      any other reason (a build that didn't get vendor/firebase/, e.g.), the
+      interop layer checks `typeof firebase` itself and fails soft — no push
+      token, everything else in the app works exactly the same.
+    -->
+    <script src="vendor/firebase/firebase-app-compat.js"></script>
+    <script src="vendor/firebase/firebase-messaging-compat.js"></script>
     <script src="composeApp.js"></script>
 </body>
 </html>

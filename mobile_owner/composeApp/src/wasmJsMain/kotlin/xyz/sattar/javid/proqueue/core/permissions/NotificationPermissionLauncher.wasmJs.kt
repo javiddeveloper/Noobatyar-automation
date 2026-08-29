@@ -2,19 +2,23 @@ package xyz.sattar.javid.proqueue.core.permissions
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import xyz.sattar.javid.proqueue.core.push.jsRequestNotificationPermission
 
-// Web push (and the browser Notification permission prompt it would need) is
-// out of scope for this MVP — docs/OWNER_WEB_PLAN.md section 10.1 is a
-// separate phase. This still has to be real, callable code rather than a
-// TODO()/crash: some shared code path (SettingsScreen's notification toggle)
-// can reach it during ordinary use, and reporting "not granted" is the
-// correct, honest answer for a build with no push wiring yet.
+// Web push — docs/OWNER_WEB_PLAN.md section 10.1. [launch] is called
+// synchronously from NotificationsScreen's toggle click, so this is still
+// inside that click's call stack when it reaches
+// `Notification.requestPermission()` — required, since browsers reject that
+// call outside a real user gesture. jsRequestNotificationPermission (see
+// core/push/FirebaseMessagingInterop.kt) already wraps the browser call in
+// try/catch and reports `false` for anything that isn't an explicit grant
+// (unsupported API, denied, dismissed), so [onResult] always fires exactly
+// once and never throws back into Compose.
 @Composable
 actual fun rememberNotificationPermissionLauncher(onResult: (Boolean) -> Unit): PermissionLauncher {
     return remember {
         object : PermissionLauncher {
             override fun launch() {
-                onResult(false)
+                jsRequestNotificationPermission { granted -> onResult(granted) }
             }
         }
     }
