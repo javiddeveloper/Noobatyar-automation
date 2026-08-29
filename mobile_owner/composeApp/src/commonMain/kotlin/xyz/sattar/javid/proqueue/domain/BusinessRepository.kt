@@ -1,6 +1,8 @@
 package xyz.sattar.javid.proqueue.domain
 
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.PushLogPageDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.PushLogSummaryDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.ServiceCatalogItemDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
@@ -28,6 +30,19 @@ interface BusinessRepository {
     ): ApiResponse<SmsLogPageDto>
 
     suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto>
+
+    // --- Push report (server-side log, no local cache) ---
+    suspend fun getPushLogs(
+        businessId: Long,
+        page: Int,
+        pageSize: Int,
+        status: String?,
+        search: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
+    ): ApiResponse<PushLogPageDto>
+
+    suspend fun getPushLogSummary(businessId: Long): ApiResponse<PushLogSummaryDto>
 
     // --- Service catalog (shared across every business in a category) ---
     suspend fun getServiceCatalog(category: String): ApiResponse<List<ServiceCatalogItemDto>>
