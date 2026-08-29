@@ -25,17 +25,65 @@
             position: fixed;
             inset: 0;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 20px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Vazirmatn, sans-serif;
-            color: #8B5CF6;
+            color: #EDE9FE;
             font-size: 20px;
+            font-weight: 600;
             letter-spacing: 1px;
+        }
+
+        /*
+         * Same mark as backend/templates/admin/base_site.html's inline SVG
+         * (the ring + checkmark, amber dot fixed per docs/BRAND_GUIDE_FOR_AI.md
+         * — the one brand accent that never re-tints). A soft pulse rather
+         * than a spin: the mark is a checkmark inside a ring, and a spinning
+         * checkmark reads as "wrong", not "loading".
+         */
+        #compose-loading .nb-mark-wrap {
+            width: 72px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.35), rgba(139, 92, 246, 0) 70%);
+            animation: nb-pulse 1.6s ease-in-out infinite;
+        }
+
+        #compose-loading .nb-mark {
+            width: 56px;
+            height: 56px;
+            color: #A78BFA;
+        }
+
+        @keyframes nb-pulse {
+            0%, 100% { transform: scale(0.92); opacity: 0.75; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #compose-loading .nb-mark-wrap { animation: none; }
         }
     </style>
 </head>
 <body>
-    <div id="compose-loading">نوبت‌یار</div>
+    <div id="compose-loading">
+        <div class="nb-mark-wrap">
+            <svg class="nb-mark" viewBox="78 90 356 356" aria-hidden="true" focusable="false">
+                <path d="M337.64 156.96A146 146 0 1 1 174.36 156.96"
+                      fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+                <path d="M191 276L234 323L327 221"
+                      fill="none" stroke="currentColor" stroke-width="36"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="256" cy="122" r="28" fill="#F59E0B"/>
+            </svg>
+        </div>
+        <span>نوبت‌یار</span>
+    </div>
     <!--
       Firebase JS SDK (compat build) for FCM web push — see
       core/push/FirebaseMessagingInterop.kt and docs/OWNER_WEB_PLAN.md
