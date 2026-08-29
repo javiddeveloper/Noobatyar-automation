@@ -233,3 +233,36 @@ def send_to_user(user_id: int, title: str, body: str, data: dict | None = None) 
         logger.info('Deactivated %d dead FCM token(s) for user %s', len(dead), user_id)
 
     return delivered
+
+
+def send_to_visitor(visitor_id: int, title: str, body: str, data: dict | None = None) -> int:
+    """
+    Push to every active device a visitor (customer, not an owner/staff
+    ``User``) has registered. Mirrors ``send_to_user`` exactly, against
+    ``visitor.models.VisitorDeviceToken`` instead of ``api.models.DeviceToken``
+    — kept as a separate function rather than a shared one taking a queryset,
+    so each call site stays obviously scoped to the identity it means.
+    """
+    from visitor.models import VisitorDeviceToken
+
+    tokens = list(
+        VisitorDeviceToken.objects.filter(visitor_id=visitor_id, is_active=True)
+        .values_list('id', 'token')
+    )
+    if not tokens:
+        return 0
+
+    delivered = 0
+    dead = []
+    for row_id, token in tokens:
+        ok, detail = send_to_token(token, title, body, data)
+        if ok:
+            delivered += 1
+        elif detail in ('UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'):
+            dead.append(row_id)
+
+    if dead:
+        VisitorDeviceToken.objects.filter(id__in=dead).update(is_active=False)
+        logger.info('Deactivated %d dead FCM token(s) for visitor %s', len(dead), visitor_id)
+
+    return delivered

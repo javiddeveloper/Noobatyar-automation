@@ -13,7 +13,7 @@ from api.pagination import StandardPagination
 from api.responses import APIResponse
 
 from .auth import IsVisitorAuthenticated, VisitorTokenAuthentication
-from .models import VisitorActivity
+from .models import VisitorActivity, VisitorDeviceToken
 from .serializers import VisitorActivitySerializer, VisitorSerializer
 
 
@@ -67,3 +67,56 @@ class ClientActivityView(APIView):
             data=paginated.data,
             message="تاریخچه فعالیت شما با موفقیت دریافت شد",
         )
+
+
+class ClientDeviceRegisterView(APIView):
+    """
+    Register/refresh an FCM web-push token for the signed-in visitor.
+
+    Mirrors api/device_views.py's register_device exactly (same
+    upsert-on-token reasoning — see VisitorDeviceToken's docstring), scoped
+    to the visitor instead of an owner User.
+    """
+
+    authentication_classes = [VisitorTokenAuthentication]
+    permission_classes = [IsVisitorAuthenticated]
+
+    async def post(self, request):
+        return await sync_to_async(self._register)(request)
+
+    def _register(self, request):
+        token = (request.data.get('token') or '').strip()
+        if not token:
+            return APIResponse.error("توکن دستگاه ارسال نشده است", code=400)
+        if len(token) > 255:
+            return APIResponse.error("توکن دستگاه نامعتبر است", code=400)
+
+        VisitorDeviceToken.objects.update_or_create(
+            token=token,
+            defaults={
+                'visitor': request.user,
+                'platform': 'WEB',
+                'is_active': True,
+            },
+        )
+        return APIResponse.success(message="دستگاه ثبت شد")
+
+
+class ClientDeviceUnregisterView(APIView):
+    """Deactivate one of the visitor's own device tokens (e.g. on logout)."""
+
+    authentication_classes = [VisitorTokenAuthentication]
+    permission_classes = [IsVisitorAuthenticated]
+
+    async def post(self, request):
+        return await sync_to_async(self._unregister)(request)
+
+    def _unregister(self, request):
+        token = (request.data.get('token') or '').strip()
+        if not token:
+            return APIResponse.error("توکن دستگاه ارسال نشده است", code=400)
+
+        # Scoped to the caller so one visitor cannot silence another's device
+        # by guessing (or replaying) its token.
+        VisitorDeviceToken.objects.filter(visitor=request.user, token=token).update(is_active=False)
+        return APIResponse.success(message="دستگاه حذف شد")
