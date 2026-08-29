@@ -126,7 +126,22 @@ fun App() {
         LaunchedEffect(Unit) {
             PreferencesManager.defaultBusinessId.collect { id ->
                 if (id != null && BusinessStateHolder.selectedBusiness.value == null) {
-                    val business = businessRepository.getBusinessById(id)
+                    var business = businessRepository.getBusinessById(id)
+                    // On wasmJs the local cache is in-memory only (see
+                    // docs/OWNER_WEB_PLAN.md section 5) and starts empty on
+                    // every fresh page load — unlike Android/iOS, where Room
+                    // persists it to disk. defaultBusinessId itself survives
+                    // a refresh (it's in localStorage), so without this
+                    // fallback the owner's remembered business could never be
+                    // found again after a browser reload, and every refresh
+                    // silently dropped back to the business list. Refetching
+                    // once and re-checking the cache fixes that on web and is
+                    // a harmless no-op on Android/iOS, where the first lookup
+                    // above already succeeds and this branch never runs.
+                    if (business == null) {
+                        businessRepository.fetchAndCacheBusinesses(page = 1, pageSize = 20)
+                        business = businessRepository.getBusinessById(id)
+                    }
                     if (business != null) {
                         BusinessStateHolder.selectBusiness(business)
                     }
