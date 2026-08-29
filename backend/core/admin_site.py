@@ -104,6 +104,11 @@ class NobatyarAdminSite(admin.AdminSite):
                 self.admin_view(self.segment_export_view),
                 name='core_segment_export',
             ),
+            path(
+                'core/segments/notify/',
+                self.admin_view(self.segment_notify_view),
+                name='core_segment_notify',
+            ),
         ]
         return extra_urls + super().get_urls()
 
@@ -320,6 +325,7 @@ class NobatyarAdminSite(admin.AdminSite):
 
         can_export = request.user.has_perm('core.export_pii')
         can_save = request.user.has_perm('core.add_audiencesegment')
+        can_notify = kind == 'visitor' and request.user.has_perm('core.send_marketing_push')
 
         error = None
         counts = None
@@ -366,6 +372,7 @@ class NobatyarAdminSite(admin.AdminSite):
             'can_owner': can_owner,
             'can_export': can_export,
             'can_save': can_save,
+            'can_notify': can_notify,
             'error': error,
             'counts': counts,
             'preview_rows': preview_rows,
@@ -515,6 +522,54 @@ class NobatyarAdminSite(admin.AdminSite):
         response = HttpResponse(content, content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = f'attachment; filename="audience-segment-{kind}-{row_count}.csv"'
         return response
+
+    def segment_notify_view(self, request):
+        """POST-only: send a promotional push to every visitor matching the
+        current filter who has an active device token. Gate: core.send_
+        marketing_push — see core.models.MarketingPushLog's Meta.permissions
+        comment for why this is its own permission rather than folded into
+        visitor.view_visitor. Visitor segments only; there is no equivalent
+        "push to owners" here — Phase 2's business_detail_view message form
+        already covers reaching an individual owner."""
+        from django.contrib import messages
+
+        from core import segments
+        from core.messaging import send_marketing_push
+
+        if not request.user.has_perm('core.send_marketing_push'):
+            raise PermissionDenied
+        if request.method != 'POST':
+            raise PermissionDenied
+
+        title = (request.POST.get('notify_title') or '').strip()
+        body = (request.POST.get('notify_body') or '').strip()
+        exclude_opted_out = request.POST.get('exclude_opted_out', '1') != '0'
+
+        if not body:
+            messages.error(request, 'متن پوش نمی‌تواند خالی باشد.')
+        else:
+            try:
+                filters = segments.parse_filters('visitor', request.POST)
+                definition = segments.raw_params('visitor', request.POST)
+                definition['exclude_opted_out'] = exclude_opted_out
+                log = send_marketing_push(
+                    filters, title, body, definition,
+                    exclude_opted_out=exclude_opted_out, actor=request.user,
+                )
+            except segments.SegmentFilterError as exc:
+                messages.error(request, str(exc))
+            else:
+                if log.recipient_count == 0:
+                    messages.warning(request, 'هیچ مخاطبی با اعلان فعال در این فیلتر یافت نشد.')
+                else:
+                    messages.success(
+                        request,
+                        f'پوش برای {log.recipient_count} مخاطب واجد شرایط پردازش شد؛ '
+                        f'{log.delivered_count} مورد تحویل داده شد.',
+                    )
+
+        base = reverse('admin:core_segment_builder', current_app=self.name)
+        return HttpResponseRedirect(f'{base}?{request.POST.get("return_qs", "")}')
 
     def each_context(self, request):
         """

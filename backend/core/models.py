@@ -167,3 +167,46 @@ class AdminMessageLog(models.Model):
 
     def __str__(self):
         return f'{self.get_channel_display()} به {self.business_id} — {self.get_status_display()}'
+
+
+class MarketingPushLog(models.Model):
+    """
+    Audit trail for one promotional push campaign sent to a visitor segment
+    (NobatyarAdminSite.segment_notify_view).
+
+    One row per *campaign*, not per recipient — unlike AdminMessageLog (one
+    business per send) or PushLog (one appointment reminder per visitor),
+    a marketing blast can reach thousands of visitors, and a queryable
+    per-recipient row for each would turn one click into a write storm this
+    audit trail has no actual use for. `definition` is the filter snapshot
+    (same JSON shape core.segments.raw_params produces) so the campaign
+    stays self-explaining even after the underlying segment/filters change.
+    """
+
+    definition = models.JSONField(default=dict, blank=True, verbose_name='فیلترهای اجراشده')
+    title = models.CharField(max_length=255, blank=True, verbose_name='عنوان')
+    body = models.TextField(verbose_name='متن')
+    recipient_count = models.PositiveIntegerField(verbose_name='تعداد مخاطب واجد شرایط')
+    delivered_count = models.PositiveIntegerField(verbose_name='تعداد تحویل‌شده')
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sent_marketing_pushes', verbose_name='ارسال‌شده توسط',
+    )
+    sent_at = models.DateTimeField(auto_now_add=True, verbose_name='زمان ارسال')
+
+    class Meta:
+        db_table = 'core_marketing_push_log'
+        ordering = ['-sent_at']
+        verbose_name = 'کمپین پوش تبلیغاتی'
+        verbose_name_plural = 'کمپین‌های پوش تبلیغاتی'
+        permissions = [
+            # Same standalone-permission reasoning as AudienceSegment.export_pii
+            # and AdminMessageLog.send_business_message — a real notification
+            # reaching potentially thousands of real customers is not something
+            # to fold into visitor.view_visitor (which Support already holds
+            # for one-at-a-time lookups, per setup_admin_roles.py).
+            ('send_marketing_push', 'می‌تواند پوش تبلیغاتی برای گروه مخاطب ارسال کند'),
+        ]
+
+    def __str__(self):
+        return f'{self.title or self.body[:30]} — {self.delivered_count}/{self.recipient_count}'
