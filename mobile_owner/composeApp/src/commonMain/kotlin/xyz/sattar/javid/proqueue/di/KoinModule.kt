@@ -29,6 +29,8 @@ import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentByIdUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentsForDateUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayAppointmentsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetServiceCatalogUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetPushLogSummaryUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetPushLogsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogSummaryUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayStatsUseCase
@@ -135,6 +137,8 @@ val appModule: Module = module {
     factory { BusinessUpsertUseCase(get()) }
     factory { GetSmsLogsUseCase(get()) }
     factory { GetSmsLogSummaryUseCase(get()) }
+    factory { GetPushLogsUseCase(get()) }
+    factory { GetPushLogSummaryUseCase(get()) }
     factory { GetServiceCatalogUseCase(get()) }
     factory { AddServiceCatalogItemUseCase(get()) }
 
@@ -206,7 +210,7 @@ val appModule: Module = module {
     viewModel { BusinessListViewModel(get(), get(), get()) }
     viewModel { VisitorDetailsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { MessagesViewModel(get(), get(), get()) }
-    viewModel { SmsReportViewModel(get(), get()) }
+    viewModel { SmsReportViewModel(get(), get(), get(), get()) }
     viewModel { CalendarViewModel(get(), get()) }
     viewModel { RegisterViewModel(get()) }
     viewModel { SendOTPViewModel(get(), get()) }
