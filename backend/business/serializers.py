@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.phone import is_iran_phone, normalize_phone
-from visitor.models import SmsLog
+from visitor.models import PushLog, SmsLog
 
 from .models import Business, ServiceCatalogItem
 
@@ -297,6 +297,20 @@ class SmsLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = SmsLog
         fields = ['id', 'message_text', 'status', 'error_detail', 'sent_at', 'visitor']
+        read_only_fields = fields
+
+
+class PushLogSerializer(serializers.ModelSerializer):
+    """Same shape as SmsLogSerializer, deliberately, so the owner-facing
+    report screen can show both channels with one shared row layout. Unlike
+    SmsLog, PushLog.visitor is never null — there is no "owner notification"
+    concept on this channel yet (see send_appointment_reminders._push_owner,
+    which only stamps a timestamp and never writes a PushLog row)."""
+    visitor = SmsLogVisitorSerializer(read_only=True)
+
+    class Meta:
+        model = PushLog
+        fields = ['id', 'title', 'body', 'status', 'error_detail', 'sent_at', 'visitor']
         read_only_fields = fields
 
 

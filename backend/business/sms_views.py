@@ -34,10 +34,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounting import entitlements, usage
-from visitor.models import SmsLog
+from visitor.models import PushLog, SmsLog
 
 from .models import Business
-from .serializers import SmsLogSerializer
+from .serializers import PushLogSerializer, SmsLogSerializer
 
 
 class SmsLogPagination(PageNumberPagination):
@@ -143,4 +143,64 @@ class SmsLogSummaryView(APIView):
             'monthly_quota': entitlements.get_quota(owner_id, entitlements.QUOTA_MONTHLY_SMS),
             'monthly_used': usage.get_usage(owner_id, usage.METRIC_SMS),
             'wallet_balance': usage.get_wallet(owner_id),
+        })
+
+
+class PushLogListView(APIView):
+    """
+    Owner-facing push-reminder report for a single business — same shape and
+    filters as SmsLogListView, so the two can sit side by side in one report
+    screen (see business/sms_views.py's own module docstring for why the
+    plain pagination envelope is used instead of APIResponse).
+
+        GET /api/business/<business_id>/push-logs/?page=1&page_size=20&status=SENT
+            &search=<name or phone>&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+        GET /api/business/<business_id>/push-logs/summary/
+
+    No quota/wallet fields in the summary below — push is free, there is
+    nothing to reconcile against a balance.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, business_id):
+        business = _owned_business(request, business_id)
+
+        queryset = PushLog.objects.filter(business=business).select_related('visitor')
+
+        status_filter = (request.query_params.get('status') or '').upper()
+        if status_filter in ('SENT', 'FAILED'):
+            queryset = queryset.filter(status=status_filter)
+
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(visitor__full_name__icontains=search) |
+                Q(visitor__phone_number__icontains=search)
+            )
+
+        date_from = parse_date(request.query_params.get('date_from') or '')
+        if date_from:
+            queryset = queryset.filter(sent_at__date__gte=date_from)
+        date_to = parse_date(request.query_params.get('date_to') or '')
+        if date_to:
+            queryset = queryset.filter(sent_at__date__lte=date_to)
+
+        paginator = SmsLogPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = PushLogSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+class PushLogSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, business_id):
+        business = _owned_business(request, business_id)
+
+        month_start = _month_start_utc()
+        this_month = PushLog.objects.filter(business=business, sent_at__gte=month_start)
+
+        return Response({
+            'sent_this_month': this_month.filter(status='SENT').count(),
+            'failed_this_month': this_month.filter(status='FAILED').count(),
         })
