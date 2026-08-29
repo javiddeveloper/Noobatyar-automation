@@ -181,10 +181,21 @@ class NobatyarAdminSite(admin.AdminSite):
     def business_detail_view(self, request, business_id):
         from business.models import Business
         from core import detail_views
+        from core.models import AdminMessageLog
 
         if not request.user.has_perm('business.view_business'):
             raise PermissionDenied
         business = get_object_or_404(Business, pk=business_id)
+
+        can_message = request.user.has_perm('core.send_business_message')
+
+        if request.method == 'POST' and can_message:
+            self._handle_business_message(request, business)
+            # PRG: a refresh after sending must not resubmit the form.
+            return HttpResponseRedirect(
+                reverse('admin:core_business_detail', args=[business.id], current_app=self.name)
+            )
+
         context = {
             **self.each_context(request),
             'title': business.title,
@@ -193,8 +204,45 @@ class NobatyarAdminSite(admin.AdminSite):
             'customers_url': reverse(
                 'admin:core_business_customers', args=[business.id], current_app=self.name,
             ),
+            'can_message': can_message,
+            'message_logs': (
+                AdminMessageLog.objects.filter(business=business).select_related('sent_by')[:20]
+                if can_message else []
+            ),
         }
         return TemplateResponse(request, 'admin/core/business_detail.html', context)
+
+    def _handle_business_message(self, request, business):
+        """POST handler for the "ارسال پیام" form on the business 360 page.
+
+        Split out of business_detail_view so that view stays a readable
+        GET-shaped function — this is the one branch that does something
+        rather than just rendering.
+        """
+        from django.contrib import messages
+
+        from core.messaging import send_admin_message
+
+        title = (request.POST.get('message_title') or '').strip()
+        body = (request.POST.get('message_body') or '').strip()
+        channels = request.POST.getlist('channels')
+
+        if not body:
+            messages.error(request, 'متن پیام نمی‌تواند خالی باشد.')
+            return
+        if not channels:
+            messages.error(request, 'حداقل یک کانال ارسال را انتخاب کنید.')
+            return
+
+        logs = send_admin_message(business, title, body, channels, actor=request.user)
+        failed = [log for log in logs if log.status == 'FAILED']
+        if not failed:
+            messages.success(request, 'پیام با موفقیت ارسال شد.')
+        elif len(failed) == len(logs):
+            messages.error(request, f'ارسال پیام ناموفق بود: {failed[0].error_detail}')
+        else:
+            ok_channels = ', '.join(dict(logs[0].CHANNEL_CHOICES).get(l.channel, l.channel) for l in logs if l.status == 'SENT')
+            messages.warning(request, f'فقط از طریق {ok_channels} ارسال شد؛ کانال دیگر ناموفق بود.')
 
     def business_customers_view(self, request, business_id):
         """The full, paginated customer list for one business — the standalone

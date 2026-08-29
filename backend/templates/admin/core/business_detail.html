@@ -128,6 +128,49 @@
   </div>
   {% endif %}
 
+  {% if can_message %}
+  <div class="nb-section">
+    <h3>ارسال پیام به مالک کسب‌وکار</h3>
+    <p class="nb-note">مثلاً یادآوری تمدید اشتراک. {% verbatim %}{business_name}{% endverbatim %} در متن با نام کسب‌وکار جایگزین می‌شود. پیامک از بودجه‌ی پلتفرم ارسال می‌شود، نه سهمیه‌ی خود مالک.</p>
+    <form method="post" action="">
+      {% csrf_token %}
+      <p>
+        <label for="id_message_title">عنوان (فقط برای اعلان)</label><br>
+        <input type="text" id="id_message_title" name="message_title" style="width:100%;max-width:480px" maxlength="255">
+      </p>
+      <p>
+        <label for="id_message_body">متن پیام</label><br>
+        <textarea id="id_message_body" name="message_body" rows="4" style="width:100%;max-width:480px" required></textarea>
+      </p>
+      <p>
+        <label><input type="checkbox" name="channels" value="PUSH" checked> اعلان (پوش)</label>
+        &nbsp;&nbsp;
+        <label><input type="checkbox" name="channels" value="SMS"> پیامک</label>
+      </p>
+      <input type="submit" class="default" value="ارسال">
+    </form>
+
+    {% if message_logs %}
+      <div class="nb-table-wrap" style="margin-block-start:16px">
+        <table class="nb-table">
+          <thead><tr><th>کانال</th><th>وضعیت</th><th>متن</th><th>زمان</th><th>ارسال‌کننده</th></tr></thead>
+          <tbody>
+            {% for log in message_logs %}
+              <tr>
+                <td>{{ log.get_channel_display }}</td>
+                <td>{% if log.status == 'SENT' %}<span class="nb-badge nb-badge--ok">ارسال‌شده</span>{% else %}<span class="nb-badge nb-badge--danger">ناموفق</span>{% endif %}</td>
+                <td class="wrap">{{ log.body|truncatechars:80 }}</td>
+                <td class="num">{{ log.sent_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ log.sent_by.name|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% if detail.can.moderation %}
   <div class="bd-section">
     <h3>تاریخچه‌ی بررسی محتوا</h3>
