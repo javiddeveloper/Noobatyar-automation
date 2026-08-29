@@ -25,11 +25,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -622,8 +624,60 @@ private fun DashboardStatsRowWeb(
     }
 }
 
+/**
+ * Dispatcher: [PlanBannerPhoneContent] (unchanged, the one-plan-per-page
+ * swipeable pager) on a phone, [PlanBannerWebContent] (a wrapping grid, all
+ * plans visible together) from Medium up — the pager's whole point is
+ * showing exactly one full-width card at a time, which is the right call on
+ * a phone and the wrong one on a monitor with room to show several plans at
+ * once without scrolling far to compare them.
+ */
 @Composable
 fun PlanBannerSection(
+    plans: List<PlanDto>,
+    onPlanClick: (PlanDto) -> Unit
+) {
+    if (LocalWindowSize.current == WindowSize.Compact) {
+        PlanBannerPhoneContent(plans = plans, onPlanClick = onPlanClick)
+    } else {
+        PlanBannerWebContent(plans = plans, onPlanClick = onPlanClick)
+    }
+}
+
+/**
+ * Grid of plan cards for Medium/Expanded. Reuses [PlanBannerItem] completely
+ * unchanged — same visuals, same click handling, same badge/price/feature
+ * logic — only the container differs: a wrapping FlowRow instead of a
+ * one-at-a-time pager, so multiple plans are visible together and the page
+ * only needs a little extra vertical scroll (already provided by
+ * HomeWebContent's outer scroll) instead of a dedicated horizontal-swipe
+ * area. Cards are width-capped, not stretched, so they read as cards in a
+ * grid rather than a single stretched banner when there are only one or two
+ * plans.
+ */
+@Composable
+private fun PlanBannerWebContent(
+    plans: List<PlanDto>,
+    onPlanClick: (PlanDto) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        plans.forEach { plan ->
+            PlanBannerItem(
+                plan = plan,
+                onClick = { onPlanClick(plan) },
+                modifier = Modifier.widthIn(min = 260.dp, max = 320.dp)
+            )
+        }
+    }
+}
+
+/** Phone layout — untouched. See [PlanBannerSection]. */
+@Composable
+private fun PlanBannerPhoneContent(
     plans: List<PlanDto>,
     onPlanClick: (PlanDto) -> Unit
 ) {

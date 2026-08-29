@@ -4,6 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +25,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.koin.compose.viewmodel.koinViewModel
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
+import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
+import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.AddOnPackDto
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 
@@ -53,6 +61,44 @@ fun AddonsScreen(
         uiState.message?.let { snackbarHostState.showSnackbar(it) }
     }
 
+    AddonsContent(
+        uiState = uiState,
+        snackbarHostState = snackbarHostState,
+        onNavigateBack = onNavigateBack,
+        onBuy = { packId -> viewModel.sendIntent(AddonsIntent.Buy(packId)) }
+    )
+}
+
+/**
+ * Picks the layout by window width. Compact keeps the existing phone screen
+ * (a single-column scrolling list of store cards) untouched; Medium/Expanded
+ * get a width-capped card grid instead — see [AddonsWebContent].
+ */
+@Composable
+fun AddonsContent(
+    modifier: Modifier = Modifier,
+    uiState: AddonsState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onBuy: (Int) -> Unit
+) {
+    if (LocalWindowSize.current == WindowSize.Compact) {
+        AddonsPhoneContent(modifier, uiState, snackbarHostState, onNavigateBack, onBuy)
+    } else {
+        AddonsWebContent(modifier, uiState, snackbarHostState, onNavigateBack, onBuy)
+    }
+}
+
+/** Phone layout — unchanged. A single-column scrolling list of store cards,
+ *  grouped by pack kind. See [AddonsWebContent] for the desktop grid. */
+@Composable
+private fun AddonsPhoneContent(
+    modifier: Modifier = Modifier,
+    uiState: AddonsState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onBuy: (Int) -> Unit
+) {
     Scaffold(
         snackbarHost = { ToastyHost(hostState = snackbarHostState) },
         topBar = {
@@ -70,7 +116,7 @@ fun AddonsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(modifier = modifier.fillMaxSize().padding(paddingValues)) {
             if (uiState.isLoading && uiState.packs.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -109,7 +155,7 @@ fun AddonsScreen(
                                 pack = pack,
                                 isPurchasing = uiState.purchasingPackId == pack.id,
                                 enabled = uiState.purchasingPackId == null,
-                                onBuy = { viewModel.sendIntent(AddonsIntent.Buy(pack.id)) }
+                                onBuy = { onBuy(pack.id) }
                             )
                         }
                     }
@@ -121,7 +167,7 @@ fun AddonsScreen(
                                 pack = pack,
                                 isPurchasing = uiState.purchasingPackId == pack.id,
                                 enabled = uiState.purchasingPackId == null,
-                                onBuy = { viewModel.sendIntent(AddonsIntent.Buy(pack.id)) }
+                                onBuy = { onBuy(pack.id) }
                             )
                         }
                     }
@@ -131,7 +177,125 @@ fun AddonsScreen(
                             pack = pack,
                             isPurchasing = uiState.purchasingPackId == pack.id,
                             enabled = uiState.purchasingPackId == null,
-                            onBuy = { viewModel.sendIntent(AddonsIntent.Buy(pack.id)) }
+                            onBuy = { onBuy(pack.id) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Desktop layout: same store, but a store listing reading as one narrow
+ * ribbon of full-width rows down a 1920px monitor is the clearest "stretched
+ * phone app" tell, so packs are arranged as a card grid instead — same
+ * [AddOnPackCard] as the phone list (so the two can't drift), just laid out
+ * with [LazyVerticalGrid] the way [xyz.sattar.javid.proqueue.feature.businessList.BusinessListScreen]
+ * grids its business cards. Section headers and the intro line span the full
+ * grid width via [GridItemSpan] so they read as headings, not grid cells.
+ *
+ * Fixed 2 columns regardless of Medium vs Expanded (unlike the business
+ * grid): [AddOnPackCard] is a horizontal icon+text+price Row, not a compact
+ * vertical tile, so a 3rd column inside the [ContentWidth.List] cap would
+ * squeeze it below a usable width. Two columns keeps each cell close to the
+ * phone card's own width.
+ */
+@Composable
+private fun AddonsWebContent(
+    modifier: Modifier = Modifier,
+    uiState: AddonsState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onBuy: (Int) -> Unit
+) {
+    Scaffold(
+        snackbarHost = { ToastyHost(hostState = snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text("بسته‌های افزودنی", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        AppScaffold(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(paddingValues),
+            maxWidth = ContentWidth.List
+        ) {
+            if (uiState.isLoading && uiState.packs.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (uiState.packs.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "در حال حاضر بسته‌ای موجود نیست",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                val smsPacks = uiState.packs.filter { it.kind == "sms_pack" }
+                val appointmentPacks = uiState.packs.filter { it.kind == "appointment_pack" }
+                val otherPacks = uiState.packs.filter { it.kind != "sms_pack" && it.kind != "appointment_pack" }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            "بدون تغییر پلن، اعتبار پیامک یا نوبت اضافه کنید.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+
+                    if (smsPacks.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("بسته‌های پیامک") }
+                        gridItems(smsPacks, key = { it.id }) { pack ->
+                            AddOnPackCard(
+                                pack = pack,
+                                isPurchasing = uiState.purchasingPackId == pack.id,
+                                enabled = uiState.purchasingPackId == null,
+                                onBuy = { onBuy(pack.id) }
+                            )
+                        }
+                    }
+
+                    if (appointmentPacks.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("بسته‌های نوبت") }
+                        gridItems(appointmentPacks, key = { it.id }) { pack ->
+                            AddOnPackCard(
+                                pack = pack,
+                                isPurchasing = uiState.purchasingPackId == pack.id,
+                                enabled = uiState.purchasingPackId == null,
+                                onBuy = { onBuy(pack.id) }
+                            )
+                        }
+                    }
+
+                    gridItems(otherPacks, key = { it.id }) { pack ->
+                        AddOnPackCard(
+                            pack = pack,
+                            isPurchasing = uiState.purchasingPackId == pack.id,
+                            enabled = uiState.purchasingPackId == null,
+                            onBuy = { onBuy(pack.id) }
                         )
                     }
                 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -34,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -101,8 +104,14 @@ fun ToastyHost(
     defaultType: ToastyType = ToastyType.Error
 ) {
     if (hostState.currentSnackbarData != null) {
+        // On a phone a toast spans the width because there is no width to
+        // spare. On a desktop browser the same rule produces a 1900px banner
+        // across the top of the window for a one-line message — so the wide
+        // layouts pin it to the top *start* corner (the right, under the
+        // app's forced RTL) at a readable measure instead.
+        val isCompact = LocalWindowSize.current == WindowSize.Compact
         Popup(
-            alignment = Alignment.TopCenter,
+            alignment = if (isCompact) Alignment.TopCenter else Alignment.TopStart,
             properties = PopupProperties(
                 dismissOnBackPress = false,
                 dismissOnClickOutside = false
@@ -115,7 +124,11 @@ fun ToastyHost(
             ) {
                 SnackbarHost(
                     hostState = hostState,
-                    modifier = modifier.fillMaxWidth()
+                    modifier = if (isCompact) {
+                        modifier.fillMaxWidth()
+                    } else {
+                        modifier.widthIn(max = 420.dp)
+                    }
                 ) { data ->
                     val type = (data.visuals as? ToastyVisuals)?.type ?: defaultType
                     val (backgroundColor, contentColor, icon) = getToastyColorsAndIcon(type)
@@ -130,12 +143,12 @@ fun ToastyHost(
                         border = BorderStroke(1.dp, contentColor.copy(alpha = 0.15f)),
                         modifier = Modifier
                             .padding(horizontal = 20.dp, vertical = 12.dp)
-                            .fillMaxWidth(),
+                            .then(if (isCompact) Modifier.fillMaxWidth() else Modifier),
                         onClick = { data.dismiss() }
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .then(if (isCompact) Modifier.fillMaxWidth() else Modifier)
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
