@@ -133,6 +133,30 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
             <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>کد پیگیری نوبت</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'monospace' }}>#{appointment.id}</div>
           </div>
+
+          {(appointment.reminder_sms_sent || appointment.reminder_push_sent) && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--color-border)' }}>
+              <div style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 8 }}>یادآوری</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {appointment.reminder_push_sent && (
+                  <span style={{
+                    background: 'var(--color-primary-tint)', color: 'var(--color-primary-dark)',
+                    padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  }}>
+                    🔔 اعلان ارسال شد
+                  </span>
+                )}
+                {appointment.reminder_sms_sent && (
+                  <span style={{
+                    background: 'var(--color-primary-tint)', color: 'var(--color-primary-dark)',
+                    padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  }}>
+                    💬 پیامک ارسال شد
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Contact ── */}
