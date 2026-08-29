@@ -43,6 +43,11 @@ import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Eco
+import androidx.compose.material.icons.rounded.RocketLaunch
+import androidx.compose.material.icons.rounded.Diamond
 import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.EventBusy
@@ -52,8 +57,12 @@ import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Stars
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -662,15 +671,142 @@ private fun PlanBannerWebContent(
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         plans.forEach { plan ->
-            PlanBannerItem(
+            PlanCardWeb(
                 plan = plan,
                 onClick = { onPlanClick(plan) },
-                modifier = Modifier.widthIn(min = 260.dp, max = 320.dp)
+                modifier = Modifier.widthIn(min = 260.dp, max = 300.dp)
             )
+        }
+    }
+}
+
+/**
+ * Desktop pricing card — a purpose-built layout, not [PlanBannerItem]
+ * (the phone banner) squeezed into a grid cell. The banner is a full-bleed
+ * gradient designed to be the only thing on screen in a one-at-a-time
+ * pager; several of those side by side, each a different height, each
+ * fighting for attention with its own saturated background, is what read
+ * as cluttered. This keeps the gradient as a short identity strip at the
+ * top — enough to tell tiers apart at a glance — and puts the actual
+ * numbers on a plain surface below, where they're legible.
+ *
+ * Features render as one column, not [PlanBannerItem]'s two: splitting a
+ * short list in half only earns its keep at full phone width; inside a
+ * ~280dp card it just wrapped short Persian phrases awkwardly.
+ */
+@Composable
+private fun PlanCardWeb(
+    plan: PlanDto,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val (gradientColors, badgeIcon, badgeLabel) = planVisuals(plan)
+    val gradient = Brush.linearGradient(colors = gradientColors)
+
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    ) {
+        Column {
+            // Identity strip.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(gradient)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = badgeIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = Color.White
+                )
+                Text(
+                    text = badgeLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // قیمت
+                if (plan.price == 0L) {
+                    Text(
+                        text = "رایگان",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Text(
+                        text = plan.priceDisplay,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Rounded.Timer,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = plan.durationDisplay,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (plan.description.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        plan.description.forEach { desc ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.Check,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = desc,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (plan.price > 0L) {
+                    Button(
+                        onClick = onClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("خرید اشتراک", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
@@ -770,34 +906,51 @@ private fun PlanBannerPhoneContent(
     }
 }
 
+
+/**
+ * Tier identity shared by [PlanBannerItem] (phone) and [PlanCardWeb]
+ * (desktop grid): gradient, icon, and short label, keyed off the plan name.
+ *
+ * Vector icons, not emoji glyphs: Compose's canvas renderer (wasmJs, unlike
+ * Android/iOS which have a system emoji font) has no color-emoji font to
+ * fall back to, so 💎🚀🌿⚡🌱 rendered as tofu/missing-glyph boxes on the web
+ * panel — which is what showed up looking like a stray "۰" before each name.
+ */
+private fun planVisuals(plan: PlanDto): Triple<List<Color>, androidx.compose.ui.graphics.vector.ImageVector, String> = when {
+    plan.name.contains("پرو پلاس") -> Triple(
+        listOf(Color(0xFF4A148C), Color(0xFF6A1B9A), Color(0xFFE65100)),
+        Icons.Rounded.Diamond,
+        "پرو پلاس"
+    )
+    plan.name.contains("پرو") -> Triple(
+        listOf(Color(0xFF1A237E), Color(0xFF283593), Color(0xFF7C4DFF)),
+        Icons.Rounded.RocketLaunch,
+        "پرو"
+    )
+    plan.name.contains("اکو") -> Triple(
+        listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)),
+        Icons.Rounded.Eco,
+        "اکو"
+    )
+    plan.name.contains("پایه") -> Triple(
+        listOf(Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF1976D2)),
+        Icons.Rounded.Bolt,
+        "پایه"
+    )
+    else -> Triple(
+        listOf(Color(0xFF37474F), Color(0xFF455A64), Color(0xFF607D8B)),
+        Icons.Rounded.Spa,
+        "آزمایشی"
+    )
+}
+
 @Composable
 fun PlanBannerItem(
     plan: PlanDto,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val (gradientColors, badgeLabel) = when {
-        plan.name.contains("پرو پلاس") -> Pair(
-            listOf(Color(0xFF4A148C), Color(0xFF6A1B9A), Color(0xFFE65100)),
-            "💎 پرو پلاس"
-        )
-        plan.name.contains("پرو") -> Pair(
-            listOf(Color(0xFF1A237E), Color(0xFF283593), Color(0xFF7C4DFF)),
-            "🚀 پرو"
-        )
-        plan.name.contains("اکو") -> Pair(
-            listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF43A047)),
-            "🌿 اکو"
-        )
-        plan.name.contains("پایه") -> Pair(
-            listOf(Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF1976D2)),
-            "⚡ پایه"
-        )
-        else -> Pair(
-            listOf(Color(0xFF37474F), Color(0xFF455A64), Color(0xFF607D8B)),
-            "🌱 آزمایشی"
-        )
-    }
+    val (gradientColors, badgeIcon, badgeLabel) = planVisuals(plan)
 
     val gradient = Brush.linearGradient(colors = gradientColors)
 
@@ -840,13 +993,24 @@ fun PlanBannerItem(
                         color = Color.White.copy(alpha = 0.18f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text(
-                            text = badgeLabel,
+                        Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = badgeIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = Color.White
+                            )
+                            Text(
+                                text = badgeLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     // قیمت

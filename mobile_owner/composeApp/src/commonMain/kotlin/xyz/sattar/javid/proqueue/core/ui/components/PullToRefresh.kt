@@ -18,8 +18,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
+import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -66,6 +73,16 @@ private val IndicatorSize = 44.dp
  *
  * Replaces the toolbar refresh buttons that used to sit next to the profile
  * avatar on the home / appointments screens.
+ *
+ * From [WindowSize.Medium] up, a small floating refresh button is layered on
+ * top of the content instead of relying on the pull gesture. The gesture
+ * itself is drag-based (see the [NestedScrollConnection] below): a mouse
+ * wheel at the top of a list doesn't produce the same overscroll deltas a
+ * touch drag does, and even where it technically could, "pull down to
+ * refresh" isn't a gesture desktop users reach for — nobody click-drags page
+ * content down the way they'd swipe a phone. The nested-scroll wiring stays
+ * active either way (harmless if unused), so nothing about the phone path
+ * changes.
  */
 @Composable
 fun PullToRefreshBox(
@@ -167,6 +184,52 @@ fun PullToRefreshBox(
                 .graphicsLayer { translationY = offset.value }
         ) {
             content()
+        }
+
+        if (LocalWindowSize.current != WindowSize.Compact) {
+            DesktopRefreshButton(
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh,
+                topPadding = indicatorTopPadding,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+        }
+    }
+}
+
+/**
+ * The desktop stand-in for the pull gesture — see the class doc above for
+ * why. Positioned top-end (the left edge under the app's forced RTL) so it
+ * doesn't collide with anything a screen already puts at the visual start of
+ * its content area.
+ */
+@Composable
+private fun DesktopRefreshButton(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    topPadding: Dp,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.padding(top = topPadding + 12.dp, end = 12.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 4.dp
+    ) {
+        IconButton(onClick = onRefresh, enabled = !isRefreshing) {
+            if (isRefreshing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.Refresh,
+                    contentDescription = "بروزرسانی",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

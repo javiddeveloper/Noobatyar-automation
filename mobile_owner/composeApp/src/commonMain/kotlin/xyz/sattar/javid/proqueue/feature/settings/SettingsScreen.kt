@@ -55,6 +55,7 @@ import xyz.sattar.javid.proqueue.core.ui.LocalWindowSize
 import xyz.sattar.javid.proqueue.core.ui.WindowSize
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AdaptiveSheet
+import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
 import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
 import xyz.sattar.javid.proqueue.core.ui.components.BottomBarSpacer
@@ -413,18 +414,69 @@ private fun SettingsWebContent(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            ProfileHeaderCard(
-                userName = userName,
-                userPhone = userPhone,
-                business = uiState.currentBusiness,
-                subscription = subscription
-            )
+            // Same guard ModerationBanner itself uses internally (it renders
+            // nothing for a null/APPROVED status) — needed here too so this
+            // layout knows *before* composing whether there will be a second
+            // card to sit beside the profile header, or just the one card to
+            // centre on its own.
+            val moderationStatus = uiState.currentBusiness?.moderationStatus
+            val hasModerationBanner = moderationStatus != null && moderationStatus != ModerationStatus.APPROVED
 
-            uiState.currentBusiness?.let { business ->
-                ModerationBanner(
-                    business = business,
-                    onEditClick = { onIntent(SettingsIntent.OnEditBusinessClick(business.id)) }
-                )
+            if (isExpanded && hasModerationBanner) {
+                // Both cards are short and read fine side by side — stacking
+                // them wasted a full row of height for two things the owner
+                // reads in one glance together (who am I, is my business live).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        ProfileHeaderCard(
+                            userName = userName,
+                            userPhone = userPhone,
+                            business = uiState.currentBusiness,
+                            subscription = subscription
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        uiState.currentBusiness?.let { business ->
+                            ModerationBanner(
+                                business = business,
+                                onEditClick = { onIntent(SettingsIntent.OnEditBusinessClick(business.id)) }
+                            )
+                        }
+                    }
+                }
+            } else {
+                if (isExpanded && !hasModerationBanner) {
+                    // Nothing to sit beside it — a full-width stretch of a
+                    // card built for a phone's width looked stretched and
+                    // empty, so it's centred at a card-like width instead.
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.widthIn(max = 640.dp)) {
+                            ProfileHeaderCard(
+                                userName = userName,
+                                userPhone = userPhone,
+                                business = uiState.currentBusiness,
+                                subscription = subscription
+                            )
+                        }
+                    }
+                } else {
+                    ProfileHeaderCard(
+                        userName = userName,
+                        userPhone = userPhone,
+                        business = uiState.currentBusiness,
+                        subscription = subscription
+                    )
+                }
+
+                uiState.currentBusiness?.let { business ->
+                    ModerationBanner(
+                        business = business,
+                        onEditClick = { onIntent(SettingsIntent.OnEditBusinessClick(business.id)) }
+                    )
+                }
             }
 
             AdvancedSettingsPromoCard(onClick = onAdvancedSettings)
