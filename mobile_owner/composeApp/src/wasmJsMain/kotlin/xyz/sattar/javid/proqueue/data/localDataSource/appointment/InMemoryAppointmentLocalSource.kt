@@ -1,13 +1,18 @@
 package xyz.sattar.javid.proqueue.data.localDataSource.appointment
 
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlin.time.Clock
+import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
 import xyz.sattar.javid.proqueue.data.localDataSource.business.BusinessLocalSource
 import xyz.sattar.javid.proqueue.data.localDataSource.visitor.VisitorLocalSource
 import xyz.sattar.javid.proqueue.domain.model.appointment.Appointment
 import xyz.sattar.javid.proqueue.domain.model.appointment.AppointmentWithDetails
 import xyz.sattar.javid.proqueue.domain.model.business.Business
 import xyz.sattar.javid.proqueue.domain.model.visitor.Visitor
+
+// The set of statuses AppointmentDao's getWaitingQueue/getAllWaitingAppointments
+// treat as "still in the queue" (see AppointmentDao.kt's `status IN (...)`
+// clauses). Kept in sync by hand since this source has no SQL to read it from.
+private val ACTIVE_QUEUE_STATUSES = setOf("WAITING", "PENDING_APPROVAL", "PENDING_VERIFICATION")
 
 /**
  * See InMemoryBusinessLocalSource for the rationale. This is the one
@@ -48,22 +53,40 @@ class InMemoryAppointmentLocalSource(
             .mapNotNull { withDetails(it) }
 
     override suspend fun getWaitingQueue(businessId: Long, date: Long): List<AppointmentWithDetails> {
-        val range = dayRange(date)
+        // AppointmentDao.getWaitingQueue compares dates via DATE(...,'localtime'),
+        // i.e. the device's local calendar day, not a UTC day bucket — using
+        // dayRange() (UTC-based) here would drop/include appointments near
+        // midnight for any owner not in UTC. It also orders by proximity to
+        // :date (ABS(appointmentDate - :date)), not chronologically, and
+        // includes PENDING_APPROVAL/PENDING_VERIFICATION alongside WAITING —
+        // omitting those two would silently hide pending-approval visitors
+        // from the queue screen.
         return allWithDetails(businessId)
-            .filter { it.appointment.appointmentDate in range && it.appointment.status == "WAITING" }
-            .sortedBy { it.appointment.appointmentDate }
+            .filter {
+                DateTimeUtils.isSameDay(it.appointment.appointmentDate, date) &&
+                    it.appointment.status in ACTIVE_QUEUE_STATUSES
+            }
+            .sortedBy { kotlin.math.abs(it.appointment.appointmentDate - date) }
     }
 
     override suspend fun getAllWaitingAppointments(businessId: Long): List<AppointmentWithDetails> =
+        // Matches AppointmentDao.getAllWaitingAppointments' status set; see
+        // getWaitingQueue above for why WAITING alone is not enough.
         allWithDetails(businessId)
-            .filter { it.appointment.status == "WAITING" }
+            .filter { it.appointment.status in ACTIVE_QUEUE_STATUSES }
             .sortedBy { it.appointment.appointmentDate }
 
     override suspend fun getTodayAppointments(businessId: Long): List<AppointmentWithDetails> =
-        getAppointmentsForDate(businessId, currentTimeMillis())
+        // Despite the name, AppointmentDao.getTodayAppointments has no date
+        // filter at all — it's every appointment for the business, ascending.
+        // Routing this through getAppointmentsForDate(businessId, now) would
+        // silently hide every appointment not on today's date, which the Room
+        // version never does.
+        allWithDetails(businessId).sortedBy { it.appointment.appointmentDate }
 
     override suspend fun getAllAppointmentsForBusiness(businessId: Long): List<AppointmentWithDetails> =
-        allWithDetails(businessId).sortedByDescending { it.appointment.appointmentDate }
+        // AppointmentDao.getAllAppointmentsForBusiness caps at LIMIT 100.
+        allWithDetails(businessId).sortedByDescending { it.appointment.appointmentDate }.take(100)
 
     override suspend fun getVisitorHistory(visitorId: Long): List<AppointmentWithDetails> =
         state.value.values
@@ -146,9 +169,14 @@ class InMemoryAppointmentLocalSource(
         }
 
     override suspend fun getAppointmentsForDate(businessId: Long, date: Long): List<AppointmentWithDetails> {
-        val range = dayRange(date)
+        // AppointmentDao.getAppointmentsForDate also buckets by local calendar
+        // day (DATE(...,'localtime')) and excludes CANCELLED — see the
+        // getWaitingQueue comment above for why a UTC dayRange() would be wrong.
         return allWithDetails(businessId)
-            .filter { it.appointment.appointmentDate in range }
+            .filter {
+                DateTimeUtils.isSameDay(it.appointment.appointmentDate, date) &&
+                    it.appointment.status != "CANCELLED"
+            }
             .sortedBy { it.appointment.appointmentDate }
     }
 
@@ -156,9 +184,3 @@ class InMemoryAppointmentLocalSource(
         state.value = state.value.filterValues { it.visitorId != visitorId }
     }
 }
-
-// kotlin.js.Date is Kotlin/JS-only (no equivalent in the wasmJs stdlib), so
-// "now" comes from kotlinx-datetime instead — already a dependency of
-// commonMain, and multiplatform.
-@OptIn(kotlin.time.ExperimentalTime::class)
-private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()

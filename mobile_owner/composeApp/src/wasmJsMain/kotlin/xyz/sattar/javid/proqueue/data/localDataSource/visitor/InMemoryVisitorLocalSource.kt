@@ -21,13 +21,16 @@ class InMemoryVisitorLocalSource : VisitorLocalSource {
     override suspend fun getVisitorById(visitorId: Long): Visitor? = state.value[visitorId]
 
     override suspend fun getVisitors(limit: Int, offset: Int, query: String?): List<Visitor> {
+        // VisitorDao.getVisitors orders by fullName ASC, not recency — sorting
+        // by createdAt here would silently reorder the visitor list on web
+        // (e.g. newest visitor first instead of alphabetical).
         val all = state.value.values
             .filter {
                 query.isNullOrBlank() ||
                     it.fullName.contains(query, ignoreCase = true) ||
                     it.phoneNumber.contains(query)
             }
-            .sortedByDescending { it.createdAt }
+            .sortedBy { it.fullName }
         return all.drop(offset).take(limit)
     }
 

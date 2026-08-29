@@ -26,9 +26,14 @@ class InMemoryBusinessLocalSource : BusinessLocalSource {
         state.value = state.value + businesses.associateBy { it.id }
     }
 
-    override suspend fun loadAllBusiness(): List<Business> = state.value.values.toList()
+    // BusinessDao.loadAllBusiness(Flow) orders by createdAt DESC; without this
+    // the list order would depend on Map iteration/insertion order instead,
+    // which silently reshuffles the business list on web.
+    override suspend fun loadAllBusiness(): List<Business> =
+        state.value.values.sortedByDescending { it.createdAt }
 
-    override fun loadAllBusinessFlow(): Flow<List<Business>> = state.map { it.values.toList() }
+    override fun loadAllBusinessFlow(): Flow<List<Business>> =
+        state.map { it.values.sortedByDescending { business -> business.createdAt } }
 
     override suspend fun getBusinessById(businessId: Long): Business? = state.value[businessId]
 

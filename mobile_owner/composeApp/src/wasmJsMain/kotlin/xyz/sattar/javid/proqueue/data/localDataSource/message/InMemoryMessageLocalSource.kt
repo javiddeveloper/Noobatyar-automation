@@ -13,8 +13,10 @@ class InMemoryMessageLocalSource : MessageLocalSource {
         state.value = state.value + (id to message.copy(id = id))
     }
 
+    // MessageDao.getAppointmentMessages orders by sentAt DESC (newest first);
+    // sortedBy would show the conversation upside down.
     override suspend fun getAppointmentMessages(appointmentId: Long): List<Message> =
-        state.value.values.filter { it.appointmentId == appointmentId }.sortedBy { it.sentAt }
+        state.value.values.filter { it.appointmentId == appointmentId }.sortedByDescending { it.sentAt }
 
     override suspend fun getMessagesForVisitorAndBusiness(visitorId: Long, businessId: Long): List<Message> =
         // The local cache has no visitor/business columns of its own — see

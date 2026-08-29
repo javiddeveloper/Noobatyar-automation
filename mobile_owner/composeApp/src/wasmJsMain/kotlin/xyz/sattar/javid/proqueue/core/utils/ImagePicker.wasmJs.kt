@@ -37,6 +37,13 @@ actual fun rememberImagePicker(onSingleImagePicked: (ByteArray) -> Unit): ImageP
                         readFileAsBytes(file) { bytes -> onSingleImagePicked(bytes) }
                     }
                 })
+                // Without this, dismissing the file dialog without picking
+                // anything never fires "change", so the hidden <input> this
+                // creates is never removed — every canceled launch() leaves
+                // one more empty <input> behind in the DOM permanently.
+                input.addEventListener("cancel", { _: Event ->
+                    document.body?.removeChild(input)
+                })
                 document.body?.appendChild(input)
                 input.click()
             }

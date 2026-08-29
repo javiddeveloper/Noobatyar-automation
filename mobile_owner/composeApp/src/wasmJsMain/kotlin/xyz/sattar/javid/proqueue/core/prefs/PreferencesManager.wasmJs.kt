@@ -27,19 +27,26 @@ actual object PreferencesManager {
     private const val KEY_NOTIFICATION_REMINDER_MINUTES = "notification_reminder_minutes"
     private const val KEY_MESSAGE_TEMPLATE_PREFIX = "message_template_" // suffix: businessId
 
+    // These property initializers run at first access to this object, which
+    // for _themeMode is during app startup (App() reads it to theme the very
+    // first composition). In a browser configuration where localStorage
+    // throws (Safari private mode, storage disabled) an unguarded getItem
+    // here would throw before ComposeViewport ever renders anything —
+    // safeGet swallows that and falls back to the same defaults as "nothing
+    // stored yet".
     private val _themeMode = MutableStateFlow(
-        localStorage.getItem(KEY_THEME_MODE)?.toIntOrNull()
+        safeGet(KEY_THEME_MODE)?.toIntOrNull()
             ?.let { AppThemeMode.values().getOrNull(it) }
             ?: AppThemeMode.DARK
     )
     private val _defaultBusinessId = MutableStateFlow(
-        localStorage.getItem(KEY_DEFAULT_BUSINESS_ID)?.toLongOrNull()
+        safeGet(KEY_DEFAULT_BUSINESS_ID)?.toLongOrNull()
     )
     private val _notificationsEnabled = MutableStateFlow(
-        localStorage.getItem(KEY_NOTIFICATIONS_ENABLED)?.toBoolean() ?: false
+        safeGet(KEY_NOTIFICATIONS_ENABLED)?.toBoolean() ?: false
     )
     private val _notificationReminderMinutes = MutableStateFlow(
-        localStorage.getItem(KEY_NOTIFICATION_REMINDER_MINUTES)?.toIntOrNull() ?: DEFAULT_REMINDER_MINUTES
+        safeGet(KEY_NOTIFICATION_REMINDER_MINUTES)?.toIntOrNull() ?: DEFAULT_REMINDER_MINUTES
     )
 
     actual val themeMode: Flow<AppThemeMode> = _themeMode
@@ -49,45 +56,69 @@ actual object PreferencesManager {
     private val templateFlows = mutableMapOf<Long, MutableStateFlow<String?>>()
 
     actual suspend fun setThemeMode(mode: AppThemeMode) {
-        localStorage.setItem(KEY_THEME_MODE, mode.ordinal.toString())
+        safeSet(KEY_THEME_MODE, mode.ordinal.toString())
         _themeMode.value = mode
     }
 
     actual suspend fun setDefaultBusinessId(id: Long?) {
-        if (id == null) localStorage.removeItem(KEY_DEFAULT_BUSINESS_ID)
-        else localStorage.setItem(KEY_DEFAULT_BUSINESS_ID, id.toString())
+        if (id == null) safeRemove(KEY_DEFAULT_BUSINESS_ID)
+        else safeSet(KEY_DEFAULT_BUSINESS_ID, id.toString())
         _defaultBusinessId.value = id
     }
 
     actual suspend fun setNotificationsEnabled(enabled: Boolean) {
-        localStorage.setItem(KEY_NOTIFICATIONS_ENABLED, enabled.toString())
+        safeSet(KEY_NOTIFICATIONS_ENABLED, enabled.toString())
         _notificationsEnabled.value = enabled
     }
 
     actual suspend fun setNotificationReminderMinutes(minutes: Int) {
-        localStorage.setItem(KEY_NOTIFICATION_REMINDER_MINUTES, minutes.toString())
+        safeSet(KEY_NOTIFICATION_REMINDER_MINUTES, minutes.toString())
         _notificationReminderMinutes.value = minutes
     }
 
     actual fun messageTemplate(businessId: Long): Flow<String?> {
         return templateFlows.getOrPut(businessId) {
             val key = KEY_MESSAGE_TEMPLATE_PREFIX + businessId
-            MutableStateFlow(localStorage.getItem(key))
+            MutableStateFlow(safeGet(key))
         }
     }
 
     actual suspend fun setMessageTemplate(businessId: Long, template: String) {
         val key = KEY_MESSAGE_TEMPLATE_PREFIX + businessId
-        localStorage.setItem(key, template)
+        safeSet(key, template)
         val flow = templateFlows.getOrPut(businessId) { MutableStateFlow(null) }
         flow.value = template
     }
 
     actual fun getMessageTemplate(businessId: Long): String? {
-        return localStorage.getItem(KEY_MESSAGE_TEMPLATE_PREFIX + businessId)
+        return safeGet(KEY_MESSAGE_TEMPLATE_PREFIX + businessId)
     }
 
     actual fun getNotificationReminderMinutes(): Int {
-        return localStorage.getItem(KEY_NOTIFICATION_REMINDER_MINUTES)?.toIntOrNull() ?: DEFAULT_REMINDER_MINUTES
+        return safeGet(KEY_NOTIFICATION_REMINDER_MINUTES)?.toIntOrNull() ?: DEFAULT_REMINDER_MINUTES
+    }
+
+    private fun safeGet(key: String): String? =
+        try {
+            localStorage.getItem(key)
+        } catch (e: Throwable) {
+            null
+        }
+
+    private fun safeSet(key: String, value: String) {
+        try {
+            localStorage.setItem(key, value)
+        } catch (e: Throwable) {
+            // Can't persist in this browser configuration; the in-memory
+            // MutableStateFlow above still keeps the setting for this tab.
+        }
+    }
+
+    private fun safeRemove(key: String) {
+        try {
+            localStorage.removeItem(key)
+        } catch (e: Throwable) {
+            // No-op: nothing to clear if storage was never writable.
+        }
     }
 }

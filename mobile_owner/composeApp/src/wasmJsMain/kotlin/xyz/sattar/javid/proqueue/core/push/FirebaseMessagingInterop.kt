@@ -47,20 +47,31 @@ private const val SERVICE_WORKER_PATH = "/firebase-messaging-sw.js"
             // service worker's background handler while no client page for
             // this app is focused, so a message that arrives with the tab
             // open has to be shown from here instead.
+            //
+            // requestFcmWebToken() (and so this whole snippet) can run more
+            // than once per page load — e.g. sign out then sign back in
+            // within the same tab re-triggers SyncPushTokenUseCase — and
+            // `firebase.messaging(app)` returns the same shared instance each
+            // time. Without the guard below, every call would stack another
+            // onMessage listener onto it, so one incoming push would pop a
+            // duplicate Notification per prior login in that tab's session.
             try {
-                messaging.onMessage((payload) => {
-                    try {
-                        const n = payload && payload.notification;
-                        const title = (n && n.title) || 'نوبت‌یار';
-                        const body = (n && n.body) || '';
-                        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                            new Notification(title, { body: body });
+                if (!messaging.__nobatyarOnMessageAttached) {
+                    messaging.onMessage((payload) => {
+                        try {
+                            const n = payload && payload.notification;
+                            const title = (n && n.title) || 'نوبت‌یار';
+                            const body = (n && n.body) || '';
+                            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                                new Notification(title, { body: body });
+                            }
+                        } catch (e) {
+                            // Never let a malformed/unexpected payload break the
+                            // listener itself.
                         }
-                    } catch (e) {
-                        // Never let a malformed/unexpected payload break the
-                        // listener itself.
-                    }
-                });
+                    });
+                    messaging.__nobatyarOnMessageAttached = true;
+                }
             } catch (e) {
                 // messaging.onMessage not available in this browser — the
                 // background/service-worker path still covers pushes.
