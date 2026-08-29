@@ -397,9 +397,9 @@ private fun HomePhoneContent(
 /**
  * Desktop/tablet dashboard (Medium and Expanded): a stat row across the top,
  * then a two-column body — trend chart + booking link in the wider primary
- * column, usage meter + plan banners in the narrower secondary column. In
- * RTL the first [Row] child lands on the right, where a Persian reader looks
- * first, so the primary column is listed first.
+ * column pair, then the booking link and plan banners full-width beneath.
+ * The trend chart and usage meter share one equal-weight [Row]; in RTL the
+ * first child lands on the right, where a Persian reader looks first.
  *
  * There is no appointment/queue list in [HomeState] to put in the primary
  * column (the phone layout only ever shows a *count* via [QueueStatRow]), so
@@ -456,15 +456,17 @@ private fun HomeWebContent(
             }
         }
 
+        // نمودار روند و مصرف ماه — دو ستون هم‌عرض. هر دو کارت‌های
+        // «یک نگاه سریع» هستند و هیچ‌کدام بر دیگری اولویت ندارد، پس
+        // وزن برابر می‌گیرند نه ۶۲/۳۸.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // ستون اصلی (سمت راست در RTL): نمودار روند + لینک نوبت‌گیری
-            Column(
-                modifier = Modifier.weight(0.62f),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
+            // سمت راست در RTL (اولین فرزند Row). Column و نه Box: داخل یک
+            // Row، فراخوانی AnimatedVisibility به اورلود RowScope می‌رسد و
+            // کامپایل نمی‌شود.
+            Column(modifier = Modifier.weight(1f)) {
                 AnimatedVisibility(
                     visible = visible,
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
@@ -486,26 +488,9 @@ private fun HomeWebContent(
                         )
                     }
                 }
-
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 350)
-                    )
-                ) {
-                    if (uiState.business == null && uiState.isLoading) {
-                        HomeButtonShimmer()
-                    } else if (uiState.business != null) {
-                        BookingLinkButton(uiState.business)
-                    }
-                }
             }
 
-            // ستون فرعی (سمت چپ در RTL): مصرف‌سنج + بنرهای پلن
-            Column(
-                modifier = Modifier.weight(0.38f),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 AnimatedVisibility(
                     visible = visible,
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
@@ -521,24 +506,42 @@ private fun HomeWebContent(
                         )
                     }
                 }
+            }
+        }
 
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 400)
-                    )
-                ) {
-                    if (!uiState.plansLoaded) {
-                        HomePlanBannerShimmer()
-                    } else if (uiState.plans.isNotEmpty()) {
-                        PlanBannerSection(
-                            plans = uiState.plans,
-                            onPlanClick = { plan ->
-                                onIntent(HomeIntent.PurchasePlan(plan.id))
-                            }
-                        )
+        // لینک نوبت‌گیری — تمام‌عرض. یک نوار دعوت‌به‌اقدام است، نه یک
+        // کارت داده؛ نصف‌عرض بودنش آن را از چیزی که هست کوچک‌تر نشان می‌داد.
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                animationSpec = tween(500, delayMillis = 350)
+            )
+        ) {
+            if (uiState.business == null && uiState.isLoading) {
+                HomeButtonShimmer()
+            } else if (uiState.business != null) {
+                BookingLinkButton(uiState.business)
+            }
+        }
+
+        // بنرهای پلن — تمام‌عرض. این یک HorizontalPager با contentPadding
+        // است؛ داخل یک ستون باریک، هر صفحه به‌قدری فشرده می‌شد که کارت
+        // بریده به نظر می‌رسید.
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                animationSpec = tween(500, delayMillis = 400)
+            )
+        ) {
+            if (!uiState.plansLoaded) {
+                HomePlanBannerShimmer()
+            } else if (uiState.plans.isNotEmpty()) {
+                PlanBannerSection(
+                    plans = uiState.plans,
+                    onPlanClick = { plan ->
+                        onIntent(HomeIntent.PurchasePlan(plan.id))
                     }
-                }
+                )
             }
         }
 
