@@ -66,6 +66,11 @@ export interface Appointment {
   status: string;
   queue_position: number;
   estimated_turn_time: number | null;
+  /** Whether this appointment's reminder was actually delivered on each
+   *  channel — independent booleans, since a business can have one, both,
+   *  or neither enabled (see backend/appointment/client_serializers.py). */
+  reminder_sms_sent: boolean;
+  reminder_push_sent: boolean;
 }
 
 /** Thrown when the API rejects the stored token (HTTP 401). */
