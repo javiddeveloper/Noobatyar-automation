@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import ThemeToggle from './components/ThemeToggle';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
+import PushPermissionPrompt from './components/PushPermissionPrompt';
 
 export const metadata: Metadata = {
   title: 'نوبت‌یار | رزرو آنلاین نوبت',
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div id="app-shell">
           <ThemeToggle />
           <ServiceWorkerRegistration />
+          <PushPermissionPrompt />
           {children}
         </div>
       </body>

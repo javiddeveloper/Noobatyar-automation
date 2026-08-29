@@ -2,11 +2,18 @@
  * Hand-rolled service worker for نوبت‌یار (Noobatyar customer web).
  *
  * Scope: served from the site root (`/sw.js`) so it controls every route.
- * No push notifications here on purpose — the backend has no path that
- * pushes to *customer* accounts yet (DeviceToken/FCM is owner-app only),
- * so there is nothing to subscribe to. This file only owns caching. A
- * `push`/`notificationclick` pair can be added later without touching the
- * caching logic below.
+ *
+ * Push notifications (added once the backend gained a path that pushes to
+ * *customer* accounts — visitor.models.VisitorDeviceToken /
+ * api.services.push.send_to_visitor): see the Firebase block right below
+ * this comment. Deliberately appended to this *same* file rather than
+ * registered as a second service worker — a second `register()` call at the
+ * same root scope (`/`) would just fight this one for control of it; there
+ * can only be one active SW per scope. No explicit `push`/`notificationclick`
+ * listeners are added here: `firebase.messaging()` registers its own
+ * internally, and the backend already sends a top-level FCM `notification`
+ * block (api/services/push.py) that the SDK displays on its own — same
+ * pattern already proven in mobile_owner's firebase-messaging-sw.js.
  *
  * Caching strategy (deliberately conservative — a booking app is the one
  * place where "fast but wrong" is worse than "slow but right"):
@@ -33,6 +40,37 @@
  *   - anything else        → left alone (not intercepted), default browser
  *                            behavior.
  */
+
+// Vendored locally, not loaded from gstatic.com: this app is served to users
+// in Iran, where public CDNs are unreachable, and a service worker whose
+// importScripts throws on a blocked fetch fails to install *at all* — losing
+// every bit of the caching logic below too, not just push. Same reasoning as
+// mobile_owner/composeApp/src/wasmJsMain/resources/firebase-messaging-sw.js.
+importScripts('/vendor/firebase/firebase-app-compat.js');
+importScripts('/vendor/firebase/firebase-messaging-compat.js');
+
+// Same Firebase project as the owner app (mobile_owner's FirebaseWebConfig.kt)
+// — a Web app's config is not domain-restricted by default, so the same
+// values work here too. Wrapped in try/catch: this file must still install
+// successfully (and keep serving the cache below) even if the Firebase SDK
+// itself has a hiccup — losing push must never cost the app its offline
+// shell.
+try {
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBkj4QwHRnMjruW7BJniWijd4z5uGV1r8o',
+    authDomain: 'nobatyar-79c53.firebaseapp.com',
+    projectId: 'nobatyar-79c53',
+    storageBucket: 'nobatyar-79c53.firebasestorage.app',
+    messagingSenderId: '56921056578',
+    appId: '1:56921056578:web:29eb94274ea5d99e6a14db',
+  });
+  // No explicit onBackgroundMessage handler: backend/api/services/push.py
+  // already sends a top-level `notification` block, which the SDK displays
+  // automatically for background messages on its own.
+  firebase.messaging();
+} catch (e) {
+  // Fail soft — see comment above.
+}
 
 // Bump this on every deploy that changes what gets precached. `activate`
 // deletes any cache whose name doesn't match, so a stale bundle never
