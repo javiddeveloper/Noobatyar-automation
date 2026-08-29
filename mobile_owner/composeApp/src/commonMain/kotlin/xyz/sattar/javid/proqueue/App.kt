@@ -2,7 +2,12 @@ package xyz.sattar.javid.proqueue
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -13,13 +18,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.koinInject
+import proqueue.composeapp.generated.resources.Res
+import proqueue.composeapp.generated.resources.notification_permission_prompt_allow
+import proqueue.composeapp.generated.resources.notification_permission_prompt_later
+import proqueue.composeapp.generated.resources.notification_permission_prompt_message
+import proqueue.composeapp.generated.resources.notification_permission_prompt_title
 import xyz.sattar.javid.proqueue.core.network.GlobalError
 import xyz.sattar.javid.proqueue.core.network.GlobalErrorManager
 import xyz.sattar.javid.proqueue.core.navigation.navHost.AuthNavHost
 import xyz.sattar.javid.proqueue.core.navigation.navHost.BusinessNavHost
 import xyz.sattar.javid.proqueue.core.navigation.navHost.MainNavHost
+import xyz.sattar.javid.proqueue.core.notifications.NotificationScheduler
+import xyz.sattar.javid.proqueue.core.permissions.rememberNotificationPermissionDenied
+import xyz.sattar.javid.proqueue.core.permissions.rememberNotificationPermissionLauncher
 import xyz.sattar.javid.proqueue.core.prefs.PreferencesManager
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.state.ThemeStateHolder
@@ -123,6 +137,7 @@ fun App() {
                 }
             )
         } else {
+            val currentBusiness = selectedBusiness
             MainNavHost(
                 onChangeBusiness = {
                     BusinessStateHolder.clearBusiness()
@@ -134,10 +149,87 @@ fun App() {
                     scope.launch { PreferencesManager.setDefaultBusinessId(null) }
                 }
             )
+
+            if (currentBusiness != null) {
+                NotificationPermissionPrompt(business = currentBusiness, businessRepository = businessRepository)
+            }
         }
         }
 
         ToastyHost(hostState = globalSnackbarHostState)
         }
+    }
+}
+
+/**
+ * App-wide, one-shot-per-session "may we notify you" dialog — the explicit
+ * ask was to test permission everywhere and prompt for it right when the
+ * app opens, rather than only inside the Notifications settings screen.
+ * Gated on a business being selected (i.e. right as [MainNavHost] becomes
+ * reachable), so it never competes with the auth/business-selection flow.
+ *
+ * Suppressed once permission is already granted, and — on platforms that
+ * can tell the difference (web) — once it has been explicitly denied,
+ * since there [rememberNotificationPermissionLauncher] can't do anything
+ * and a "grant access" button that silently fails would be worse than no
+ * dialog at all.
+ *
+ * Granting here also flips the business's own `notificationEnabled` flag
+ * on, mirroring exactly what the Notifications screen's own save does
+ * ([xyz.sattar.javid.proqueue.feature.notifications.NotificationsViewModel.
+ * saveSettings]) — the explicit ask was that granting permission here
+ * should also turn that screen's toggle on, and OS permission alone
+ * doesn't move the server-side setting.
+ */
+@Composable
+private fun NotificationPermissionPrompt(
+    business: xyz.sattar.javid.proqueue.domain.model.business.Business,
+    businessRepository: BusinessRepository
+) {
+    val notificationScheduler: NotificationScheduler = koinInject()
+    val scope = rememberCoroutineScope()
+    val permissionDenied = rememberNotificationPermissionDenied()
+    var showPrompt by remember { mutableStateOf(false) }
+    var checkedThisSession by remember { mutableStateOf(false) }
+
+    val launcher = rememberNotificationPermissionLauncher { granted ->
+        showPrompt = false
+        if (granted) {
+            scope.launch {
+                val updated = business.copy(notificationEnabled = true)
+                if (businessRepository.upsertBusiness(updated)) {
+                    BusinessStateHolder.selectBusiness(updated)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(business.id) {
+        if (checkedThisSession) return@LaunchedEffect
+        checkedThisSession = true
+        if (!notificationScheduler.hasPermission() && !permissionDenied) {
+            showPrompt = true
+        }
+    }
+
+    if (showPrompt) {
+        AlertDialog(
+            onDismissRequest = { showPrompt = false },
+            title = { Text(stringResource(Res.string.notification_permission_prompt_title)) },
+            text = { Text(stringResource(Res.string.notification_permission_prompt_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = { launcher.launch() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text(stringResource(Res.string.notification_permission_prompt_allow))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPrompt = false }) {
+                    Text(stringResource(Res.string.notification_permission_prompt_later))
+                }
+            }
+        )
     }
 }

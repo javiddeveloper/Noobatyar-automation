@@ -25,6 +25,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.permissions.rememberNotificationPermissionLauncher
+import xyz.sattar.javid.proqueue.core.utils.AppInfo
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
