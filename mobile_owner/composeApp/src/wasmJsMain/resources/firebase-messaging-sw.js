@@ -37,16 +37,16 @@ importScripts('/vendor/firebase/firebase-messaging-compat.js');
 
 // Same project config as core/push/FirebaseWebConfig.kt. Kept in sync by
 // hand — a service worker can't import Kotlin/wasm output, and this file
-// has to be self-contained JS. `appId` is a placeholder until a human
-// registers a Web app for this Firebase project; see FirebaseWebConfig.kt's
-// comment for exactly where that value comes from.
+// has to be self-contained JS. If you change either value here, change it
+// in FirebaseWebConfig.kt too: out of sync means foreground push works and
+// background push silently doesn't.
 firebase.initializeApp({
-    apiKey: 'AIzaSyD11zmX9Gfas8GVXZwpFRo9StrCIGUJT9A',
+    apiKey: 'AIzaSyBkj4QwHRnMjruW7BJniWijd4z5uGV1r8o',
     authDomain: 'nobatyar-79c53.firebaseapp.com',
     projectId: 'nobatyar-79c53',
     storageBucket: 'nobatyar-79c53.firebasestorage.app',
     messagingSenderId: '56921056578',
-    appId: 'REPLACE_WITH_FIREBASE_WEB_APP_ID'
+    appId: '1:56921056578:web:29eb94274ea5d99e6a14db'
 });
 
 // Wrapped in try/catch: this file has to *install* successfully even with a

@@ -11,18 +11,9 @@ package xyz.sattar.javid.proqueue.core.push
  * `AUTH_DOMAIN` follows Firebase's fixed `<project-id>.firebaseapp.com`
  * convention, so it doesn't need its own console entry.
  *
- * Two things google-services.json genuinely cannot give us, because they
- * don't exist yet:
- *
- * - [WEB_APP_ID]: only minted once a human registers a **Web app** (the
- *   `</>` icon) under this same Firebase project in the console
- *   (Project settings → General → Your apps). Until then this stays the
- *   placeholder below.
- * - [FCM_WEB_VAPID_KEY]: generated on that Web app's Cloud Messaging tab
- *   ("Web Push certificates" → Generate key pair). It's a public key (safe
- *   to ship in a client bundle) but still project-specific, so it can't be
- *   invented here either — see docs/FCM_SETUP.md for where this fits in the
- *   existing setup flow.
+ * [WEB_APP_ID] and [FCM_WEB_VAPID_KEY] are not in google-services.json —
+ * that file only covers the two Android clients. They come from the Web app
+ * registered separately in the same Firebase console project.
  *
  * [isConfigured] gates every call into the Firebase SDK below: a build that
  * still has the placeholders returns null tokens instead of ever touching
@@ -30,19 +21,27 @@ package xyz.sattar.javid.proqueue.core.push
  * before `google-services.json` exists.
  */
 internal object FirebaseWebConfig {
-    const val API_KEY = "AIzaSyD11zmX9Gfas8GVXZwpFRo9StrCIGUJT9A"
+    // The *Web* app's key, not the Android one in google-services.json.
+    // Firebase mints a separate API key per registered platform app; pairing
+    // the Android key with the web appId below fails auth.
+    const val API_KEY = "AIzaSyBkj4QwHRnMjruW7BJniWijd4z5uGV1r8o"
     const val PROJECT_ID = "nobatyar-79c53"
     const val STORAGE_BUCKET = "nobatyar-79c53.firebasestorage.app"
     const val MESSAGING_SENDER_ID = "56921056578"
     const val AUTH_DOMAIN = "$PROJECT_ID.firebaseapp.com"
 
-    // TODO(human): fill in after registering a Web app for this Firebase
-    // project. Looks like "1:56921056578:web:xxxxxxxxxxxxxxxxxxxxxx".
-    const val WEB_APP_ID = "REPLACE_WITH_FIREBASE_WEB_APP_ID"
+    // Web app registered in the Firebase console for project nobatyar-79c53.
+    // Must stay in sync with the same field in firebase-messaging-sw.js — the
+    // service worker can't read Kotlin/wasm output, so the two are duplicated
+    // by hand. Out of sync means foreground push works and background push
+    // silently doesn't, which is a confusing way to fail.
+    const val WEB_APP_ID = "1:56921056578:web:29eb94274ea5d99e6a14db"
 
-    // TODO(human): fill in from console → Project settings → Cloud Messaging
-    // → Web configuration → Web Push certificates → Generate key pair.
-    const val FCM_WEB_VAPID_KEY = "REPLACE_WITH_FCM_WEB_VAPID_KEY"
+    // Web Push certificate (public key half) from console → Project settings
+    // → Cloud Messaging → Web configuration. Public by design: it ships in
+    // the client bundle, same as the API key above.
+    const val FCM_WEB_VAPID_KEY =
+        "BA0GUU6qC085fE1rJL_i05LSAzfvWa0R654q8TZvyfdP4U9xJdmWY23qB1LI1GWl9ZglAsMQfTEHkgqX03idtsM"
 
     private const val PLACEHOLDER_PREFIX = "REPLACE_WITH_"
 
