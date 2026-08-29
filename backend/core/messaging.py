@@ -27,7 +27,7 @@ docstring for why it is not folded into ``visitor.SmsLog``.
 
 import logging
 
-from core.models import AdminMessageLog
+from core.models import AdminMessageLog, MarketingPushLog
 
 logger = logging.getLogger(__name__)
 
@@ -103,4 +103,52 @@ def _send_sms(business, body, actor) -> AdminMessageLog:
         title='', body=body,
         status='SENT' if ok else 'FAILED',
         error_detail='' if ok else err,
+    )
+
+
+def send_marketing_push(filters, title: str, body: str, definition, exclude_opted_out=True, actor=None) -> MarketingPushLog:
+    """
+    Sends a promotional push to every visitor matching ``filters`` who has
+    granted notification permission (i.e. has an active VisitorDeviceToken).
+    Visitors without one are silently skipped — there is nothing to send to,
+    same as any other channel a recipient hasn't opted into.
+
+    ``{full_name}`` in ``title``/``body`` is replaced per-recipient — the one
+    supported personalization token here, same "not a template engine"
+    reasoning as ``_personalize`` above for business messages.
+
+    A synchronous loop, same as the reminder job and every other admin bulk
+    action in this codebase — acceptable for the segment sizes this admin
+    panel deals with today. A genuinely large campaign (tens of thousands of
+    recipients) would need this moved to a background task instead of a
+    request/response cycle; that is a real scaling note, not something this
+    function tries to solve.
+    """
+    from api.services import push
+    from core import segments
+    from visitor.models import VisitorDeviceToken
+
+    recipients = list(
+        segments.visitor_queryset(filters, exclude_opted_out=exclude_opted_out)
+        .filter(device_tokens__is_active=True)
+        .distinct()
+        .values_list('id', 'full_name')
+    )
+
+    delivered = 0
+    if push.is_configured():
+        for visitor_id, full_name in recipients:
+            personalized_title = (title or '').replace('{full_name}', full_name)
+            personalized_body = (body or '').replace('{full_name}', full_name)
+            try:
+                if push.send_to_visitor(visitor_id, title=personalized_title, body=personalized_body):
+                    delivered += 1
+            except Exception:
+                logger.exception('Marketing push to visitor %s failed', visitor_id)
+    elif recipients:
+        logger.warning('Marketing push skipped for %d recipients — FCM not configured', len(recipients))
+
+    return MarketingPushLog.objects.create(
+        definition=definition, title=title, body=body,
+        recipient_count=len(recipients), delivered_count=delivered, sent_by=actor,
     )

@@ -234,6 +234,28 @@
         </form>
       </div>
     {% endif %}
+
+    {% if can_notify %}
+      <div class="nb-section sg-save">
+        <h3>ارسال پوش تبلیغاتی</h3>
+        <p class="nb-note">فقط به مخاطبانی می‌رسد که اعلان دستگاه فعال ثبت کرده‌اند. {% verbatim %}{full_name}{% endverbatim %} در متن با نام هر مخاطب جایگزین می‌شود.</p>
+        <form method="post" action="{% url 'admin:core_segment_notify' %}">
+          {% csrf_token %}
+          {% for key, value in params.items %}
+            {% if key != 'kind' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}
+          {% endfor %}
+          <input type="hidden" name="exclude_opted_out" value="{{ exclude_opted_out|yesno:'1,0' }}">
+          <input type="hidden" name="return_qs" value="{{ query_for_export }}">
+          <label>عنوان
+            <input type="text" name="notify_title" maxlength="255">
+          </label>
+          <label>متن پوش
+            <textarea name="notify_body" rows="3" required></textarea>
+          </label>
+          <button type="submit" class="button">ارسال به {{ counts.included|default:'—' }} مخاطب</button>
+        </form>
+      </div>
+    {% endif %}
   {% endif %}
 
   <div class="nb-section">

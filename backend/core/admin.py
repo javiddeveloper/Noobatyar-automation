@@ -12,7 +12,7 @@ BusinessModerationLog registered *and* linked into a bespoke queue view.
 
 from django.contrib import admin
 
-from .models import AdminMessageLog, AudienceSegment, AudienceSegmentExport
+from .models import AdminMessageLog, AudienceSegment, AudienceSegmentExport, MarketingPushLog
 
 
 @admin.register(AudienceSegment)
@@ -80,3 +80,23 @@ class AdminMessageLogAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('business', 'sent_by')
+
+
+@admin.register(MarketingPushLog)
+class MarketingPushLogAdmin(admin.ModelAdmin):
+    """Read-only campaign audit — same reasoning as the other two logs above."""
+    list_display = ['sent_at', 'title', 'recipient_count', 'delivered_count', 'sent_by']
+    search_fields = ['title', 'body', 'sent_by__phone', 'sent_by__name']
+    readonly_fields = [f.name for f in MarketingPushLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('sent_by')
