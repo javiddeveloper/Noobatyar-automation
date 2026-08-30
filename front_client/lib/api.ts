@@ -242,6 +242,37 @@ export async function getBusinessById(id: number): Promise<Business> {
   return apiFetch<Business>(`/api/client/business/${id}/`);
 }
 
+/**
+ * Every business the public listing is willing to serve, walked page by page.
+ *
+ * Only sitemap.xml needs this. The API caps page_size at 100, so a crawl of the
+ * whole directory is a handful of requests, and `maxPages` stops it from
+ * turning into an unbounded loop if the server ever reports a total_pages it
+ * cannot actually deliver. Failures are swallowed per page rather than thrown:
+ * a sitemap that is short by one page is a far better outcome for a crawler
+ * than a 500, which Google treats as "this site has no sitemap".
+ */
+export async function listAllPublicBusinesses(maxPages = 50): Promise<Business[]> {
+  const out: Business[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages && page <= maxPages) {
+    try {
+      const data = await apiFetch<{
+        results: Business[];
+        total_pages: number;
+      }>(`/api/client/business/?page=${page}&page_size=100`);
+      out.push(...(data.results ?? []));
+      totalPages = data.total_pages ?? 1;
+    } catch {
+      break;
+    }
+    page += 1;
+  }
+  return out;
+}
+
 export async function listBusinesses(search = '', category = '', page = 1) {
   const params = new URLSearchParams({ page: String(page), page_size: '10' });
   if (search) params.set('search', search);
