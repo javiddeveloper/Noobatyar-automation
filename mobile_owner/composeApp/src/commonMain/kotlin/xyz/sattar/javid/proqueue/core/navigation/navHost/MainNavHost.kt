@@ -384,6 +384,9 @@ private fun MainNavGraph(
                 NotificationsScreen(
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPayment = { url ->
+                        navController.navigate(AppScreens.PaymentWebView(url))
                     }
                 )
             }

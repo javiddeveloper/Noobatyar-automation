@@ -35,14 +35,17 @@ import xyz.sattar.javid.proqueue.core.ui.components.AppButton
 import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.AppTextField
 import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
+import xyz.sattar.javid.proqueue.core.ui.components.FeatureGate
 import xyz.sattar.javid.proqueue.ui.theme.AppTheme
 import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKeys
 
 
 @Composable
 fun NotificationsScreen(
     viewModel: NotificationsViewModel = koinViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToPayment: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -62,7 +65,8 @@ fun NotificationsScreen(
         },
         onRequestPermission = {
             permissionLauncher.launch()
-        }
+        },
+        onOpenPaymentUrl = onNavigateToPayment
     )
 
     NotificationsScreenContent(
@@ -245,6 +249,23 @@ private fun NotificationsWebContent(
  */
 @Composable
 private fun EnableNotificationsCard(
+    uiState: NotificationsState,
+    onIntent: (NotificationsIntent) -> Unit
+) {
+    FeatureGate(
+        entitlements = uiState.entitlements,
+        plans = uiState.plans,
+        featureKey = EntitlementKeys.PUSH_NOTIFICATIONS,
+        title = stringResource(Res.string.enable_notifications),
+        description = "برای دریافت اعلان نوبت جدید و یادآوری روی گوشی یا مرورگر خودتان، پلن شما باید این ویژگی را پوشش دهد.",
+        onUpgrade = { planId -> onIntent(NotificationsIntent.UpgradePlan(planId)) }
+    ) {
+        EnableNotificationsCardContent(uiState, onIntent)
+    }
+}
+
+@Composable
+private fun EnableNotificationsCardContent(
     uiState: NotificationsState,
     onIntent: (NotificationsIntent) -> Unit
 ) {
@@ -519,7 +540,8 @@ fun HandleEffects(
     events: Flow<NotificationsEvent>,
     onNavigateBack: () -> Unit,
     showSnackbar: (String) -> Unit,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    onOpenPaymentUrl: (String) -> Unit = {}
 ) {
     val savedMessage = stringResource(Res.string.settings_saved)
     events.collectWithLifecycleAware { event ->
@@ -528,6 +550,7 @@ fun HandleEffects(
             NotificationsEvent.ShowSavedConfirmation -> showSnackbar(savedMessage)
             NotificationsEvent.RequestPermission -> onRequestPermission()
             is NotificationsEvent.ShowError -> showSnackbar(event.message)
+            is NotificationsEvent.OpenUrl -> onOpenPaymentUrl(event.url)
         }
     }
 }

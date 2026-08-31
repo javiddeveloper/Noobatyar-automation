@@ -1,6 +1,7 @@
 package xyz.sattar.javid.proqueue.feature.notifications
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import xyz.sattar.javid.proqueue.core.network.ApiException
 import xyz.sattar.javid.proqueue.core.network.ApiResponse
@@ -12,12 +13,16 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementKey
 import xyz.sattar.javid.proqueue.domain.BusinessRepository
 import xyz.sattar.javid.proqueue.domain.model.business.DEFAULT_REMINDER_MINUTES
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
+import xyz.sattar.javid.proqueue.domain.usecase.user.CreatePaymentUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetMyEntitlementsUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.user.GetPlansUseCase
 
 class NotificationsViewModel(
     private val notificationScheduler: NotificationScheduler,
     private val businessRepository: BusinessRepository,
-    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase
+    private val getMyEntitlementsUseCase: GetMyEntitlementsUseCase,
+    private val getPlansUseCase: GetPlansUseCase,
+    private val createPaymentUseCase: CreatePaymentUseCase
 ) :
     BaseViewModel<NotificationsState, NotificationsState.PartialState, NotificationsEvent, NotificationsIntent>(
         initialState = NotificationsState()
@@ -64,6 +69,7 @@ class NotificationsViewModel(
             }
 
             is NotificationsIntent.SaveSettings -> saveSettings()
+            is NotificationsIntent.UpgradePlan -> upgradePlan(intent.planId)
             is NotificationsIntent.PermissionResult -> flow {
                 emit(NotificationsState.PartialState.PermissionStatusChanged(intent.isGranted))
                 if (intent.isGranted) {
@@ -113,6 +119,12 @@ class NotificationsViewModel(
 
             is NotificationsState.PartialState.PanelAllowedChanged ->
                 currentState.copy(canUsePanelDelivery = partialState.allowed)
+
+            is NotificationsState.PartialState.EntitlementsLoaded ->
+                currentState.copy(entitlements = partialState.entitlements)
+
+            is NotificationsState.PartialState.PlansLoaded ->
+                currentState.copy(plans = partialState.plans)
         }
     }
 
@@ -138,6 +150,7 @@ class NotificationsViewModel(
                 emit(NotificationsState.PartialState.RemindClientChanged(business.enableReminderSms))
                 emit(NotificationsState.PartialState.DeliveryChanged(business.reminderDelivery))
                 emit(NotificationsState.PartialState.PanelAllowedChanged(loadPanelEntitlement()))
+                emitAll(loadPushFeatureGate())
             } else {
                 emit(NotificationsState.PartialState.Error("کسب و کاری انتخاب نشده است"))
             }
@@ -161,6 +174,41 @@ class NotificationsViewModel(
         }
     } catch (e: Exception) {
         false
+    }
+
+    /**
+     * Raw entitlements + plan list for [xyz.sattar.javid.proqueue.core.ui.components.FeatureGate]
+     * to lock the whole "فعال‌سازی اعلان‌ها" card behind push_notifications.
+     * Best-effort like loadPanelEntitlement — a failed call here leaves the
+     * card in its locked default (FeatureGate treats a null/missing
+     * entitlements as not-unlocked), never optimistically open.
+     */
+    private fun loadPushFeatureGate(): Flow<NotificationsState.PartialState> = flow {
+        try {
+            when (val response = getMyEntitlementsUseCase()) {
+                is ApiResponse.Success -> emit(NotificationsState.PartialState.EntitlementsLoaded(response.data))
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {
+        }
+        try {
+            when (val response = getPlansUseCase()) {
+                is ApiResponse.Success -> emit(NotificationsState.PartialState.PlansLoaded(response.data))
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun upgradePlan(planId: Int): Flow<NotificationsState.PartialState> = flow {
+        try {
+            when (val response = createPaymentUseCase(planId)) {
+                is ApiResponse.Success -> sendEvent(NotificationsEvent.OpenUrl(response.data.paymentUrl))
+                is ApiResponse.Error -> emit(NotificationsState.PartialState.Error(response.message))
+            }
+        } catch (e: Exception) {
+            emit(NotificationsState.PartialState.Error(e.message ?: "خطا در برقراری ارتباط"))
+        }
     }
 
     private fun saveSettings(): Flow<NotificationsState.PartialState> = flow {

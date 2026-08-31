@@ -1,6 +1,8 @@
 package xyz.sattar.javid.proqueue.feature.notifications
 
 import androidx.compose.runtime.Immutable
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.EntitlementsResponseDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.user.model.PlanDto
 import xyz.sattar.javid.proqueue.domain.model.business.DEFAULT_REMINDER_MINUTES
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 
@@ -19,7 +21,11 @@ data class NotificationsState(
      */
     val reminderDelivery: String = ReminderDelivery.MANUAL.value,
     /** False when the plan doesn't include `auto_reminder_sms`. */
-    val canUsePanelDelivery: Boolean = false
+    val canUsePanelDelivery: Boolean = false,
+    /** Raw entitlements/plans, passed straight into [xyz.sattar.javid.proqueue.core.ui.components.FeatureGate]
+     * to lock the whole card when the plan doesn't include `push_notifications`. */
+    val entitlements: EntitlementsResponseDto? = null,
+    val plans: List<PlanDto> = emptyList()
 ) {
     sealed class PartialState {
         data class IsLoading(val isLoading: Boolean) : PartialState()
@@ -30,6 +36,8 @@ data class NotificationsState(
         data class RemindClientChanged(val enabled: Boolean) : PartialState()
         data class DeliveryChanged(val delivery: String) : PartialState()
         data class PanelAllowedChanged(val allowed: Boolean) : PartialState()
+        data class EntitlementsLoaded(val entitlements: EntitlementsResponseDto) : PartialState()
+        data class PlansLoaded(val plans: List<PlanDto>) : PartialState()
     }
 }
 
@@ -41,6 +49,8 @@ sealed class NotificationsIntent {
     data class PermissionResult(val isGranted: Boolean) : NotificationsIntent()
     data class ToggleRemindClient(val enabled: Boolean) : NotificationsIntent()
     data class SetDelivery(val delivery: String) : NotificationsIntent()
+    /** "ارتقا به X" tapped on the locked push-notifications card. */
+    data class UpgradePlan(val planId: Int) : NotificationsIntent()
 }
 
 sealed class NotificationsEvent {
@@ -48,4 +58,5 @@ sealed class NotificationsEvent {
     object ShowSavedConfirmation : NotificationsEvent()
     object RequestPermission : NotificationsEvent()
     data class ShowError(val message: String) : NotificationsEvent()
+    data class OpenUrl(val url: String) : NotificationsEvent()
 }
