@@ -353,7 +353,7 @@ class VisitorMessageHistoryView(APIView):
         # of pulling the visitor's entire SMS history into memory.
         logs = (
             SmsLog.objects
-            .filter(visitor=visitor)
+            .filter(visitor=visitor, business__user=request.user)
             .select_related('business', 'visitor')
             .order_by('-sent_at')
         )
