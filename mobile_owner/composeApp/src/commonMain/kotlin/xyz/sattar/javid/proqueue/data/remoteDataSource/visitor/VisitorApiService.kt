@@ -60,11 +60,13 @@ class VisitorApiService(private val httpClient: HttpClient) {
 
     suspend fun getVisitorMessages(
         visitorId: Long,
+        businessId: Long,
         page: Int = 1,
         pageSize: Int = 20
     ): ApiResponse<PaginatedResponseDto<xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.model.MessageDto>> {
         return httpClient.get("visitor/$visitorId/messages/") {
             contentType(ContentType.Application.Json)
+            parameter("business_id", businessId)
             parameter("page", page)
             parameter("page_size", pageSize)
         }.toApiResponse()
