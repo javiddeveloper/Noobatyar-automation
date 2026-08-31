@@ -10,6 +10,41 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
+## v1.4.0 — 2026-09-01
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- اعلان پوش (نوتیفیکیشن) برای نوبت جدید، تأیید/رد نوبت، و یادآوری نوبت، هم توی اپ و هم توی وب — رایگان و بدون نیاز به پیامک.
+- پرداخت بیعانه از طریق درگاه زیبال حالا داخل خود اپ باز می‌شه (به‌جای مرورگر جدا)، هم اندروید هم iOS.
+- تب جدید «پوش» در گزارش پیامک‌ها برای دیدن اعلان‌های ارسال‌شده.
+- رفع باگ: ویرایش کسب‌وکار دیگه باعث آفلاین‌شدن موقتش نمی‌شه.
+- رفع باگ امنیتی: پیام‌های مشتری بین کسب‌وکارهای مختلف یک صاحب دیگه با هم قاطی نمی‌شن.
+- امکان تعیین کد یکتای دلخواه برای صفحه‌ی کسب‌وکار.
+<!-- fa:end -->
+
+### mobile_owner
+- Push tab in the SMS report screen showing delivery status of owner/customer push notifications (Phase 1.5).
+- App-wide notification permission prompt on first launch; warns when the saved reminder setting outruns the browser's actual permission state.
+- Push notifications (booking/confirm/reject/reminder) gated behind پرو/پرو پلاس plans, matching the existing SMS reminder gate.
+- In-app WebView for Zibal deposit payments on both Android and iOS, fixing a Referer-header issue the external browser flow had.
+- Notification channel now created at app startup rather than on first use, so Android 8+ never silently drops the very first push.
+
+### backend
+- End-to-end FCM push system: booking/confirm/reject/reminder push to owners and customers, an owner-facing push-log report endpoint, admin-to-owner messaging (push and/or SMS), and promotional push to customer segments.
+- Reminder delivery status (SMS + push) now exposed on the visitor's own appointment records.
+- Fixed a data-isolation bug where an owner running multiple businesses saw one business's customer messages mixed into another's.
+- Fixed a bug where editing an approved business could return it to moderation review and take it offline mid-edit.
+- Accounting plan ladder pricing/quotas reworked; businesses can now be given a custom `unique_code` from the admin.
+- Bale bot support for reviewing and deciding on the content-moderation queue directly from Telegram/Bale.
+
+### front_client
+- Redesigned client web UI: Material icons throughout (replacing emoji), animated hero/banner, per-field validation with Persian-digit normalization, 4-digit-grouped card number with Luhn checksum warning, receipt upload with crop + client-side compression, and an animated booking-confirmation screen.
+- Home page now shows the customer's own upcoming appointments instead of a static promo screen.
+- FCM web push for appointment reminders; the app is now an installable PWA.
+- Business pages made discoverable/indexable for SEO; booking button shows a loading spinner while navigating to checkout.
+
+Full commit range: [`v1.3.0...v1.4.0`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.3.0...v1.4.0)
+
 ## v1.3.0 — 2026-08-11
 
 <!-- fa:start -->
