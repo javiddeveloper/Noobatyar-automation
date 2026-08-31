@@ -550,9 +550,11 @@ def _fire_cancellation_sms(appointment):
         kwargs=dict(
             client_phone=None,     # the client initiated this; no confirmation SMS
             client_msg=None,
+            client_push_body=None,
             owner_msg=owner_msg,
             business_id=appointment.business_id,
             visitor_id=appointment.visitor_id,
+            appointment_id=appointment.id,
         ),
         daemon=True,
         name=f"cancel-sms-{appointment.id}",
@@ -580,6 +582,9 @@ def _fire_booking_sms(appointment, client_phone):
         f"مشتری: {appointment.visitor.full_name}\n"
         f"تاریخ: {time_str}"
     )
+    # Same wording as client_msg, minus signed()'s SMS-only regulatory footer
+    # (لغو11 etc.) — that text belongs on an SMS, not a push notification.
+    client_push_body = f"نوبت شما در {appointment.business.title} ثبت شد — تاریخ: {time_str} — در انتظار تایید کسب‌وکار"
 
     # Fire-and-forget on a daemon thread so it is independent of the request's
     # event loop (an asyncio task tied to the request loop can be dropped once
@@ -589,9 +594,11 @@ def _fire_booking_sms(appointment, client_phone):
         kwargs=dict(
             client_phone=client_phone,
             client_msg=client_msg,
+            client_push_body=client_push_body,
             owner_msg=owner_msg,
             business_id=appointment.business_id,
             visitor_id=appointment.visitor_id,
+            appointment_id=appointment.id,
         ),
         daemon=True,
         name=f"booking-sms-{appointment.id}",
@@ -623,22 +630,25 @@ def _fire_deposit_paid_sms(appointment):
         f"مشتری: {appointment.visitor.full_name}\n"
         f"تاریخ: {time_str}"
     )
+    client_push_body = f"نوبت شما در {appointment.business.title} قطعی شد — تاریخ: {time_str} — بیعانه پرداخت شد"
 
     threading.Thread(
         target=_send_booking_sms,
         kwargs=dict(
             client_phone=appointment.visitor.phone_number,
             client_msg=client_msg,
+            client_push_body=client_push_body,
             owner_msg=owner_msg,
             business_id=appointment.business_id,
             visitor_id=appointment.visitor_id,
+            appointment_id=appointment.id,
         ),
         daemon=True,
         name=f"deposit-sms-{appointment.id}",
     ).start()
 
 
-def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_id):
+def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_id, appointment_id=None, client_push_body=None):
     """
     Background daemon-thread target: sends SMS to client and business owner via
     Melipayamak and logs the client SMS result in SmsLog.
@@ -697,6 +707,24 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
                 logger.info(f"SMS→client {client_phone}: {'✓' if client_ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
+
+    # Push to the client — free, plan-gated (see push.send_visitor_appointment_push),
+    # sent alongside the SMS above rather than instead of it. client_push_body is
+    # None for the same cases client_msg is (self-cancellation): nothing to tell
+    # the client about their own action.
+    try:
+        if visitor_id and client_push_body:
+            from api.services import push
+
+            push.send_visitor_appointment_push(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                appointment_id=appointment_id,
+                title="نوبت‌یار",
+                body=client_push_body,
+            )
+    except Exception as e:
+        logger.error(f"Push→client error: {e}")
 
     # Push to the owner's app — free, so it goes out regardless of the SMS
     # switch below. This is the channel notify_owner_by_sms was defaulted off in

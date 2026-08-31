@@ -266,3 +266,49 @@ def send_to_visitor(visitor_id: int, title: str, body: str, data: dict | None = 
         logger.info('Deactivated %d dead FCM token(s) for visitor %s', len(dead), visitor_id)
 
     return delivered
+
+
+def send_visitor_appointment_push(business_id, visitor_id, appointment_id, title, body):
+    """
+    Push to a visitor for an appointment-lifecycle event — booked, confirmed,
+    or rejected by the owner (see appointment/client_views.py's
+    _fire_booking_sms/_fire_deposit_paid_sms and appointment/views/views.py's
+    _notify_client_of_decision, the SMS-only functions this complements).
+
+    Gated by the SAME entitlement as the reminder push
+    (accounting.entitlements.FEATURE_AUTO_REMINDER_SMS — پرو/پرو پلاس and
+    up), and logged to visitor.models.PushLog exactly like the reminder push
+    is (send_appointment_reminders._push_visitor).
+
+    Silently does nothing — no PushLog row — when the business isn't
+    entitled or FCM isn't configured: neither is an error, there is just
+    nothing to send, same reasoning _push_owner already uses for "not
+    configured".
+    """
+    from accounting.entitlements import FEATURE_AUTO_REMINDER_SMS, has_feature
+    from business.models import Business
+    from visitor.models import PushLog
+
+    if not is_configured():
+        return
+
+    try:
+        owner_id = Business.objects.values_list('user_id', flat=True).get(id=business_id)
+    except Business.DoesNotExist:
+        return
+    if not has_feature(owner_id, FEATURE_AUTO_REMINDER_SMS):
+        return
+
+    try:
+        delivered = send_to_visitor(visitor_id, title=title, body=body)
+        PushLog.objects.create(
+            business_id=business_id, visitor_id=visitor_id, appointment_id=appointment_id,
+            title=title, body=body,
+            status='SENT' if delivered else 'FAILED',
+            error_detail='' if delivered else 'دستگاه فعالی برای این مراجع ثبت نشده است',
+        )
+    except Exception:
+        logger.exception(
+            'Visitor appointment push failed (business=%s visitor=%s appointment=%s)',
+            business_id, visitor_id, appointment_id,
+        )
