@@ -3,10 +3,22 @@ import './globals.css';
 import ThemeToggle from './components/ThemeToggle';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 import PushPermissionPrompt from './components/PushPermissionPrompt';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  // Without metadataBase, every relative URL a page puts in `alternates` or
+  // `openGraph` is emitted relative to whatever host rendered it, and Next
+  // warns at build time. Crawlers and chat previews need absolute ones.
+  metadataBase: new URL(SITE_URL),
   title: 'نوبت‌یار | رزرو آنلاین نوبت',
   description: 'سیستم نوبت‌دهی آنلاین نوبت‌یار — از هر کجا، هر زمان نوبت بگیرید',
+  openGraph: {
+    title: 'نوبت‌یار | رزرو آنلاین نوبت',
+    description: 'سیستم نوبت‌دهی آنلاین نوبت‌یار — از هر کجا، هر زمان نوبت بگیرید',
+    siteName: 'نوبت‌یار',
+    locale: 'fa_IR',
+    type: 'website',
+  },
 };
 
 // Icons and the web manifest are wired up by file convention, not from here:

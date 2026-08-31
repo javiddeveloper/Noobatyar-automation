@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
@@ -24,7 +26,34 @@ class Business(models.Model):
     )
     title = models.CharField(max_length=255)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='OTHER', help_text="Business category")
-    unique_code = models.CharField(max_length=8, unique=True, db_index=True, blank=True, help_text="Unique 8-character code")
+    # The public identifier: /b/Noobatyar-<unique_code> resolves to this row.
+    # Left blank it is generated as CODE_LENGTH random characters, but the field
+    # is deliberately writable from the admin so a business can be given a
+    # vanity code. max_length is only the ceiling for those hand-written codes —
+    # the generator always produces CODE_LENGTH characters, so every business
+    # that already exists keeps the 8-character code it was created with.
+    # Charset is restricted to what is safe in a URL path segment; every code
+    # generated so far is a strict subset of it, so no existing row is affected.
+    CODE_LENGTH = 8
+    CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    CODE_MAX_LENGTH = 64
+
+    unique_code = models.CharField(
+        max_length=CODE_MAX_LENGTH,
+        unique=True,
+        db_index=True,
+        blank=True,
+        validators=[RegexValidator(
+            regex=r'^[A-Za-z0-9_-]+$',
+            message='کد فقط می‌تواند شامل حروف انگلیسی، رقم، خط تیره (-) و زیرخط (_) باشد.',
+        )],
+        help_text=(
+            'کد یکتای عمومی کسب‌وکار؛ همان چیزی که در آدرس صفحهٔ رزرو می‌آید '
+            '(‏/b/Noobatyar-<کد>). اگر خالی بماند یک کد ۸ کاراکتری خودکار ساخته '
+            'می‌شود. برای کد دلخواه تا ۶۴ کاراکتر مجاز است. توجه: تغییر کد، '
+            'لینک‌های قبلیِ همین کسب‌وکار را از کار می‌اندازد.'
+        ),
+    )
     phone = models.CharField(max_length=20)
     address = models.TextField()
     bio = models.CharField(max_length=50, blank=True, null=True)
@@ -348,12 +377,40 @@ class Business(models.Model):
             | Q(moderation_status=Business.MODERATION_PENDING, first_approved_at__isnull=False)
         )
 
+    def clean(self):
+        """Validate a hand-written `unique_code` before it can reach the table.
+
+        `unique=True` is case-sensitive in PostgreSQL, but the public lookup is
+        not (client_views searches `unique_code__iexact`), so "SalonA" and
+        "salona" would both answer to the same URL. Reject that collision here
+        rather than letting the admin create a pair that can never be told
+        apart. Runs on the admin form (full_clean); the auto-generated path in
+        save() does the same check against the same casing rule.
+        """
+        super().clean()
+        code = (self.unique_code or '').strip()
+        self.unique_code = code
+        if not code:
+            # Blank is legal — save() fills it in.
+            return
+        clash = Business.objects.filter(unique_code__iexact=code)
+        if self.pk:
+            clash = clash.exclude(pk=self.pk)
+        if clash.exists():
+            raise ValidationError({
+                'unique_code': 'کسب‌وکار دیگری با همین کد (بدون در نظر گرفتن بزرگی و کوچکی حروف) وجود دارد.',
+            })
+
     def save(self, *args, **kwargs):
         if not self.unique_code:
-            # Generate a random 8-character code consisting of uppercase letters and digits
+            # Generate a random CODE_LENGTH-character code of uppercase letters
+            # and digits. Compared case-insensitively so a generated code can
+            # never shadow a custom one that differs only in case.
             while True:
-                code = get_random_string(length=8, allowed_chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
-                if not Business.objects.filter(unique_code=code).exists():
+                code = get_random_string(
+                    length=self.CODE_LENGTH, allowed_chars=self.CODE_ALPHABET,
+                )
+                if not Business.objects.filter(unique_code__iexact=code).exists():
                     self.unique_code = code
                     break
         super().save(*args, **kwargs)

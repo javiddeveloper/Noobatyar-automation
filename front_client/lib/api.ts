@@ -227,8 +227,14 @@ export async function getBusinessByCode(code: string): Promise<Business> {
   const data = await apiFetch<{
     results: Business[];
     count: number;
-  }>(`/api/client/business/?search=${code}`);
-  const biz = data.results?.find((b) => b.unique_code === code);
+  }>(`/api/client/business/?search=${encodeURIComponent(code)}`);
+  // Matched case-insensitively, like the server-side `unique_code__iexact`
+  // lookup that produced these results: codes can be set by hand in the admin
+  // and may contain lowercase letters, so a URL typed in another casing must
+  // still land on the business the API already found.
+  const biz = data.results?.find(
+    (b) => b.unique_code.toLowerCase() === code.toLowerCase()
+  );
   // The public listing only contains businesses the API is willing to serve, so
   // "absent from the results" is the same condition as a 404 on the detail
   // endpoint — report it as one, so callers get the not-available screen rather
@@ -239,6 +245,37 @@ export async function getBusinessByCode(code: string): Promise<Business> {
 
 export async function getBusinessById(id: number): Promise<Business> {
   return apiFetch<Business>(`/api/client/business/${id}/`);
+}
+
+/**
+ * Every business the public listing is willing to serve, walked page by page.
+ *
+ * Only sitemap.xml needs this. The API caps page_size at 100, so a crawl of the
+ * whole directory is a handful of requests, and `maxPages` stops it from
+ * turning into an unbounded loop if the server ever reports a total_pages it
+ * cannot actually deliver. Failures are swallowed per page rather than thrown:
+ * a sitemap that is short by one page is a far better outcome for a crawler
+ * than a 500, which Google treats as "this site has no sitemap".
+ */
+export async function listAllPublicBusinesses(maxPages = 50): Promise<Business[]> {
+  const out: Business[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages && page <= maxPages) {
+    try {
+      const data = await apiFetch<{
+        results: Business[];
+        total_pages: number;
+      }>(`/api/client/business/?page=${page}&page_size=100`);
+      out.push(...(data.results ?? []));
+      totalPages = data.total_pages ?? 1;
+    } catch {
+      break;
+    }
+    page += 1;
+  }
+  return out;
 }
 
 export async function listBusinesses(search = '', category = '', page = 1) {
