@@ -293,6 +293,9 @@ fun MainNavHost(
                 NotificationsScreen(
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPayment = { url ->
+                        navController.navigate(AppScreens.PaymentWebView(url))
                     }
                 )
             }

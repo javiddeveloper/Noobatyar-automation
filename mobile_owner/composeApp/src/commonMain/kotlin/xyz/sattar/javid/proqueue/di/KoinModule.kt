@@ -206,7 +206,7 @@ val appModule: Module = module {
     viewModel { VisitorSelectionViewModel(get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { VersionViewModel(get()) }
-    viewModel { NotificationsViewModel(get(), get(), get()) }
+    viewModel { NotificationsViewModel(get(), get(), get(), get(), get()) }
     viewModel { BusinessListViewModel(get(), get(), get()) }
     viewModel { VisitorDetailsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { MessagesViewModel(get(), get(), get()) }

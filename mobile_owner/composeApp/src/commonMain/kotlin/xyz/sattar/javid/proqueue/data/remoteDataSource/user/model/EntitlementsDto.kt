@@ -78,6 +78,8 @@ object EntitlementKeys {
     const val AUTO_REMINDER_SMS = "auto_reminder_sms"
     const val BRANDED_PAGE = "branded_page"
     const val PRIORITY_SUPPORT = "priority_support"
+    /** Gates whether the owner's device receives any push at all (new booking, reminder). */
+    const val PUSH_NOTIFICATIONS = "push_notifications"
 
     const val MAX_BUSINESSES = "max_businesses"
     const val MONTHLY_APPOINTMENTS = "monthly_appointments"
