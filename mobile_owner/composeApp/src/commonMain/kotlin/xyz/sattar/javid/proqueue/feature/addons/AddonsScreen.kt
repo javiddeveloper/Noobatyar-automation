@@ -20,7 +20,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
@@ -41,11 +40,11 @@ import xyz.sattar.javid.proqueue.core.ui.components.ToastyHost
 @Composable
 fun AddonsScreen(
     viewModel: AddonsViewModel = koinViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToPayment: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(Unit) {
         viewModel.sendIntent(AddonsIntent.Load)
@@ -53,7 +52,7 @@ fun AddonsScreen(
 
     viewModel.events.collectWithLifecycleAware { event ->
         when (event) {
-            is AddonsEvent.OpenUrl -> uriHandler.openUri(event.url)
+            is AddonsEvent.OpenUrl -> onNavigateToPayment(event.url)
         }
     }
 

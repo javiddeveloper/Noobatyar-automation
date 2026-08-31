@@ -114,6 +114,7 @@ fun CreateBusinessRoute(
     businessId: Long? = null,
     onContinue: () -> Unit,
     onNavigateBack: () -> Unit = {},
+    onNavigateToPayment: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -195,7 +196,8 @@ fun CreateBusinessRoute(
     HandleEvents(
         events = viewModel.events,
         onContinue = onContinue,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        onOpenPaymentUrl = onNavigateToPayment
     )
 
     CreateBusinessScreen(
@@ -1751,10 +1753,10 @@ private fun NotifyOwnerBySmsToggle(
 fun HandleEvents(
     events: Flow<CreateBusinessEvent>,
     onContinue: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOpenPaymentUrl: (String) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
-    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     events.collectWithLifecycleAware {
         when (it) {
             CreateBusinessEvent.NavigateToBusiness -> {
@@ -1766,7 +1768,7 @@ fun HandleEvents(
             }
 
             is CreateBusinessEvent.OpenUrl -> {
-                uriHandler.openUri(it.url)
+                onOpenPaymentUrl(it.url)
             }
         }
     }
