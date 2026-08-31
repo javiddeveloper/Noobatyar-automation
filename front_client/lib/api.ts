@@ -66,6 +66,11 @@ export interface Appointment {
   status: string;
   queue_position: number;
   estimated_turn_time: number | null;
+  /** Whether this appointment's reminder was actually delivered on each
+   *  channel — independent booleans, since a business can have one, both,
+   *  or neither enabled (see backend/appointment/client_serializers.py). */
+  reminder_sms_sent: boolean;
+  reminder_push_sent: boolean;
 }
 
 /** Thrown when the API rejects the stored token (HTTP 401). */
@@ -331,6 +336,15 @@ export interface ActivityEntry {
 export async function getMe(token: string): Promise<Visitor> {
   return apiFetch<Visitor>('/api/client/auth/me/', {
     headers: { Authorization: `Visitor ${token}` },
+  });
+}
+
+/** Register (or refresh) this browser's FCM token against the signed-in visitor. */
+export async function registerDeviceToken(deviceToken: string, visitorToken: string): Promise<void> {
+  await apiFetch('/api/client/auth/devices/register/', {
+    method: 'POST',
+    headers: { Authorization: `Visitor ${visitorToken}` },
+    body: JSON.stringify({ token: deviceToken }),
   });
 }
 

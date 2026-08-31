@@ -29,6 +29,8 @@ import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentByIdUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetAppointmentsForDateUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayAppointmentsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetServiceCatalogUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetPushLogSummaryUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetPushLogsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogSummaryUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetTodayStatsUseCase
@@ -44,6 +46,9 @@ import xyz.sattar.javid.proqueue.domain.usecase.VisitorUpsertUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.CheckVersionUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.ClearTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.GetUserProfileUseCase
+import xyz.sattar.javid.proqueue.data.remoteDataSource.device.DeviceApiService
+import xyz.sattar.javid.proqueue.domain.usecase.push.SyncPushTokenUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.push.UnregisterPushTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.HasTokenUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.LoginUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.user.RegisterUseCase
@@ -85,6 +90,7 @@ val appModule: Module = module {
     // --- Network ---
     single<HttpClient> { HttpClientFactory.create() }
     single { UserApiService(get()) }
+    single { DeviceApiService(get()) }
     single { xyz.sattar.javid.proqueue.data.remoteDataSource.business.BusinessApiService(get()) }
     single { xyz.sattar.javid.proqueue.data.remoteDataSource.visitor.VisitorApiService(get()) }
     single { xyz.sattar.javid.proqueue.data.remoteDataSource.appointment.AppointmentApiService(get()) }
@@ -109,6 +115,8 @@ val appModule: Module = module {
     factory { UserLogoutUseCase(get()) }
     factory { HasTokenUseCase() }
     factory { ClearTokenUseCase() }
+    factory { SyncPushTokenUseCase(get()) }
+    factory { UnregisterPushTokenUseCase(get()) }
     factory { CheckVersionUseCase(get()) }
     factory { GetUserProfileUseCase(get()) }
     factory { SendOTPUseCase(get()) }
@@ -129,6 +137,8 @@ val appModule: Module = module {
     factory { BusinessUpsertUseCase(get()) }
     factory { GetSmsLogsUseCase(get()) }
     factory { GetSmsLogSummaryUseCase(get()) }
+    factory { GetPushLogsUseCase(get()) }
+    factory { GetPushLogSummaryUseCase(get()) }
     factory { GetServiceCatalogUseCase(get()) }
     factory { AddServiceCatalogItemUseCase(get()) }
 
@@ -196,15 +206,15 @@ val appModule: Module = module {
     viewModel { VisitorSelectionViewModel(get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { VersionViewModel(get()) }
-    viewModel { NotificationsViewModel(get(), get()) }
+    viewModel { NotificationsViewModel(get(), get(), get(), get(), get()) }
     viewModel { BusinessListViewModel(get(), get(), get()) }
     viewModel { VisitorDetailsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { MessagesViewModel(get(), get(), get()) }
-    viewModel { SmsReportViewModel(get(), get()) }
+    viewModel { SmsReportViewModel(get(), get(), get(), get()) }
     viewModel { CalendarViewModel(get(), get()) }
     viewModel { RegisterViewModel(get()) }
     viewModel { SendOTPViewModel(get(), get()) }
     viewModel { ResetPasswordViewModel(get()) }
     viewModel { LoginViewModel(get()) }
-    viewModel { UserViewModel(get(), get(), get(), get()) }
+    viewModel { UserViewModel(get(), get(), get(), get(), get()) }
 }

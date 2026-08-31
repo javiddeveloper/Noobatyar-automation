@@ -1,11 +1,9 @@
 package xyz.sattar.javid.proqueue.core.notifications
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -39,18 +37,10 @@ class ReminderReceiver : BroadcastReceiver() {
     ) {
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "appointment_reminders"
+        val channelId = NotificationChannels.APPOINTMENT_REMINDERS
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Appointment Reminders",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Reminders for upcoming appointments"
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
+        // Belt and braces — ProQueueApp already created it at startup.
+        NotificationChannels.ensureCreated(context)
         
         // Create PendingIntent for notification click
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {

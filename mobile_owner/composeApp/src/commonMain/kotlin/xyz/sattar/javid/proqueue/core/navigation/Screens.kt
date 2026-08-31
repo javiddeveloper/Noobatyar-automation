@@ -98,6 +98,13 @@ sealed class AppScreens {
     object AboutUs : AppScreens()
     @Serializable
     object AddOns : AppScreens()
+    /**
+     * In-app payment gateway view — replaces bouncing out to the external
+     * browser (see [xyz.sattar.javid.proqueue.core.payment.PaymentWebViewScreen]).
+     * [url] is the Zibal `payment_url` returned by the backend.
+     */
+    @Serializable
+    data class PaymentWebView(val url: String) : AppScreens()
 }
 
 

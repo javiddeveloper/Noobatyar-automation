@@ -41,7 +41,9 @@ internal const val dbFileName = "proQueue.db"
     // 14: merge of the two branches above — no schema change of its own,
     //     just the next version number since 10/11 and 13 were assigned
     //     independently on two branches and can't both be "the" version 10/11.
-    version = 14
+    // 15: BusinessEntity.enableReminderSms — the owner app can now switch the
+    //     client's reminder on and off instead of it being backend-only.
+    version = 15
 )
 @ConstructedBy(DbFactory::class)
 abstract class AppDatabase : RoomDatabase() {

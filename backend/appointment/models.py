@@ -139,6 +139,32 @@ class Appointment(models.Model):
         help_text="When the pre-appointment reminder SMS was sent (null = not yet)"
     )
 
+    reminder_push_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "When the owner's push reminder was sent (null = not yet). Separate "
+            "from reminder_sent_at because the two travel on different channels "
+            "to different people: the client's SMS only goes out for PANEL "
+            "businesses and costs quota, while the owner's push is free and goes "
+            "out for every business with notifications on. One shared stamp "
+            "would make a sent SMS suppress the push, and vice versa."
+        )
+    )
+
+    reminder_visitor_push_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "When the client's push reminder was sent (null = not yet). A "
+            "third, independent stamp alongside reminder_sent_at (client SMS) "
+            "and reminder_push_sent_at (owner's push) — same reasoning: one "
+            "shared stamp would make one channel silently suppress another."
+        )
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

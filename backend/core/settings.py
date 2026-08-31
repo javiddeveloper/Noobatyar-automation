@@ -272,3 +272,27 @@ OTP_DEV_CODE = os.getenv('OTP_DEV_CODE', '') if DEBUG else ''
 # every sender (booking, approval/rejection, reminders, subscription lifecycle).
 # Forced off whenever DEBUG is off.
 SMS_DEV_MODE = (os.getenv('SMS_DEV_MODE', 'False') == 'True') if DEBUG else False
+
+# ── Push notifications (Firebase Cloud Messaging, HTTP v1) ───────────────────
+# The owner app learns about new bookings and upcoming appointments through FCM.
+# Authentication is a *service account*, not a server key: Google retired legacy
+# server keys, so `/fcm/send` no longer exists.
+#
+#   FCM_CREDENTIALS_FILE  absolute path to the service-account JSON from
+#                         Firebase console → Project settings → Service accounts
+#   FCM_PROJECT_ID        optional; read out of that JSON when left empty
+#
+# Left unset, api/services/push.py logs and returns False instead of raising —
+# push is a convenience channel next to the SMS that carries the real message,
+# so a missing key must never break a reminder run.
+FCM_CREDENTIALS_FILE = os.getenv('FCM_CREDENTIALS_FILE', '')
+FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID', '')
+# Must match the channel the Android app creates, or Android 8+ silently drops
+# every notification (see ProQueueApp / PushMessagingService in mobile_owner).
+FCM_ANDROID_CHANNEL_ID = os.getenv('FCM_ANDROID_CHANNEL_ID', 'appointment_reminders')
+# Where a browser sends the owner when they click a web-panel push notification
+# (FCM's webpush.fcm_options.link). The owner web panel (docs/OWNER_WEB_PLAN.md,
+# phase 2.5) has no fixed domain yet — section ۱۴ of that doc lists it as an open
+# question between panel.noobatyar.ir and app.noobatyar.ir/owner — so this is a
+# provisional default, safe to override without a code change once it is decided.
+FCM_WEBPUSH_CLICK_URL = os.getenv('FCM_WEBPUSH_CLICK_URL', 'https://panel.noobatyar.ir/')

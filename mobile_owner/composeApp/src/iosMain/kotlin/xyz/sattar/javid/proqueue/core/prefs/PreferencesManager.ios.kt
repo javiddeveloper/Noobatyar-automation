@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import platform.Foundation.*
 
 import xyz.sattar.javid.proqueue.core.state.AppThemeMode
+import xyz.sattar.javid.proqueue.domain.model.business.DEFAULT_REMINDER_MINUTES
 
 actual object PreferencesManager {
     private val defaults = NSUserDefaults.standardUserDefaults
@@ -30,7 +31,7 @@ actual object PreferencesManager {
     private val _notificationReminderMinutes = MutableStateFlow(
         if (defaults.objectForKey(KEY_NOTIFICATION_REMINDER_MINUTES) != null) 
             defaults.integerForKey(KEY_NOTIFICATION_REMINDER_MINUTES).toInt() 
-        else 10
+        else DEFAULT_REMINDER_MINUTES
     )
 
     actual val themeMode: Flow<AppThemeMode> = _themeMode
@@ -86,6 +87,6 @@ actual object PreferencesManager {
 
     actual fun getNotificationReminderMinutes(): Int {
         val value = defaults.integerForKey(KEY_NOTIFICATION_REMINDER_MINUTES)
-        return if (value == 0L) 20 else value.toInt()
+        return if (value == 0L) DEFAULT_REMINDER_MINUTES else value.toInt()
     }
 }

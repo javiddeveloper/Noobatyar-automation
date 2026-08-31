@@ -246,6 +246,27 @@ export default function AppointmentsPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{formatDate(appt.appointment_date)}</div>
               </div>
 
+              {(appt.reminder_sms_sent || appt.reminder_push_sent) && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                  {appt.reminder_push_sent && (
+                    <span style={{
+                      background: 'var(--color-primary-tint)', color: 'var(--color-primary-dark)',
+                      padding: '3px 8px', borderRadius: 8, fontSize: 10, fontWeight: 600,
+                    }}>
+                      🔔 اعلان یادآوری ارسال شد
+                    </span>
+                  )}
+                  {appt.reminder_sms_sent && (
+                    <span style={{
+                      background: 'var(--color-primary-tint)', color: 'var(--color-primary-dark)',
+                      padding: '3px 8px', borderRadius: 8, fontSize: 10, fontWeight: 600,
+                    }}>
+                      💬 پیامک یادآوری ارسال شد
+                    </span>
+                  )}
+                </div>
+              )}
+
               {(appt.status === 'WAITING' || appt.status === 'CONFIRMED') && (
                 <div style={{ marginTop: 12, textAlign: 'center' }}>
                   <Countdown target={appt.appointment_date} />

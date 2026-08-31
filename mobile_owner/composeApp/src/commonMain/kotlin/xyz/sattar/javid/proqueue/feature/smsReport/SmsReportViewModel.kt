@@ -11,16 +11,21 @@ import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.state.BusinessStateHolder
 import xyz.sattar.javid.proqueue.core.ui.BaseViewModel
 import xyz.sattar.javid.proqueue.core.utils.DateTimeUtils
+import xyz.sattar.javid.proqueue.domain.usecase.GetPushLogSummaryUseCase
+import xyz.sattar.javid.proqueue.domain.usecase.GetPushLogsUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogSummaryUseCase
 import xyz.sattar.javid.proqueue.domain.usecase.GetSmsLogsUseCase
 
 /**
- * The server-side SMS ledger for the selected business: what was sent, what
- * failed, and how much of this month's quota is left.
+ * The server-side reminder-delivery ledger for the selected business: SMS
+ * and push, what was sent, what failed, and (SMS only) how much of this
+ * month's quota is left. Two tabs, one screen — see [ReportChannel].
  */
 class SmsReportViewModel(
     private val getSmsLogsUseCase: GetSmsLogsUseCase,
-    private val getSmsLogSummaryUseCase: GetSmsLogSummaryUseCase
+    private val getSmsLogSummaryUseCase: GetSmsLogSummaryUseCase,
+    private val getPushLogsUseCase: GetPushLogsUseCase,
+    private val getPushLogSummaryUseCase: GetPushLogSummaryUseCase
 ) : BaseViewModel<SmsReportState, SmsReportState.PartialState, Unit, SmsReportIntent>(
     initialState = SmsReportState()
 ) {
@@ -34,7 +39,18 @@ class SmsReportViewModel(
             is SmsReportIntent.SetStatusFilter -> setStatusFilter(intent.status)
             is SmsReportIntent.SetSearchQuery -> setSearchQuery(intent.query)
             is SmsReportIntent.SetDateRangeFilter -> setDateRangeFilter(intent.range)
+            is SmsReportIntent.SelectChannel -> selectChannel(intent.channel)
         }
+    }
+
+    private fun selectChannel(channel: ReportChannel): Flow<SmsReportState.PartialState> = flow {
+        if (uiState.value.channel == channel) return@flow
+        emit(SmsReportState.PartialState.SetChannel(channel))
+        val alreadyLoaded = when (channel) {
+            ReportChannel.SMS -> uiState.value.logs.isNotEmpty()
+            ReportChannel.PUSH -> uiState.value.pushLogs.isNotEmpty()
+        }
+        if (!alreadyLoaded) emitAll(load(reset = true))
     }
 
     private fun setStatusFilter(status: String?): Flow<SmsReportState.PartialState> = flow {
@@ -45,13 +61,13 @@ class SmsReportViewModel(
         // flatMapMerge gives no guarantee that write has landed in uiState by
         // the time loadLogs below reads it back — so the new status is passed
         // through explicitly instead of being re-read from state.
-        emitAll(loadLogs(reset = true, status = status))
+        emitAll(loadForChannel(uiState.value.channel, reset = true, status = status))
     }
 
     private fun setDateRangeFilter(range: SmsReportDateRange): Flow<SmsReportState.PartialState> = flow {
         if (uiState.value.dateRangeFilter == range) return@flow
         emit(SmsReportState.PartialState.SetDateRangeFilter(range))
-        emitAll(loadLogs(reset = true, status = uiState.value.statusFilter, dateRange = range))
+        emitAll(loadForChannel(uiState.value.channel, reset = true, status = uiState.value.statusFilter, dateRange = range))
     }
 
     /**
@@ -68,12 +84,26 @@ class SmsReportViewModel(
         }
     }
 
-    private fun load(reset: Boolean): Flow<SmsReportState.PartialState> = flow {
-        if (reset) emitAll(loadSummary())
-        emitAll(loadLogs(reset, status = uiState.value.statusFilter))
+    private fun load(reset: Boolean): Flow<SmsReportState.PartialState> =
+        loadForChannel(uiState.value.channel, reset, status = uiState.value.statusFilter)
+
+    private fun loadForChannel(
+        channel: ReportChannel,
+        reset: Boolean,
+        status: String?,
+        dateRange: SmsReportDateRange = uiState.value.dateRangeFilter
+    ): Flow<SmsReportState.PartialState> = when (channel) {
+        ReportChannel.SMS -> flow {
+            if (reset) emitAll(loadSmsSummary())
+            emitAll(loadSmsLogs(reset, status, dateRange))
+        }
+        ReportChannel.PUSH -> flow {
+            if (reset) emitAll(loadPushSummary())
+            emitAll(loadPushLogs(reset, status, dateRange))
+        }
     }
 
-    private fun loadSummary(): Flow<SmsReportState.PartialState> = flow {
+    private fun loadSmsSummary(): Flow<SmsReportState.PartialState> = flow {
         val businessId = BusinessStateHolder.selectedBusiness.value?.id ?: return@flow
         try {
             when (val response = getSmsLogSummaryUseCase(businessId)) {
@@ -86,10 +116,21 @@ class SmsReportViewModel(
         }
     }
 
-    private fun loadLogs(
+    private fun loadPushSummary(): Flow<SmsReportState.PartialState> = flow {
+        val businessId = BusinessStateHolder.selectedBusiness.value?.id ?: return@flow
+        try {
+            when (val response = getPushLogSummaryUseCase(businessId)) {
+                is ApiResponse.Success -> emit(SmsReportState.PartialState.LoadPushSummary(response.data))
+                is ApiResponse.Error -> {}
+            }
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun loadSmsLogs(
         reset: Boolean,
         status: String?,
-        dateRange: SmsReportDateRange = uiState.value.dateRangeFilter
+        dateRange: SmsReportDateRange
     ): Flow<SmsReportState.PartialState> = flow {
         val current = uiState.value
         val businessId = BusinessStateHolder.selectedBusiness.value?.id
@@ -100,11 +141,8 @@ class SmsReportViewModel(
         if (!reset && (!current.canLoadMore || current.isPaginating || current.isLoading)) return@flow
 
         val page = if (reset) 1 else current.currentPage + 1
-        if (reset) {
-            emit(SmsReportState.PartialState.IsLoading(true))
-        } else {
-            emit(SmsReportState.PartialState.IsPaginating(true))
-        }
+        if (reset) emit(SmsReportState.PartialState.IsLoading(true))
+        else emit(SmsReportState.PartialState.IsPaginating(true))
 
         val (dateFrom, dateTo) = dateRange.toBounds()
 
@@ -131,6 +169,51 @@ class SmsReportViewModel(
             }
         } catch (e: Exception) {
             emit(failure(reset, e.message ?: "خطا در دریافت گزارش پیامک‌ها"))
+        }
+    }
+
+    private fun loadPushLogs(
+        reset: Boolean,
+        status: String?,
+        dateRange: SmsReportDateRange
+    ): Flow<SmsReportState.PartialState> = flow {
+        val current = uiState.value
+        val businessId = BusinessStateHolder.selectedBusiness.value?.id
+        if (businessId == null) {
+            emit(SmsReportState.PartialState.ShowError("کسب‌وکار انتخاب نشده"))
+            return@flow
+        }
+        if (!reset && (!current.pushCanLoadMore || current.isPaginating || current.isLoading)) return@flow
+
+        val page = if (reset) 1 else current.pushCurrentPage + 1
+        if (reset) emit(SmsReportState.PartialState.IsLoading(true))
+        else emit(SmsReportState.PartialState.IsPaginating(true))
+
+        val (dateFrom, dateTo) = dateRange.toBounds()
+
+        try {
+            val response = getPushLogsUseCase(
+                businessId = businessId,
+                page = page,
+                pageSize = pageSize,
+                status = status,
+                search = current.searchQuery.trim().takeIf { it.isNotBlank() },
+                dateFrom = dateFrom,
+                dateTo = dateTo
+            )
+            when (response) {
+                is ApiResponse.Success -> emit(
+                    SmsReportState.PartialState.LoadPushPage(
+                        logs = response.data.results,
+                        page = page,
+                        canLoadMore = response.data.next != null
+                    )
+                )
+
+                is ApiResponse.Error -> emit(failure(reset, response.message))
+            }
+        } catch (e: Exception) {
+            emit(failure(reset, e.message ?: "خطا در دریافت گزارش اعلان‌ها"))
         }
     }
 
@@ -186,12 +269,37 @@ class SmsReportViewModel(
             is SmsReportState.PartialState.LoadSummary ->
                 currentState.copy(summary = partialState.summary)
 
+            is SmsReportState.PartialState.LoadPushPage -> {
+                val merged = if (partialState.page == 1) {
+                    partialState.logs
+                } else {
+                    (currentState.pushLogs + partialState.logs).distinctBy { it.id }
+                }
+                currentState.copy(
+                    pushLogs = merged,
+                    pushCurrentPage = partialState.page,
+                    pushCanLoadMore = partialState.canLoadMore,
+                    isLoading = false,
+                    isPaginating = false,
+                    errorMessage = null
+                )
+            }
+
+            is SmsReportState.PartialState.LoadPushSummary ->
+                currentState.copy(pushSummary = partialState.summary)
+
+            is SmsReportState.PartialState.SetChannel ->
+                currentState.copy(channel = partialState.channel, errorMessage = null)
+
             is SmsReportState.PartialState.SetStatusFilter ->
                 currentState.copy(
                     statusFilter = partialState.status,
                     logs = emptyList(),
                     currentPage = 0,
-                    canLoadMore = true
+                    canLoadMore = true,
+                    pushLogs = emptyList(),
+                    pushCurrentPage = 0,
+                    pushCanLoadMore = true
                 )
 
             is SmsReportState.PartialState.SetSearchQuery ->
@@ -202,7 +310,10 @@ class SmsReportViewModel(
                     dateRangeFilter = partialState.range,
                     logs = emptyList(),
                     currentPage = 0,
-                    canLoadMore = true
+                    canLoadMore = true,
+                    pushLogs = emptyList(),
+                    pushCurrentPage = 0,
+                    pushCanLoadMore = true
                 )
 
             is SmsReportState.PartialState.ShowError ->

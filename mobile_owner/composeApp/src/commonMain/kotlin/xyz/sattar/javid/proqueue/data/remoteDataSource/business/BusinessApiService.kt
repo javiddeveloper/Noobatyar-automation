@@ -17,6 +17,8 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDt
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.AddServiceCatalogItemRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.ServiceCatalogItemDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.PushLogPageDto
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.PushLogSummaryDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
@@ -79,6 +81,7 @@ class BusinessApiService(private val httpClient: HttpClient) {
                 append("allow_client_add_service", business.allowClientAddService.toString())
                 append("notice_enabled", business.noticeEnabled.toString())
                 append("notice_message", business.noticeMessage)
+                append("enable_reminder_sms", business.enableReminderSms.toString())
                 append("reminder_delivery", business.reminderDelivery)
 
 
@@ -132,6 +135,33 @@ class BusinessApiService(private val httpClient: HttpClient) {
 
     suspend fun getSmsLogSummary(businessId: Long): ApiResponse<SmsLogSummaryDto> {
         return httpClient.get("business/$businessId/sms-logs/summary/") {
+            contentType(ContentType.Application.Json)
+        }.toDirectApiResponse()
+    }
+
+    // Same bare-pagination-shape reasoning as getSmsLogs above.
+    suspend fun getPushLogs(
+        businessId: Long,
+        page: Int,
+        pageSize: Int,
+        status: String? = null,
+        search: String? = null,
+        dateFrom: String? = null,
+        dateTo: String? = null
+    ): ApiResponse<PushLogPageDto> {
+        return httpClient.get("business/$businessId/push-logs/") {
+            contentType(ContentType.Application.Json)
+            parameter("page", page)
+            parameter("page_size", pageSize)
+            if (status != null) parameter("status", status)
+            if (!search.isNullOrBlank()) parameter("search", search)
+            if (dateFrom != null) parameter("date_from", dateFrom)
+            if (dateTo != null) parameter("date_to", dateTo)
+        }.toDirectApiResponse()
+    }
+
+    suspend fun getPushLogSummary(businessId: Long): ApiResponse<PushLogSummaryDto> {
+        return httpClient.get("business/$businessId/push-logs/summary/") {
             contentType(ContentType.Application.Json)
         }.toDirectApiResponse()
     }

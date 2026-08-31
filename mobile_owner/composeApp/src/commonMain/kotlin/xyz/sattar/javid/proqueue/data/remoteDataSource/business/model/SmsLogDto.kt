@@ -54,3 +54,36 @@ object SmsLogStatus {
     /** Never attempted — the owner's SMS quota was already exhausted. */
     const val SKIPPED_QUOTA = "SKIPPED_QUOTA"
 }
+
+/**
+ * One row of the server's outgoing-push ledger (GET business/{id}/push-logs/).
+ * Same shape as [SmsLogDto] on purpose — the two channels share one report
+ * screen — but push always has a [visitor] (there is no "owner notification"
+ * concept on this channel yet) and carries [title]/[body] instead of a single
+ * message_text.
+ */
+@Serializable
+data class PushLogDto(
+    @SerialName("id") val id: Long,
+    @SerialName("title") val title: String = "",
+    @SerialName("body") val body: String = "",
+    @SerialName("status") val status: String = "",
+    @SerialName("error_detail") val errorDetail: String? = null,
+    @SerialName("sent_at") val sentAt: String? = null,
+    @SerialName("visitor") val visitor: SmsLogVisitorDto? = null
+)
+
+@Serializable
+data class PushLogPageDto(
+    @SerialName("count") val count: Int = 0,
+    @SerialName("next") val next: String? = null,
+    @SerialName("previous") val previous: String? = null,
+    @SerialName("results") val results: List<PushLogDto> = emptyList()
+)
+
+/** GET business/{id}/push-logs/summary/ — no quota/wallet fields; push is free. */
+@Serializable
+data class PushLogSummaryDto(
+    @SerialName("sent_this_month") val sentThisMonth: Int = 0,
+    @SerialName("failed_this_month") val failedThisMonth: Int = 0
+)

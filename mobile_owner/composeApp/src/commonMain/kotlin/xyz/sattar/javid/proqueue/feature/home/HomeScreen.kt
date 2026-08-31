@@ -73,7 +73,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -105,11 +104,11 @@ fun HomeScreen(
     onNavigateToLogin: () -> Unit,
     onChangeBusiness: () -> Unit = {},
     onNavigateToAddons: () -> Unit = {},
-    onNavigateToVisitors: (VisitorsNavArgs) -> Unit = {}
+    onNavigateToVisitors: (VisitorsNavArgs) -> Unit = {},
+    onNavigateToPayment: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val uriHandler = LocalUriHandler.current
 
     // Initial data load happens once in HomeViewModel.init (it observes the
     // selected business). We deliberately don't re-trigger it here, so returning
@@ -118,7 +117,8 @@ fun HomeScreen(
     HandleEvents(
         events = viewModel.events,
         snackbarHostState = snackbarHostState,
-        onNavigateToLogin = onNavigateToLogin
+        onNavigateToLogin = onNavigateToLogin,
+        onOpenPaymentUrl = onNavigateToPayment
     )
 
     HomeScreenContent(
@@ -1138,14 +1138,14 @@ fun UsageRow(
 fun HandleEvents(
     events: Flow<HomeEvent>,
     snackbarHostState: SnackbarHostState,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onOpenPaymentUrl: (String) -> Unit = {}
 ) {
-    val uriHandler = LocalUriHandler.current
     events.collectWithLifecycleAware { event ->
         when (event) {
             HomeEvent.NavigateToLogin -> onNavigateToLogin()
             is HomeEvent.OpenUrl -> {
-                uriHandler.openUri(event.url)
+                onOpenPaymentUrl(event.url)
             }
             is HomeEvent.ShowError -> {
                 snackbarHostState.showToasty(event.message, ToastyType.Error)

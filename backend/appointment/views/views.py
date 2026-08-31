@@ -767,26 +767,30 @@ def _notify_client_of_decision(appointment, old_status, new_status):
             f"❌ متأسفانه نوبت شما در {business_title} تایید نشد\n"
             f"تاریخ: {time_str}"
         )
+        push_body = f"متأسفانه نوبت شما در {business_title} تایید نشد — تاریخ: {time_str}"
     else:
         message = signed(
             f"✅ نوبت شما در {business_title} تایید شد\n"
             f"تاریخ: {time_str}"
         )
+        push_body = f"نوبت شما در {business_title} تایید شد — تاریخ: {time_str}"
 
     threading.Thread(
         target=_send_client_sms,
         kwargs=dict(
             phone=client_phone,
             message=message,
+            push_body=push_body,
             business_id=appointment.business_id,
             visitor_id=appointment.visitor_id,
+            appointment_id=appointment.id,
         ),
         daemon=True,
         name=f"decision-sms-{appointment.id}",
     ).start()
 
 
-def _send_client_sms(phone, message, business_id, visitor_id):
+def _send_client_sms(phone, message, business_id, visitor_id, appointment_id=None, push_body=None):
     """Background target: send one SMS to a client and log it against the business."""
     from api.sms import send_sms
     from visitor.models import SmsLog
@@ -809,18 +813,34 @@ def _send_client_sms(phone, message, business_id, visitor_id):
                 status='SKIPPED_QUOTA',
                 error_detail="اعتبار پیامک این ماه تمام شده است",
             )
-            return
-        ok, err = send_sms(phone, message)
-        if not ok:
-            # Failed sends are not billable — return the credit to its bucket.
-            usage.refund_sms(receipt)
-        SmsLog.objects.create(
-            business_id=business_id,
-            visitor_id=visitor_id,
-            message_text=message,
-            status='SENT' if ok else 'FAILED',
-            error_detail=err if not ok else ""
-        )
-        logger.info(f"SMS→client {phone}: {'✓' if ok else '✗'}")
+        else:
+            ok, err = send_sms(phone, message)
+            if not ok:
+                # Failed sends are not billable — return the credit to its bucket.
+                usage.refund_sms(receipt)
+            SmsLog.objects.create(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                message_text=message,
+                status='SENT' if ok else 'FAILED',
+                error_detail=err if not ok else ""
+            )
+            logger.info(f"SMS→client {phone}: {'✓' if ok else '✗'}")
     except Exception as e:
         logger.error(f"SMS→client error: {e}")
+
+    # Push — free, plan-gated, independent of the SMS quota above (still
+    # fires even when the SMS itself was skipped for exhausted quota).
+    try:
+        if visitor_id and push_body:
+            from api.services import push
+
+            push.send_visitor_appointment_push(
+                business_id=business_id,
+                visitor_id=visitor_id,
+                appointment_id=appointment_id,
+                title="نوبت‌یار",
+                body=push_body,
+            )
+    except Exception as e:
+        logger.error(f"Push→client error: {e}")

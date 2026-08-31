@@ -15,6 +15,17 @@ plugins {
     alias(libs.plugins.buildkonfig)
 }
 
+// Push notifications (FCM). The google-services plugin fails the build outright
+// when google-services.json is missing, and that file carries project-specific
+// keys that are not in this repository — so it is applied only once somebody has
+// dropped theirs into composeApp/. Without it the app still builds and runs;
+// PushTokenProvider simply returns no token and the owner falls back to the
+// local alarm reminders. See docs/FCM_SETUP.md.
+val googleServicesJson = file("google-services.json")
+if (googleServicesJson.exists()) {
+    apply(plugin = libs.plugins.googleServices.get().pluginId)
+}
+
 
 // Two Android product flavors pick which server this build talks to (see
 // docs/ENVIRONMENTS.md). "prod" is the safe default returned by defaultConfigs,
@@ -70,6 +81,12 @@ kotlin {
            implementation(libs.koin.compose)
            implementation(libs.ktor.client.okhttp)
            implementation(libs.ktor.client.logginig)
+           // FCM. The dependency is unconditional (the Kotlin in
+           // core/push/ references it) while the google-services *plugin*
+           // above is not — a build with no google-services.json compiles
+           // fine and just never obtains a token at runtime.
+           implementation(project.dependencies.platform(libs.firebase.bom))
+           implementation(libs.firebase.messaging)
        }
         commonMain.dependencies {
             implementation(compose.runtime)
