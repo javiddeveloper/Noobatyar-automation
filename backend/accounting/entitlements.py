@@ -32,6 +32,7 @@ FEATURE_MULTI_CHANNEL    = "multi_channel"      # واتساپ/تلگرام
 FEATURE_BRANDED_PAGE     = "branded_page"       # صفحه‌ی نوبت‌دهی برندشده
 FEATURE_PRIORITY_SUPPORT = "priority_support"   # پشتیبانی اولویت‌دار
 FEATURE_AUTO_REMINDER_SMS = "auto_reminder_sms" # یادآوری خودکار از پنل پیامکی
+FEATURE_PUSH_NOTIFICATIONS = "push_notifications" # اعلان پوش برای مالک (نوبت جدید، یادآوری، ...)
 
 # ── Quotas (ints; UNLIMITED = -1) ─────────────────────────────────────────────
 QUOTA_MAX_BUSINESSES       = "max_businesses"
@@ -44,6 +45,7 @@ FEATURE_KEYS = (
     FEATURE_ONLINE_GATEWAY, FEATURE_DEPOSIT, FEATURE_PROMOTIONAL_SMS,
     FEATURE_CAPACITY_CONTROL, FEATURE_ADVANCED_REPORTS, FEATURE_MULTI_CHANNEL,
     FEATURE_BRANDED_PAGE, FEATURE_PRIORITY_SUPPORT, FEATURE_AUTO_REMINDER_SMS,
+    FEATURE_PUSH_NOTIFICATIONS,
 )
 QUOTA_KEYS = (QUOTA_MAX_BUSINESSES, QUOTA_MONTHLY_APPOINTMENTS, QUOTA_MONTHLY_SMS)
 
@@ -70,6 +72,7 @@ FEATURE_LABELS = {
     FEATURE_BRANDED_PAGE:     "صفحه‌ی نوبت‌دهی برندشده",
     FEATURE_PRIORITY_SUPPORT: "پشتیبانی اولویت‌دار",
     FEATURE_AUTO_REMINDER_SMS: "ارسال خودکار یادآوری از پنل پیامکی",
+    FEATURE_PUSH_NOTIFICATIONS: "اعلان پوش (نوتیفیکیشن)",
 }
 
 
@@ -87,6 +90,7 @@ DEFAULT_ENTITLEMENTS = {
     FEATURE_BRANDED_PAGE:       False,
     FEATURE_PRIORITY_SUPPORT:   False,
     FEATURE_AUTO_REMINDER_SMS:  False,
+    FEATURE_PUSH_NOTIFICATIONS: False,
 }
 
 
@@ -115,6 +119,7 @@ BUNDLE_TRIAL = {
     FEATURE_BRANDED_PAGE:       False,
     FEATURE_PRIORITY_SUPPORT:   False,
     FEATURE_AUTO_REMINDER_SMS:  False,
+    FEATURE_PUSH_NOTIFICATIONS: False,
 }
 
 # ۱ ماهه «شروع»
@@ -131,6 +136,7 @@ BUNDLE_1M = {
     FEATURE_BRANDED_PAGE:       False,
     FEATURE_PRIORITY_SUPPORT:   False,
     FEATURE_AUTO_REMINDER_SMS:  False,
+    FEATURE_PUSH_NOTIFICATIONS: False,
 }
 
 # ۳ ماهه «حرفه‌ای»
@@ -147,9 +153,12 @@ BUNDLE_3M = {
     FEATURE_BRANDED_PAGE:       True,
     FEATURE_PRIORITY_SUPPORT:   True,
     FEATURE_AUTO_REMINDER_SMS:  True,
+    FEATURE_PUSH_NOTIFICATIONS: False,
 }
 
-# ۶ ماهه «ویژه»
+# ۶ ماهه «ویژه» — first tier that unlocks push notifications for the owner
+# (پرو و بالاتر — "پلاس" tiers), one step above FEATURE_AUTO_REMINDER_SMS's
+# ۳ ماهه cutoff.
 BUNDLE_6M = {
     QUOTA_MAX_BUSINESSES:       3,
     QUOTA_MONTHLY_APPOINTMENTS: 2000,
@@ -163,6 +172,7 @@ BUNDLE_6M = {
     FEATURE_BRANDED_PAGE:       True,
     FEATURE_PRIORITY_SUPPORT:   True,
     FEATURE_AUTO_REMINDER_SMS:  True,
+    FEATURE_PUSH_NOTIFICATIONS: True,
 }
 
 # ۱۲ ماهه — بالاترین سطح، مثل ۶ ماهه با نوبت نامحدود و پیامک بیشتر.

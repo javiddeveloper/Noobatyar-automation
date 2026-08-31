@@ -732,9 +732,10 @@ def _send_booking_sms(client_phone, client_msg, owner_msg, business_id, visitor_
     # message that repeats what the app already shows them.
     try:
         if owner_id is not None and owner_msg:
+            from accounting.entitlements import FEATURE_PUSH_NOTIFICATIONS, has_feature
             from api.services import push
 
-            if push.is_configured():
+            if push.is_configured() and has_feature(owner_id, FEATURE_PUSH_NOTIFICATIONS):
                 push.send_to_user(
                     owner_id,
                     title="نوبت جدید",
