@@ -4,28 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { categoryLabel, type Business } from '@/lib/api';
 import BusinessNotice from '@/app/components/BusinessNotice';
+import Icon, { CATEGORY_ICON, type IconName } from '@/app/components/Icon';
+import { toPersianDigits as toFa } from '@/lib/validation';
 
 interface Props {
   business: Business;
   slug: string;
 }
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  BEAUTY_SALON: '💅',
-  DOCTOR: '🏥',
-  CONSULTANT: '💼',
-  OTHER: '🏢',
-};
-
-const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const toFa = (n: string | number) =>
-  String(n).replace(/[0-9]/g, (d) => FA_DIGITS[+d]);
-
 export default function BusinessProfileClient({ business, slug }: Props) {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const emoji = CATEGORY_EMOJI[business.category] || '🏢';
+  const categoryIcon: IconName = CATEGORY_ICON[business.category] ?? 'storefront';
   const bookingEnabled = business.booking_enabled !== false; // default true if undefined
 
   const logoUrl = business.logo
@@ -67,7 +58,13 @@ export default function BusinessProfileClient({ business, slug }: Props) {
             : acceptsCash ? 'در محل'
               : 'ندارد';
 
-  const paymentIcon = acceptsOnline ? '🌐' : acceptsCard ? '🏦' : acceptsCash ? '💵' : '🏦';
+  const paymentIcon: IconName = acceptsOnline
+    ? 'payments'
+    : acceptsCard
+      ? 'creditCard'
+      : acceptsCash
+        ? 'storefront'
+        : 'creditCard';
 
   return (
     <div className="page-content">
@@ -75,15 +72,18 @@ export default function BusinessProfileClient({ business, slug }: Props) {
       {/* ── Hero ── */}
       <div className="biz-hero">
         <div className="biz-hero-avatar">
-          {logoUrl
-            ? <img src={logoUrl} alt={business.title} />
-            : emoji}
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote media host, no loader configured
+            <img src={logoUrl} alt={business.title} />
+          ) : (
+            <Icon name={categoryIcon} size={44} />
+          )}
         </div>
 
         <h1 className="biz-hero-title">{business.title}</h1>
 
         <span className="biz-hero-chip">
-          <span>{emoji}</span>
+          <Icon name={categoryIcon} size={14} />
           <span>{categoryLabel(business.category)}</span>
         </span>
 
@@ -94,7 +94,7 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         {business.phone && (
           <div className="biz-hero-actions">
             <a href={`tel:${business.phone}`} className="biz-action call">
-              <span style={{ fontSize: 15 }}>📞</span>
+              <Icon name="call" size={16} />
               <span dir="ltr">{toFa(business.phone)}</span>
             </a>
           </div>
@@ -108,17 +108,17 @@ export default function BusinessProfileClient({ business, slug }: Props) {
       <div className="section" style={{ paddingTop: 20, paddingBottom: 8 }}>
         <div className="stat-grid">
           <div className="stat-card">
-            <div className="ico">🕐</div>
+            <div className="ico"><Icon name="schedule" size={20} /></div>
             <div className="k">ساعات کاری</div>
             <div className="v">{workHours}</div>
           </div>
           <div className="stat-card">
-            <div className="ico">💳</div>
+            <div className="ico"><Icon name="creditCard" size={20} /></div>
             <div className="k">بیعانه</div>
             <div className="v">{depositText}</div>
           </div>
           <div className="stat-card">
-            <div className="ico">{paymentIcon}</div>
+            <div className="ico"><Icon name={paymentIcon} size={20} /></div>
             <div className="k">روش پرداخت</div>
             <div className="v">{paymentText}</div>
           </div>
@@ -134,12 +134,12 @@ export default function BusinessProfileClient({ business, slug }: Props) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <div className="pin">📍</div>
+            <div className="pin"><Icon name="locationOn" size={19} /></div>
             <div className="addr-text">
               <div className="addr-k">آدرس</div>
               <div className="addr-v">{business.address}</div>
             </div>
-            <span className="chevron">‹</span>
+            <span className="chevron"><Icon name="chevronLeft" size={18} /></span>
           </a>
         </div>
       )}
@@ -160,42 +160,39 @@ export default function BusinessProfileClient({ business, slug }: Props) {
             textAlign: 'right', lineHeight: 1.6,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <span>🚫</span>
+            <Icon name="block" size={18} />
             ثبت نوبت در حال حاضر غیرفعال است
           </div>
         </div>
       )}
 
-      {/* ── Noobatyar Promo ── */}
+      {/* ── Noobatyar Promo ──
+          Same animated banner the home screen uses, so the product pitch looks
+          like one thing across the app rather than two near-identical cards. */}
       <div className="section" style={{ paddingTop: 8, paddingBottom: 8 }}>
-        <div className="promo-banner purple">
-          <div style={{
-            position: 'absolute', bottom: -20, insetInlineEnd: -20,
-            width: 100, height: 100, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.07)',
-          }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <div style={{ textAlign: 'right' }}>
-              <h2 style={{ color: 'white', fontSize: 13 }}>صاحب کسب‌وکار هستید؟</h2>
-              <p style={{ fontSize: 11, color: 'rgba(237,229,255,0.9)', marginTop: 4 }}>
-                نوبت‌دهی آنلاین با نوبت‌یار برای کسب‌وکار شما
-              </p>
-              <a href="https://noobatyar.ir" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
-                <div className="promo-badge" style={{ color: 'var(--color-primary-dark)', marginTop: 10 }}>
-                  <span>شروع رایگان در noobatyar.ir</span>
-                </div>
-              </a>
-            </div>
-            <div style={{
-              width: 44, height: 44, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.18)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 22, flexShrink: 0,
-            }}>
-              📣
-            </div>
-          </div>
-        </div>
+        <a
+          className="app-banner"
+          href="https://noobatyar.ir"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span className="app-banner-blob one" aria-hidden="true" />
+          <span className="app-banner-blob two" aria-hidden="true" />
+
+          <span className="app-banner-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element -- local static brand mark */}
+            <img src="/icons/icon-192.png" alt="" width={58} height={58} />
+          </span>
+
+          <span className="app-banner-body">
+            <h2>صاحب کسب‌وکار هستید؟</h2>
+            <p>نوبت‌دهی آنلاین با نوبت‌یار برای کسب‌وکار شما</p>
+            <span className="app-banner-cta">
+              شروع رایگان در noobatyar.ir
+              <Icon name="chevronLeft" size={14} />
+            </span>
+          </span>
+        </a>
       </div>
 
       {/* ── Fixed Bottom Button ── */}

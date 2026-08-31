@@ -1,4 +1,5 @@
 import type { Business } from '@/lib/api';
+import Icon from './Icon';
 
 /**
  * The owner's short advisory — "closed today", "running an hour late",
@@ -36,7 +37,9 @@ export default function BusinessNotice({ business, style }: Props) {
           should be announced without interrupting whatever the screen reader
           is already saying. */}
       <div className="biz-notice" role="status">
-        <div className="ico" aria-hidden="true">📢</div>
+        <div className="ico" aria-hidden="true">
+          <Icon name="info" size={18} />
+        </div>
         <div className="notice-text">
           <div className="notice-k">اطلاعیه کسب‌وکار</div>
           {/* dir="auto" so a notice written in Persian, or one that opens with

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Icon from './Icon';
 
 /**
  * Floating light/dark theme toggle, mirroring the owner app's theme modes.
@@ -38,7 +39,7 @@ export default function ThemeToggle() {
       aria-label={theme === 'dark' ? 'روشن کردن تم' : 'تیره کردن تم'}
       title={theme === 'dark' ? 'حالت روشن' : 'حالت تیره'}
     >
-      {theme === 'dark' ? '☀️' : '🌙'}
+      <Icon name={theme === 'dark' ? 'lightMode' : 'darkMode'} size={19} />
     </button>
   );
 }

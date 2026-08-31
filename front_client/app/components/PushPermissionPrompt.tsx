@@ -7,6 +7,7 @@ import {
   isPermissionDenied,
   requestPushPermission,
 } from '@/lib/push';
+import Icon from './Icon';
 
 /**
  * App-wide "may we notify you" dialog — mounted once in the root layout,
@@ -79,7 +80,9 @@ export default function PushPermissionPrompt() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ fontSize: 32, marginBottom: 8 }}>🔔</div>
+        <span className="empty-state-icon" style={{ marginBottom: 10 }}>
+          <Icon name="notifications" size={26} />
+        </span>
         <h2 style={{ margin: '0 0 8px', fontSize: 17, color: 'var(--color-text)' }}>
           یادت نره اعلان رو فعال کنی!
         </h2>
