@@ -47,6 +47,7 @@ import xyz.sattar.javid.proqueue.feature.smsReport.SmsReportScreen
 import xyz.sattar.javid.proqueue.feature.visitorDetails.VisitorDetailsScreen
 import xyz.sattar.javid.proqueue.feature.visitorSelection.VisitorSelectionScreen
 import xyz.sattar.javid.proqueue.feature.aboutUs.AboutUsScreen
+import xyz.sattar.javid.proqueue.core.payment.PaymentWebViewScreen
 import xyz.sattar.javid.proqueue.feature.addons.AddonsScreen
 import xyz.sattar.javid.proqueue.feature.createBusiness.CreateBusinessRoute
 import xyz.sattar.javid.proqueue.feature.createBusiness.AdvancedSettingsRoute
@@ -180,6 +181,9 @@ fun MainNavHost(
                             restoreState = true
                         }
                     },
+                    onNavigateToPayment = { url ->
+                        navController.navigate(AppScreens.PaymentWebView(url))
+                    },
                 )
             }
 
@@ -277,6 +281,9 @@ fun MainNavHost(
                     },
                     onContinue = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPayment = { url ->
+                        navController.navigate(AppScreens.PaymentWebView(url))
                     }
                 )
             }
@@ -418,6 +425,17 @@ fun MainNavHost(
 
             composable<AppScreens.AddOns> {
                 AddonsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPayment = { url ->
+                        navController.navigate(AppScreens.PaymentWebView(url))
+                    }
+                )
+            }
+
+            composable<AppScreens.PaymentWebView> { backStackEntry ->
+                val args = backStackEntry.toRoute<AppScreens.PaymentWebView>()
+                PaymentWebViewScreen(
+                    url = args.url,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
