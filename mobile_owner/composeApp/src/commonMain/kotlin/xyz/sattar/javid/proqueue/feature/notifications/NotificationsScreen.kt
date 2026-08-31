@@ -26,7 +26,6 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 import proqueue.composeapp.generated.resources.*
 import xyz.sattar.javid.proqueue.core.permissions.rememberNotificationPermissionLauncher
-import xyz.sattar.javid.proqueue.core.utils.AppInfo
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import xyz.sattar.javid.proqueue.core.ui.collectWithLifecycleAware
 import xyz.sattar.javid.proqueue.core.ui.components.AppButton
@@ -373,23 +372,13 @@ private fun ClientReminderCard(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // MANUAL opens the device's own SMS app (core/utils/
-                    // ContactActions — openSms) — a desktop browser has no
-                    // SIM card or SMS app to hand that off to, so this
-                    // option is dropped on web instead of shown disabled.
-                    // The stored value isn't touched: an owner already on
-                    // MANUAL keeps that setting until they explicitly pick
-                    // PANEL, which is what actually starts spending SMS
-                    // quota (docs/NOTIFICATIONS.md — never silently).
-                    if (!AppInfo.isWeb) {
-                        FilterChip(
-                            selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
-                            onClick = {
-                                onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.MANUAL.value))
-                            },
-                            label = { Text(stringResource(Res.string.reminder_delivery_manual_title)) }
-                        )
-                    }
+                    FilterChip(
+                        selected = uiState.reminderDelivery == ReminderDelivery.MANUAL.value,
+                        onClick = {
+                            onIntent(NotificationsIntent.SetDelivery(ReminderDelivery.MANUAL.value))
+                        },
+                        label = { Text(stringResource(Res.string.reminder_delivery_manual_title)) }
+                    )
                     FilterChip(
                         selected = uiState.reminderDelivery == ReminderDelivery.PANEL.value,
                         onClick = {
@@ -398,23 +387,15 @@ private fun ClientReminderCard(
                         label = { Text(stringResource(Res.string.reminder_delivery_panel_title)) }
                     )
                 }
-                if (AppInfo.isWeb) {
-                    Text(
-                        text = "روی وب سیم‌کارت وجود ندارد، پس یادآوری فقط با پیامک پنل قابل ارسال است.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Text(
-                        text = if (uiState.reminderDelivery == ReminderDelivery.PANEL.value) {
-                            stringResource(Res.string.reminder_delivery_panel_description)
-                        } else {
-                            stringResource(Res.string.reminder_delivery_manual_description)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = if (uiState.reminderDelivery == ReminderDelivery.PANEL.value) {
+                        stringResource(Res.string.reminder_delivery_panel_description)
+                    } else {
+                        stringResource(Res.string.reminder_delivery_manual_description)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 if (!uiState.canUsePanelDelivery) {
                     Text(
                         text = stringResource(Res.string.reminder_delivery_panel_locked),
