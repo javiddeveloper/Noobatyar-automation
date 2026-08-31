@@ -58,11 +58,18 @@ class ReminderCommandTests(TestCase):
             status='WAITING',
         )
 
-    def run_command(self, *, sms_ok=True, push_configured=True, delivered=1):
-        """Run the job with both outbound channels stubbed."""
+    def run_command(self, *, sms_ok=True, push_configured=True, delivered=1, push_entitled=True):
+        """Run the job with both outbound channels stubbed.
+
+        push_entitled defaults True: this file's scope is the PANEL/MANUAL
+        delivery split, not plan entitlements, so the owner push here is
+        exercised as if always plan-entitled unless a test explicitly wants
+        to check the entitlement gate itself.
+        """
         with patch('api.sms.send_sms', return_value=(sms_ok, '')) as send_sms, \
                 patch('api.services.push.is_configured', return_value=push_configured), \
                 patch('api.services.push.send_to_user', return_value=delivered) as send_push, \
+                patch('accounting.entitlements.has_feature', return_value=push_entitled), \
                 patch('accounting.usage.consume_sms', return_value={'source': 'monthly'}), \
                 patch('accounting.usage.refund_sms'):
             call_command('send_appointment_reminders')

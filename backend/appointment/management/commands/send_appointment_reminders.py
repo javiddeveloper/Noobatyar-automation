@@ -206,11 +206,12 @@ class Command(BaseCommand):
         device (push not set up, or app not installed) must not make this job
         re-check the same appointment every few minutes until it starts.
         """
+        from accounting.entitlements import FEATURE_PUSH_NOTIFICATIONS, has_feature
         from api.services import push
 
         business = appointment.business
         delivered = 0
-        if push.is_configured():
+        if push.is_configured() and has_feature(business.user_id, FEATURE_PUSH_NOTIFICATIONS):
             body = (
                 f"{appointment.visitor.full_name} — "
                 f"{format_datetime(appointment.appointment_date)}"
