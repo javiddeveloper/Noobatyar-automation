@@ -19,6 +19,8 @@ import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Message
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.HorizontalDivider
@@ -148,7 +150,11 @@ fun AppSidebar(
             Text(
                 text = stringResource(Res.string.appName),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                // Explicit: the sidebar paints its background with a modifier
+                // rather than a Surface, so nothing provides LocalContentColor
+                // and an unset color falls back to black on this dark panel.
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -209,7 +215,11 @@ fun AppSidebar(
         if (MainTab.Settings in tabs) {
             val isSelected = selectedTab == MainTab.Settings
             SidebarItem(
-                icon = if (isSelected) MainTab.Settings.iconSelected else MainTab.Settings.iconUnSelected,
+                // Gear rather than MainTab.Settings' own icon, which is the
+                // hamburger the phone bar wants — same reason this row uses
+                // settings_sidebar_item for its label: here it reads as
+                // "settings" among settings rows, not as a menu affordance.
+                icon = if (isSelected) Icons.Rounded.Settings else Icons.Outlined.Settings,
                 label = stringResource(Res.string.settings_sidebar_item),
                 selected = isSelected,
                 onClick = { onTabSelected(MainTab.Settings) }
