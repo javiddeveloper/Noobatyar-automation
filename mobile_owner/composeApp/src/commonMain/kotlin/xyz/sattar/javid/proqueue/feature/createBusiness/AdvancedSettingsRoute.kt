@@ -179,12 +179,19 @@ fun AdvancedSettingsRoute(
         } else {
             // AppScaffold is a pass-through Box at Compact (unchanged
             // layout); Medium/Expanded center and width-cap it, matching the
-            // rest of the desktop panel. Wide rather than List: at Expanded
-            // this content is the tab rail plus the tab body side by side,
-            // which is dense like a dashboard, not a card list.
+            // rest of the desktop panel. Wide only at Expanded, where this
+            // content is the tab rail plus the tab body side by side (dense
+            // like a dashboard) — AdvancedSettingsTabs caps the tab body's
+            // own width independently there. At Medium there's no rail, just
+            // a TabRow above a single-column form (checkboxes, a text field,
+            // a submit button) from AdvancedSettingsTabs' `else` branch — the
+            // same shape as EmergencyNoticeScreen, so it gets the same Form
+            // cap rather than List (which is sized for a grid of cards and,
+            // at a typical tablet width, is barely narrower than the window).
+            val isExpanded = LocalWindowSize.current == WindowSize.Expanded
             AppScaffold(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
-                maxWidth = ContentWidth.Wide
+                maxWidth = if (isExpanded) ContentWidth.Wide else ContentWidth.Form
             ) {
             Column(
                 modifier = Modifier
@@ -216,19 +223,25 @@ fun AdvancedSettingsRoute(
                     merchantId = merchantId,
                     onMerchantId = { merchantId = it },
                     paymentLink = paymentLink,
-                    onPaymentLink = { paymentLink = it }
+                    onPaymentLink = { paymentLink = it },
+                    // Rendered by AdvancedSettingsTabs at the foot of the tab
+                    // body rather than here, so it lands inside whatever
+                    // width cap (and, at Expanded, whichever side of the
+                    // rail) that column occupies. Placed as a sibling here it
+                    // stretched across the full ContentWidth.Wide scaffold
+                    // while the form it submits was a narrow column.
+                    footer = if (LocalWindowSize.current != WindowSize.Compact) {
+                        {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            AppButton(
+                                text = stringResource(Res.string.accept),
+                                onClick = { onSubmit(business) },
+                                isLoading = uiState.isLoading
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    } else null
                 )
-
-                if (LocalWindowSize.current != WindowSize.Compact) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    AppButton(
-                        text = stringResource(Res.string.accept),
-                        onClick = { onSubmit(business) },
-                        modifier = Modifier.fillMaxWidth(),
-                        isLoading = uiState.isLoading
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
 
             }
             }

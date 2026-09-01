@@ -88,6 +88,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -655,32 +656,52 @@ fun PlanBannerSection(
 }
 
 /**
- * Grid of plan cards for Medium/Expanded. Reuses [PlanBannerItem] completely
- * unchanged — same visuals, same click handling, same badge/price/feature
- * logic — only the container differs: a wrapping FlowRow instead of a
- * one-at-a-time pager, so multiple plans are visible together and the page
- * only needs a little extra vertical scroll (already provided by
- * HomeWebContent's outer scroll) instead of a dedicated horizontal-swipe
- * area. Cards are width-capped, not stretched, so they read as cards in a
- * grid rather than a single stretched banner when there are only one or two
- * plans.
+ * Grid of plan cards for Medium/Expanded — the desktop counterpart to the
+ * phone's one-at-a-time pager, so several plans are visible together and the
+ * page only needs a little extra vertical scroll (already provided by
+ * HomeWebContent's outer scroll).
+ *
+ * Explicit chunked rows rather than a FlowRow: a FlowRow sizes each child to
+ * its own content, so cards ended up different widths *and* different heights
+ * (plans list different numbers of features, and the free plan has no buy
+ * button at all), leaving ragged bottoms and buy buttons at a different height
+ * in every column — which is what read as having no order to it. Chunking into
+ * fixed columns lets each card take an equal `weight`, and wrapping the row in
+ * `height(IntrinsicSize.Max)` + `fillMaxHeight` on the cards makes every card
+ * in a row as tall as the tallest, so a pricing table lines up like one.
  */
 @Composable
 private fun PlanBannerWebContent(
     plans: List<PlanDto>,
     onPlanClick: (PlanDto) -> Unit
 ) {
-    FlowRow(
+    // Three across on a monitor, two on a narrow/tablet window — below that
+    // a card is squeezed too narrow for its Persian feature lines.
+    val columns = if (LocalWindowSize.current == WindowSize.Expanded) 3 else 2
+
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        plans.forEach { plan ->
-            PlanCardWeb(
-                plan = plan,
-                onClick = { onPlanClick(plan) },
-                modifier = Modifier.widthIn(min = 260.dp, max = 300.dp)
-            )
+        plans.chunked(columns).forEach { rowPlans ->
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                rowPlans.forEach { plan ->
+                    PlanCardWeb(
+                        plan = plan,
+                        onClick = { onPlanClick(plan) },
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    )
+                }
+                // A short final row must keep the same column rhythm — without
+                // these, two leftover cards would stretch to half the page each
+                // and no longer line up with the columns above them.
+                repeat(columns - rowPlans.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }
@@ -716,7 +737,7 @@ private fun PlanCardWeb(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxHeight()) {
             // Identity strip.
             Row(
                 modifier = Modifier
@@ -743,6 +764,7 @@ private fun PlanCardWeb(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -798,6 +820,13 @@ private fun PlanCardWeb(
                         }
                     }
                 }
+
+                // Pushes the buy button to the card's floor, so across a row
+                // of equal-height cards every button sits on the same line
+                // instead of trailing whatever feature list happens to be
+                // above it. The free plan has no button; its spacer still
+                // runs, keeping that card's body top-aligned like the rest.
+                Spacer(modifier = Modifier.weight(1f))
 
                 if (plan.price > 0L) {
                     Button(

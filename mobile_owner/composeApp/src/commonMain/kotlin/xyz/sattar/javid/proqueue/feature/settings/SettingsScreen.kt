@@ -479,40 +479,40 @@ private fun SettingsWebContent(
                 }
             }
 
-            AdvancedSettingsPromoCard(onClick = onAdvancedSettings)
-
+            // Narrowed at Expanded (like the business-actions card below it) —
+            // full-bleed across a wide monitor read as an oversized banner for
+            // what is a single promo action; AppSidebar also carries its own
+            // compact version of this same shortcut now (see AdvancedSettingsSidebarItem).
             if (isExpanded) {
-                // Two columns, alternating group assignment (biggest group
-                // first into each column) so the columns land at roughly
-                // even height instead of one trailing far past the other:
-                // business(3 rows) + theme&about(2 rows) vs
-                // messaging(4 rows) + logout(1 row).
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        BusinessActionsCard(uiState = uiState, onIntent = onIntent, onShowDeleteDialog = onShowDeleteDialog)
-                        ThemeAboutCard(onShowThemeSheet = onShowThemeSheet, onIntent = onIntent)
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        MessagingCard(onIntent = onIntent)
-                        LogoutCard(onLogout = onLogout)
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.widthIn(max = 640.dp)) {
+                        AdvancedSettingsPromoCard(onClick = onAdvancedSettings)
                     }
                 }
             } else {
-                // Medium: still panel cards (not phone rows), just one
-                // column — two columns at this width would wrap subtitles.
+                AdvancedSettingsPromoCard(onClick = onAdvancedSettings)
+            }
+
+            // Messaging and logout live only in AppSidebar (this screen's
+            // Medium/Expanded sibling) — keeping them here too would just be
+            // the same action reachable two ways. Business management and
+            // theme/about are the other way round: no sidebar shortcut, so
+            // this page is the only way to them.
+            if (isExpanded) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.widthIn(max = 640.dp),
+                        propagateMinConstraints = true
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            BusinessActionsCard(uiState = uiState, onIntent = onIntent, onShowDeleteDialog = onShowDeleteDialog)
+                            ThemeAboutCard(onShowThemeSheet = onShowThemeSheet, onIntent = onIntent)
+                        }
+                    }
+                }
+            } else {
                 BusinessActionsCard(uiState = uiState, onIntent = onIntent, onShowDeleteDialog = onShowDeleteDialog)
-                MessagingCard(onIntent = onIntent)
                 ThemeAboutCard(onShowThemeSheet = onShowThemeSheet, onIntent = onIntent)
-                LogoutCard(onLogout = onLogout)
             }
 
             SettingsFooter(appVersion = uiState.appVersion)
@@ -1087,7 +1087,7 @@ private fun SettingsItem(
 }
 
 @Composable
-private fun ThemeSelectionContent(
+internal fun ThemeSelectionContent(
     currentMode: AppThemeMode,
     onThemeSelected: (AppThemeMode) -> Unit
 ) {

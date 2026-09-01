@@ -4,6 +4,10 @@
     <string name="home_menu_item">خانه</string>
     <string name="last_visitors_menu_item">آخرین نوبت ها</string>
     <string name="settings_menu_item">پروفایل</string>
+    <!-- Same destination as settings_menu_item, but labelled for the web
+         sidebar, where it sits with the other settings rows rather than
+         acting as the phone bottom bar's profile avatar. -->
+    <string name="settings_sidebar_item">تنظیمات</string>
     <string name="phone">تلفن</string>
     <string name="business_name">نام کسب‌وکار</string>
     <string name="address">آدرس</string>

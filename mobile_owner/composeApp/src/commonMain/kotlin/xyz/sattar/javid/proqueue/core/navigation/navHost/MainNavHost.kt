@@ -37,7 +37,7 @@ import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.PaymentNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.PendingVisitorsFilter
-import xyz.sattar.javid.proqueue.core.ui.components.AppNavigationRail
+import xyz.sattar.javid.proqueue.core.ui.components.AppSidebar
 import xyz.sattar.javid.proqueue.core.ui.components.AppScaffold
 import xyz.sattar.javid.proqueue.core.ui.components.BottomNavigationBar
 import xyz.sattar.javid.proqueue.core.ui.components.ContentWidth
@@ -195,10 +195,18 @@ fun MainNavHost(
             visible = shouldShowBottomBar,
             modifier = Modifier.fillMaxHeight()
         ) {
-            AppNavigationRail(
+            AppSidebar(
                 tabs = tabs,
                 selectedTab = selectedTab,
-                onTabSelected = onTabSelected
+                onTabSelected = onTabSelected,
+                onNavigateToAdvancedSettings = { businessId ->
+                    navController.navigate(AppScreens.AdvancedSettings(businessId = businessId))
+                },
+                onNavigateToEmergencyNotice = { navController.navigate(AppScreens.EmergencyNotice) },
+                onNavigateToMessages = { navController.navigate(AppScreens.Messages) },
+                onNavigateToSmsReport = { navController.navigate(AppScreens.SmsReport) },
+                onNavigateToNotifications = { navController.navigate(AppScreens.Notifications) },
+                onNavigateToLogin = onNavigateToLogin
             )
         }
         // Capped here rather than per-screen so every destination in the

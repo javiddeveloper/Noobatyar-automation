@@ -2,6 +2,7 @@ package xyz.sattar.javid.proqueue.feature.createBusiness
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -72,6 +73,11 @@ fun AdvancedSettingsTabs(
     onMerchantId: (String) -> Unit,
     paymentLink: String,
     onPaymentLink: (String) -> Unit,
+    /** Submit button on Medium/Expanded, where the caller has no bottom bar.
+     *  Taken as a slot rather than left to the caller so it renders inside
+     *  the tab body's own column and inherits its width cap and, at
+     *  Expanded, its side of the rail. */
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf(
@@ -81,6 +87,7 @@ fun AdvancedSettingsTabs(
     )
 
     val tabContent: @Composable () -> Unit = {
+      Column {
         when (selectedTab) {
             0 -> PaymentTab(
                 entitlements = entitlements,
@@ -112,6 +119,8 @@ fun AdvancedSettingsTabs(
             )
             2 -> RemindersTab(entitlements = entitlements, plans = plans, onUpgrade = onUpgrade)
         }
+        footer?.invoke(this)
+      }
     }
 
     // Expanded gets a side rail instead of a top TabRow: at 1920px a strip of
@@ -173,8 +182,16 @@ fun AdvancedSettingsTabs(
                 }
             }
 
+            // The rail needs the full Wide-scaffold width to earn its keep,
+            // but the tab body itself is a plain single-column form
+            // (checkboxes, text fields, a segmented row) — left to stretch
+            // across everything weight(1f) leaves over (~800dp), those
+            // controls read as oversized instead of like the rest of the
+            // app's forms. Capped independently of the rail's width.
             Box(modifier = Modifier.weight(1f)) {
-                tabContent()
+                Box(modifier = Modifier.widthIn(max = 480.dp)) {
+                    tabContent()
+                }
             }
         }
     } else {

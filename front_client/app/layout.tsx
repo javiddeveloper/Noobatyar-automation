@@ -4,8 +4,6 @@ import ThemeToggle from './components/ThemeToggle';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 import PushPermissionPrompt from './components/PushPermissionPrompt';
 import { SITE_URL } from '@/lib/site';
-import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
-import PushPermissionPrompt from './components/PushPermissionPrompt';
 
 export const metadata: Metadata = {
   // Without metadataBase, every relative URL a page puts in `alternates` or
