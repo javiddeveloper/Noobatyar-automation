@@ -4,6 +4,8 @@ import ThemeToggle from './components/ThemeToggle';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 import PushPermissionPrompt from './components/PushPermissionPrompt';
 import { SITE_URL } from '@/lib/site';
+import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
+import PushPermissionPrompt from './components/PushPermissionPrompt';
 
 export const metadata: Metadata = {
   // Without metadataBase, every relative URL a page puts in `alternates` or
@@ -47,7 +49,12 @@ const themeScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fa" dir="rtl">
+    // themeScript below stamps data-theme onto this element while the browser
+    // is still parsing HTML — i.e. before React hydrates — so the client tree
+    // legitimately carries an attribute the server never rendered. This is the
+    // documented escape hatch for that pattern (Next.js "Preventing a flash
+    // before hydration"); without it every page load logs a hydration error.
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

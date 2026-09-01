@@ -10,6 +10,17 @@ import {
   type Appointment,
   type PaymentMethod,
 } from '@/lib/api';
+import {
+  digitsOnly,
+  formatCardNumber,
+  isValidCardChecksum,
+  validatePaymentRef,
+  REF_MAX_LENGTH,
+} from '@/lib/validation';
+import Toolbar from '@/app/components/Toolbar';
+import TextField from '@/app/components/TextField';
+import ReceiptUpload from '@/app/components/ReceiptUpload';
+import Icon from '@/app/components/Icon';
 
 export default function CheckoutPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const router = useRouter();
@@ -21,6 +32,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [paymentRef, setPaymentRef] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
+  // Set by a failed submit so every field stops hiding its error behind
+  // "not blurred yet" (see TextField).
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   // Null until the user picks one: the effective method falls back to the first
   // method this business actually offers, rather than assuming CARD.
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
@@ -52,16 +66,24 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       ? selectedMethod
       : availableMethods[0] ?? 'CARD';
 
+  // Proof is required for card/online, and either half of it satisfies the
+  // backend — so the reference is only mandatory when no receipt was attached.
+  const refRequired = method !== 'CASH' && !file;
+  const refError = validatePaymentRef(paymentRef, { required: refRequired });
+
+  const rawCard = biz?.card_number ?? '';
+  const cardDigits = digitsOnly(rawCard);
+  const cardLooksWrong = cardDigits.length > 0 && !isValidCardChecksum(cardDigits);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
   };
 
   const copyCard = async () => {
-    const card = appointment?.business?.card_number;
-    if (!card) return;
+    if (!cardDigits) return;
     try {
-      await navigator.clipboard.writeText(card.replace(/\s/g, ''));
+      await navigator.clipboard.writeText(cardDigits);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -87,7 +109,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
     getAppointment(id, token)
       .then((apt) => {
         if (apt.status !== 'LOCKED') {
-          // If already paid or something else, redirect to appointments
+          // Already paid or otherwise moved on.
           router.replace('/appointments');
         } else {
           setAppointment(apt);
@@ -117,9 +139,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   };
 
   const handleSubmit = async () => {
+    setSubmitAttempted(true);
+
     // Card and online transfers must carry proof; paying in person carries none.
     if (method !== 'CASH' && !file && !paymentRef.trim()) {
-      showToast('لطفا شماره پیگیری را وارد کنید یا تصویر فیش را آپلود نمایید');
+      showToast('شماره پیگیری را وارد کنید یا تصویر فیش را بارگذاری نمایید');
+      return;
+    }
+    if (method !== 'CASH' && refError) {
+      showToast(refError);
       return;
     }
 
@@ -133,21 +161,22 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         formData.append('method', method);
         formData.append('payment_receipt', file);
         if (paymentRef.trim()) {
-          formData.append('payment_reference', paymentRef);
+          formData.append('payment_reference', digitsOnly(paymentRef));
         }
         await payAppointmentWithReceipt(id, formData, token);
       } else {
-        await payAppointment(id, method === 'CASH' ? '' : paymentRef, token, method);
+        await payAppointment(
+          id,
+          method === 'CASH' ? '' : digitsOnly(paymentRef),
+          token,
+          method,
+        );
       }
-      showToast(
-        method === 'CASH'
-          ? '✅ نوبت شما ثبت شد و در انتظار تایید است.'
-          : '✅ پرداخت شما ثبت شد و در انتظار تایید است.',
-      );
-      setTimeout(() => router.push('/appointments'), 1500);
+      // The animated confirmation screen replaces the old toast-then-list hop,
+      // and `replace` keeps the settled checkout out of the back stack.
+      router.replace(`/booking-success?id=${id}&kind=${method === 'CASH' ? 'pending' : 'paid'}`);
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'خطا در ثبت پرداخت');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -155,11 +184,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   if (loading) {
     return (
       <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
-        <div className="toolbar">
-          <div className="toolbar-placeholder" />
-          <h1 className="toolbar-title">پرداخت و نهایی‌سازی</h1>
-          <button className="toolbar-back" onClick={() => router.back()}>›</button>
-        </div>
+        <Toolbar title="پرداخت و نهایی‌سازی" />
         <div style={{ padding: 24 }}>
           <div className="skeleton" style={{ height: 52, borderRadius: 14, marginBottom: 16 }} />
           <div className="skeleton" style={{ height: 180, borderRadius: 16, marginBottom: 16 }} />
@@ -171,35 +196,67 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
   if (error || !appointment) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <p style={{ color: 'var(--color-muted)' }}>{error}</p>
-        <button className="btn-primary" style={{ marginTop: 20 }} onClick={() => router.back()}>بازگشت</button>
+      <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
+        <Toolbar title="پرداخت و نهایی‌سازی" />
+        <div style={{ padding: 24 }}>
+          <div className="empty-state">
+            <span className="empty-state-icon" style={{ color: 'var(--color-error)' }}>
+              <Icon name="error" size={26} />
+            </span>
+            <h3>{error}</h3>
+            <button className="btn-primary" style={{ marginTop: 18, height: 48 }} onClick={() => router.back()}>
+              بازگشت
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
-      
-      <div className="toolbar">
-        <div className="toolbar-placeholder" />
-        <h1 className="toolbar-title">پرداخت و نهایی‌سازی</h1>
-        <button className="toolbar-back" onClick={() => router.back()}>›</button>
-      </div>
+      <Toolbar title="پرداخت و نهایی‌سازی" />
 
-      <div style={{ padding: '24px 24px' }}>
-        
-        {/* ── Tabs ── (only the methods this business actually offers) */}
+      <div style={{ padding: '24px' }}>
+        {/* ── Method tabs ── (only the methods this business actually offers) */}
         {availableMethods.length > 1 && (
-          <div style={{ display: 'flex', background: 'var(--color-surface-variant)', borderRadius: 14, padding: 4, marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              background: 'var(--color-surface-variant)',
+              borderRadius: 14,
+              padding: 4,
+              marginBottom: 16,
+            }}
+          >
             {availableMethods.map((m) => {
               const isActive = method === m;
-              const label = m === 'ONLINE' ? 'درگاه آنلاین' : m === 'CARD' ? 'کارت به کارت' : 'پرداخت در محل';
+              const label =
+                m === 'ONLINE' ? 'درگاه آنلاین' : m === 'CARD' ? 'کارت به کارت' : 'پرداخت در محل';
+              const icon = m === 'ONLINE' ? 'payments' : m === 'CARD' ? 'creditCard' : 'storefront';
               return (
                 <button
                   key={m}
                   onClick={() => setSelectedMethod(m)}
-                  style={{ flex: 1, padding: '12px 0', border: 'none', background: isActive ? 'var(--color-surface)' : 'none', borderRadius: isActive ? 10 : 0, color: isActive ? 'var(--color-text)' : 'var(--color-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none' }}>
+                  style={{
+                    flex: 1,
+                    padding: '11px 0',
+                    border: 'none',
+                    background: isActive ? 'var(--color-surface)' : 'none',
+                    borderRadius: 10,
+                    color: isActive ? 'var(--color-text)' : 'var(--color-muted)',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <Icon name={icon} size={15} />
                   {label}
                 </button>
               );
@@ -208,36 +265,90 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         )}
 
         {depositMode === 'OPTIONAL' && (
-          <div style={{ background: 'var(--color-primary-tint)', color: 'var(--color-text)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13, textAlign: 'right', lineHeight: 1.7 }}>
-            پرداخت بیعانه برای این کسب‌وکار <b>اختیاری</b> است. می‌توانید بیعانه را پرداخت کنید یا گزینهٔ «پرداخت در محل» را انتخاب نمایید.
+          <div
+            style={{
+              display: 'flex',
+              gap: 9,
+              background: 'var(--color-primary-tint)',
+              color: 'var(--color-text)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              marginBottom: 16,
+              fontSize: 12.5,
+              textAlign: 'right',
+              lineHeight: 1.8,
+            }}
+          >
+            <Icon name="info" size={18} color="var(--color-primary)" style={{ marginTop: 2 }} />
+            <span>
+              پرداخت بیعانه برای این کسب‌وکار <b>اختیاری</b> است. می‌توانید بیعانه را پرداخت کنید یا
+              گزینهٔ «پرداخت در محل» را انتخاب نمایید.
+            </span>
           </div>
         )}
 
-        {/* ── Transfer Card ── */}
+        {/* ── Card transfer ── */}
         {method === 'CARD' && (
           <>
-            <div style={{
-              background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)',
-              padding: 24, marginBottom: 24
-            }}>
-              <h2 style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', marginBottom: 20 }}>انتقال به شماره کارت زیر</h2>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: 2, direction: 'ltr' }}>
-                  {appointment?.business?.card_number || 'شماره کارت ثبت نشده'}
-                </div>
+            <div
+              style={{
+                background: 'var(--color-surface)',
+                borderRadius: 16,
+                border: '1px solid var(--color-border)',
+                padding: 20,
+                marginBottom: 20,
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  textAlign: 'right',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                }}
+              >
+                <Icon name="creditCard" size={17} color="var(--color-primary)" />
+                انتقال به شماره کارت زیر
+              </h2>
+
+              {/* Grouped 4-by-4 so it can be read off the screen and typed into
+                  a banking app without losing your place. */}
+              <div className="card-number-row">
+                <span className="card-number" dir="ltr">
+                  {cardDigits ? formatCardNumber(cardDigits) : 'شماره کارت ثبت نشده'}
+                </span>
                 <button
                   onClick={copyCard}
-                  disabled={!appointment?.business?.card_number}
-                  style={{ color: copied ? 'var(--color-success-text)' : 'var(--color-primary)', background: 'none', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {copied ? '✓ کپی شد' : 'کپی'}
+                  disabled={!cardDigits}
+                  className="card-copy"
+                  style={{ color: copied ? 'var(--color-success-text)' : 'var(--color-primary)' }}
+                >
+                  <Icon name={copied ? 'check' : 'copy'} size={15} />
+                  {copied ? 'کپی شد' : 'کپی'}
                 </button>
               </div>
-              
-              <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--color-muted)', marginBottom: 16 }}>
-                به نام: {appointment?.business?.card_owner_name || 'صاحب کسب‌وکار'}
+
+              {cardLooksWrong && (
+                <p className="field-error" style={{ marginTop: 2, marginBottom: 10 }}>
+                  <Icon name="warning" size={14} />
+                  <span>شماره کارت ثبت‌شده معتبر به نظر نمی‌رسد — قبل از واریز با کسب‌وکار هماهنگ کنید.</span>
+                </p>
+              )}
+
+              <div
+                style={{
+                  textAlign: 'right',
+                  fontSize: 12.5,
+                  color: 'var(--color-muted)',
+                  marginBottom: 14,
+                }}
+              >
+                به نام: {biz?.card_owner_name || 'صاحب کسب‌وکار'}
               </div>
-              
+
               {biz?.deposit_amount ? (
                 <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
                   مبلغ بیعانه: {biz.deposit_amount.toLocaleString('fa-IR')} تومان
@@ -246,72 +357,66 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                   )}
                 </div>
               ) : (
-                <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--color-muted)' }}>
+                <div style={{ textAlign: 'right', fontSize: 12.5, color: 'var(--color-muted)' }}>
                   مبلغ را با کسب‌وکار هماهنگ کنید.
                 </div>
               )}
             </div>
 
-            {/* ── Receipt Input ── */}
-            <div style={{ textAlign: 'right', marginBottom: 8, fontSize: 13, fontWeight: 600 }}>
-              شماره پیگیری / تصویر فیش واریزی
+            {/* ── Proof of payment ── */}
+            <div className="section-head" style={{ marginBottom: 10 }}>
+              <Icon name="receipt" size={17} color="var(--color-primary)" />
+              <h2>رسید پرداخت</h2>
             </div>
-            
-            <input
-              type="text"
-              placeholder="شماره پیگیری را اینجا وارد کنید"
+
+            <TextField
+              label="شماره پیگیری"
               value={paymentRef}
-              onChange={(e) => setPaymentRef(e.target.value)}
-              style={{
-                width: '100%', height: 52, borderRadius: 12, border: '1px dashed var(--color-border)',
-                textAlign: 'center', fontSize: 14, fontFamily: 'inherit', marginBottom: 16,
-                background: 'var(--color-surface)', outline: 'none'
-              }}
+              onChange={setPaymentRef}
+              transform={(raw) => digitsOnly(raw).slice(0, REF_MAX_LENGTH)}
+              validate={(v) => validatePaymentRef(v, { required: refRequired })}
+              showError={submitAttempted}
+              type="tel"
+              inputMode="numeric"
+              icon="payments"
+              dir="ltr"
+              placeholder="۱۲۳۴۵۶۷۸"
+              hint={
+                file
+                  ? 'فیش بارگذاری شد؛ وارد کردن شماره پیگیری اختیاری است.'
+                  : 'شماره پیگیری تراکنش، یا در ادامه تصویر فیش را بارگذاری کنید.'
+              }
+              required={refRequired}
             />
 
-            {/* ── Upload Button ── */}
-            <label style={{
-              width: '100%', height: 52, borderRadius: 12, border: '1px dashed var(--color-border)',
-              background: 'var(--color-surface)', color: 'var(--color-muted)', fontSize: 13, fontWeight: 600,
-              fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              cursor: 'pointer'
-            }}>
-              <span>📎</span> {file ? file.name : 'افزودن فیش پرداخت'}
-              <input 
-                type="file" 
-                accept="image/jpeg,image/png,image/jpg" 
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    setFile(e.target.files[0]);
-                  }
-                }}
-              />
-            </label>
+            <ReceiptUpload file={file} onChange={setFile} onError={showToast} />
           </>
         )}
-        
+
         {method === 'ONLINE' && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-muted)', fontSize: 14 }}>
+          <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--color-muted)', fontSize: 14 }}>
             {biz?.online_gateway_enabled ? (
               /* Real Zibal gateway: the bank confirms the payment and the
                  booking is settled by the callback, so there is no tracking
                  number for the client to copy back. */
               <>
-                <p style={{ marginBottom: 20 }}>
-                  برای پرداخت بیعانه به درگاه بانکی منتقل می‌شوید.
-                </p>
+                <span className="empty-state-icon" style={{ margin: '0 auto 14px' }}>
+                  <Icon name="payments" size={26} />
+                </span>
+                <p style={{ marginBottom: 20 }}>برای پرداخت بیعانه به درگاه بانکی منتقل می‌شوید.</p>
                 <button
+                  className="btn-primary"
                   onClick={handleGatewayRedirect}
                   disabled={redirecting}
-                  style={{
-                    width: '100%', height: 52, borderRadius: 12, border: 'none',
-                    background: 'var(--color-primary)', color: '#fff', fontSize: 15,
-                    fontWeight: 600, fontFamily: 'inherit',
-                    cursor: redirecting ? 'default' : 'pointer', opacity: redirecting ? 0.6 : 1,
-                  }}
+                  style={{ height: 52 }}
                 >
-                  {redirecting ? 'در حال انتقال…' : 'پرداخت با درگاه بانکی'}
+                  {redirecting ? (
+                    <>
+                      <span className="btn-spinner" /> در حال انتقال…
+                    </>
+                  ) : (
+                    'پرداخت با درگاه بانکی'
+                  )}
                 </button>
                 <p style={{ marginTop: 16, fontSize: 12, color: 'var(--color-faint)' }}>
                   پس از پرداخت موفق، نوبت شما بلافاصله قطعی می‌شود.
@@ -320,31 +425,44 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
             ) : biz?.payment_link ? (
               <>
                 <p style={{ marginBottom: 16 }}>
-                  برای پرداخت آنلاین مبلغ بیعانه، لطفا از طریق لینک زیر اقدام کنید:
+                  برای پرداخت آنلاین مبلغ بیعانه، لطفاً از طریق لینک زیر اقدام کنید:
                 </p>
-                <a 
-                  href={biz.payment_link.startsWith('http') ? biz.payment_link : `https://${biz.payment_link}`} 
-                  target="_blank" 
+                <a
+                  href={biz.payment_link.startsWith('http') ? biz.payment_link : `https://${biz.payment_link}`}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none', fontSize: 16 }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    color: 'var(--color-primary)',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    fontSize: 15,
+                  }}
                 >
                   انتقال به درگاه پرداخت
+                  <Icon name="chevronLeft" size={17} />
                 </a>
-                <p style={{ marginTop: 24, fontSize: 12, color: 'var(--color-faint)' }}>
-                  پس از پرداخت، لطفا شماره پیگیری را در همین صفحه وارد کنید.
+                <p style={{ margin: '24px 0 8px', fontSize: 12, color: 'var(--color-faint)' }}>
+                  پس از پرداخت، شماره پیگیری را در همین صفحه وارد کنید.
                 </p>
-                
-                <input
-                  type="text"
-                  placeholder="شماره پیگیری درگاه پرداخت"
-                  value={paymentRef}
-                  onChange={(e) => setPaymentRef(e.target.value)}
-                  style={{
-                    width: '100%', height: 52, borderRadius: 12, border: '1px solid var(--color-border)',
-                    textAlign: 'center', fontSize: 14, fontFamily: 'inherit', marginTop: 16,
-                    background: 'var(--color-surface)', outline: 'none'
-                  }}
-                />
+
+                <div style={{ textAlign: 'right' }}>
+                  <TextField
+                    value={paymentRef}
+                    onChange={setPaymentRef}
+                    transform={(raw) => digitsOnly(raw).slice(0, REF_MAX_LENGTH)}
+                    validate={(v) => validatePaymentRef(v, { required: refRequired })}
+                    showError={submitAttempted}
+                    type="tel"
+                    inputMode="numeric"
+                    icon="payments"
+                    dir="ltr"
+                    placeholder="شماره پیگیری درگاه پرداخت"
+                    required={refRequired}
+                  />
+                </div>
               </>
             ) : (
               'اتصال به درگاه پرداخت در حال حاضر غیرفعال است.'
@@ -353,34 +471,52 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         )}
 
         {method === 'CASH' && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-muted)', fontSize: 14, lineHeight: 1.9 }}>
-            شما پرداخت در محل را انتخاب کرده‌اید.
-            <br />
-            نوبت شما برای تایید به کسب‌وکار ارسال می‌شود.
+          <div style={{ textAlign: 'center', padding: '28px 0' }}>
+            <span className="empty-state-icon" style={{ margin: '0 auto 14px' }}>
+              <Icon name="storefront" size={26} />
+            </span>
+            <p style={{ color: 'var(--color-muted)', fontSize: 13.5, lineHeight: 1.9 }}>
+              شما پرداخت در محل را انتخاب کرده‌اید.
+              <br />
+              نوبت شما برای تأیید به کسب‌وکار ارسال می‌شود.
+            </p>
           </div>
         )}
-
       </div>
 
-      {/* ── Toast ── */}
       {toast && <div className="toast">{toast}</div>}
 
-      {/* ── Fixed Bottom Button ──
+      {/* ── Fixed bottom button ──
            Hidden for the real gateway: that flow finishes at the bank and is
            settled by the server callback, so a "submit" here would have nothing
            to send and would only invite a double payment. */}
       {!(method === 'ONLINE' && biz?.online_gateway_enabled) && (
-      <div className="btn-group">
-        <button
-          className="btn-primary"
-          onClick={handleSubmit}
-          disabled={submitting}
-        >
-          {submitting ? 'در حال ثبت...' : method === 'CASH' ? 'ثبت نوبت (پرداخت در محل)' : 'ثبت نهایی نوبت'}
-        </button>
-      </div>
+        <div className="btn-group">
+          <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? (
+              <>
+                <span className="btn-spinner" /> در حال ثبت…
+              </>
+            ) : method === 'CASH' ? (
+              'ثبت نوبت (پرداخت در محل)'
+            ) : (
+              'ثبت نهایی نوبت'
+            )}
+          </button>
+          {method === 'CARD' && biz?.deposit_amount ? (
+            <p
+              style={{
+                textAlign: 'center',
+                fontSize: 11,
+                color: 'var(--color-faint)',
+                marginTop: 8,
+              }}
+            >
+              مبلغ {biz.deposit_amount.toLocaleString('fa-IR')} تومان
+            </p>
+          ) : null}
+        </div>
       )}
-
     </div>
   );
 }

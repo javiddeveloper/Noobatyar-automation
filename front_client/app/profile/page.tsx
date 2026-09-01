@@ -4,15 +4,17 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMe, getMyActivity, type ActivityEntry, type Visitor } from '@/lib/api';
 import { formatIsoDate, STATUS_LABELS } from '@/lib/format';
+import Toolbar from '@/app/components/Toolbar';
+import Icon, { type IconName } from '@/app/components/Icon';
 
-// One glyph per action so the log is scannable without reading every line.
-const ACTION_ICON: Record<string, string> = {
-  APPOINTMENT_BOOKED: '🗓',
-  APPOINTMENT_STATUS_CHANGED: '🔄',
-  APPOINTMENT_CANCELLED: '✖️',
-  PROFILE_UPDATED: '✏️',
-  ARCHIVED_BY_OWNER: '📦',
-  RESTORED_BY_OWNER: '↩️',
+// One icon per action so the log is scannable without reading every line.
+const ACTION_ICON: Record<string, IconName> = {
+  APPOINTMENT_BOOKED: 'calendar',
+  APPOINTMENT_STATUS_CHANGED: 'refresh',
+  APPOINTMENT_CANCELLED: 'close',
+  PROFILE_UPDATED: 'person',
+  ARCHIVED_BY_OWNER: 'block',
+  RESTORED_BY_OWNER: 'back',
 };
 
 /** Turn a status code into its Persian label, falling back to the raw code. */
@@ -81,11 +83,9 @@ export default function ProfilePage() {
 
   return (
     <div className="page-content">
-      <div className="toolbar">
-        <div className="toolbar-placeholder" />
-        <h1 className="toolbar-title">پروفایل من</h1>
-        <button className="toolbar-back" onClick={() => router.back()}>›</button>
-      </div>
+      {/* No logout action here — the full-width button below is the one exit,
+          kept singular rather than duplicated between the toolbar and the page. */}
+      <Toolbar title="پروفایل من" />
 
       <div style={{ padding: '24px 24px' }}>
         {loading ? (
@@ -96,7 +96,9 @@ export default function ProfilePage() {
           </>
         ) : error ? (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            <div style={{ fontSize: 44, marginBottom: 12 }}>😕</div>
+            <span className="empty-state-icon" style={{ margin: '0 auto 12px', color: 'var(--color-error)' }}>
+              <Icon name="error" size={26} />
+            </span>
             <p style={{ color: 'var(--color-muted)', marginBottom: 20 }}>{error}</p>
             <button className="btn-primary" onClick={() => location.reload()}>
               تلاش مجدد
@@ -141,14 +143,12 @@ export default function ProfilePage() {
             <h2 className="section-title">تاریخچه فعالیت</h2>
 
             {activity.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <div style={{ fontSize: 44, marginBottom: 12 }}>📋</div>
-                <p style={{ color: 'var(--color-text)', fontWeight: 700, marginBottom: 6 }}>
-                  فعالیتی ثبت نشده
-                </p>
-                <p style={{ color: 'var(--color-muted)', fontSize: 13 }}>
-                  رویدادهای مربوط به نوبت‌ها و حساب شما اینجا نمایش داده می‌شود.
-                </p>
+              <div className="empty-state">
+                <span className="empty-state-icon">
+                  <Icon name="receipt" size={26} />
+                </span>
+                <h3>فعالیتی ثبت نشده</h3>
+                <p>رویدادهای مربوط به نوبت‌ها و حساب شما اینجا نمایش داده می‌شود.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -156,8 +156,19 @@ export default function ProfilePage() {
                   const note = describe(entry);
                   return (
                     <div key={entry.id} className="biz-address" style={{ alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: 20, lineHeight: 1.4 }}>
-                        {ACTION_ICON[entry.action] ?? '•'}
+                      <span
+                        style={{
+                          display: 'grid',
+                          placeItems: 'center',
+                          width: 34,
+                          height: 34,
+                          flexShrink: 0,
+                          borderRadius: 10,
+                          background: 'var(--color-primary-tint)',
+                          color: 'var(--color-primary)',
+                        }}
+                      >
+                        <Icon name={ACTION_ICON[entry.action] ?? 'info'} size={17} />
                       </span>
                       <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>

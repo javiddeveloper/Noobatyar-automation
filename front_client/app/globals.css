@@ -279,8 +279,8 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   border-radius: 11px;
   display: grid;
   place-items: center;
-  font-size: 18px;
   line-height: 1;
+  color: var(--color-warning);
   background: var(--color-warning-tint);
 }
 /* min-width:0 lets the text column actually shrink inside the flex row,
@@ -529,6 +529,26 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 .status-done      { background: #f3f4f6; color: #374151; }
 .status-cancelled { background: #fee2e2; color: #b91c1c; }
 
+/* "پیامک/اعلان یادآوری ارسال شد" chips on an appointment card. */
+.reminder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-dark);
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
 /* ── Toast notification ── */
 .toast {
   position: fixed;
@@ -744,8 +764,10 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   box-shadow: var(--shadow-card);
 }
 .stat-card .ico {
-  font-size: 20px;
+  display: grid;
+  place-items: center;
   line-height: 1;
+  color: var(--color-primary);
 }
 .stat-card .k {
   font-size: 10px;
@@ -780,7 +802,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   border-radius: 12px;
   display: grid;
   place-items: center;
-  font-size: 19px;
+  color: var(--color-primary);
   background: var(--color-primary-tint);
 }
 .biz-address .addr-text {
@@ -800,7 +822,8 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 }
 .biz-address .chevron {
   color: var(--color-faint);
-  font-size: 18px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
 }
 
@@ -818,5 +841,614 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   animation: spin 0.7s linear infinite;
   vertical-align: middle;
   margin-left: 8px;
+}
+
+/* ============================================================
+   Motion
+   ============================================================
+   Every animation below is decorative. The reduced-motion block at
+   the very bottom of this file disables all of them in one place —
+   add new keyframes here so that one block keeps covering them. */
+
+/* Slow drift across an oversized gradient: reads as a living surface
+   without anything visibly "moving". Used by the hero + banners. */
+@keyframes auroraShift {
+  0%   { background-position:   0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position:   0% 50%; }
+}
+
+/* Decorative blobs breathing in and out of the hero corners. */
+@keyframes blobFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(6px, -12px, 0) scale(1.12); }
+}
+
+/* One-shot diagonal gleam over a banner. */
+@keyframes shineSweep {
+  0%   { transform: translateX(-120%) rotate(18deg); opacity: 0; }
+  12%  { opacity: 1; }
+  55%  { opacity: 1; }
+  100% { transform: translateX(320%) rotate(18deg); opacity: 0; }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.82); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Animated hero / header ──────────────────────────────────── */
+.biz-hero {
+  background: linear-gradient(135deg,
+    var(--color-primary-light) 0%,
+    var(--color-primary) 30%,
+    var(--color-primary-dark) 55%,
+    var(--color-primary) 78%,
+    var(--color-primary-light) 100%);
+  background-size: 320% 320%;
+  animation: auroraShift 18s ease-in-out infinite;
+}
+.biz-hero::before { animation: blobFloat 11s ease-in-out infinite; }
+.biz-hero::after  { animation: blobFloat 14s ease-in-out infinite reverse; }
+
+/* ── App banner (home) ───────────────────────────────────────── */
+.app-banner {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  border-radius: 22px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: right;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 35%, #6d28d9 65%, #8b5cf6 100%);
+  background-size: 320% 320%;
+  animation: auroraShift 14s ease-in-out infinite;
+  box-shadow: 0 12px 30px rgba(109, 40, 217, 0.32);
+  transition: transform 0.16s ease;
+}
+.app-banner:active { transform: scale(0.985); }
+
+/* The gleam. A separate element so it can be clipped by the banner's
+   own overflow without affecting the gradient underneath. */
+.app-banner::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  inset-inline-start: 0;
+  width: 45%;
+  height: 220%;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.28) 50%,
+    rgba(255,255,255,0) 100%);
+  animation: shineSweep 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.app-banner-blob {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+.app-banner-blob.one {
+  width: 120px; height: 120px;
+  bottom: -46px; inset-inline-end: -30px;
+  animation: blobFloat 9s ease-in-out infinite;
+}
+.app-banner-blob.two {
+  width: 70px; height: 70px;
+  top: -28px; inset-inline-start: 18%;
+  animation: blobFloat 12s ease-in-out infinite reverse;
+}
+
+.app-banner-logo {
+  position: relative;
+  z-index: 1;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  animation: floatY 4.5s ease-in-out infinite;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+.app-banner-logo img { width: 100%; height: 100%; object-fit: cover; }
+
+.app-banner-body { position: relative; z-index: 1; flex: 1; min-width: 0; }
+.app-banner-body h2 {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.app-banner-body p {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+}
+.app-banner-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* ── Home brand row ──────────────────────────────────────────── */
+.home-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 18px 24px 6px;
+}
+.home-brand img { border-radius: 10px; }
+.home-brand span {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+/* ── Empty / error state ─────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 34px 22px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+.empty-state-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  margin-bottom: 14px;
+}
+.empty-state h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.empty-state p {
+  font-size: 12.5px;
+  color: var(--color-muted);
+  margin-top: 6px;
+  max-width: 260px;
+  line-height: 1.8;
+}
+.empty-state .btn-primary { width: auto; padding: 0 26px; }
+
+/* ── Section header with an icon ─────────────────────────────── */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.section-head h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  flex: 1;
+  text-align: right;
+}
+.section-head .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* ── Form fields (TextField.tsx) ─────────────────────────────── */
+.field { margin-bottom: 16px; }
+.field-shell { position: relative; display: flex; align-items: stretch; }
+.field-shell .form-input { width: 100%; }
+
+.field-icon,
+.field-status {
+  position: absolute;
+  top: 0;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--color-faint);
+}
+.field-icon   { inset-inline-start: 14px; }
+.field-status { inset-inline-end: 14px; animation: popIn 0.22s ease; }
+
+/* A textarea grows, so its adornments must sit at the top rather than
+   centre on a 54px row that no longer describes the control. */
+.field-shell:has(textarea) .field-icon,
+.field-shell:has(textarea) .field-status {
+  height: auto;
+  top: 14px;
+}
+
+.field-error,
+.field-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  text-align: right;
+}
+.field-error {
+  color: var(--color-error);
+  animation: riseIn 0.2s ease;
+}
+.field-hint { color: var(--color-muted); }
+
+/* ── Bank card number ────────────────────────────────────────── */
+.card-number-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+/* Tabular figures keep the four groups the same width, so the number
+   does not shimmy as the copy state re-renders beside it. */
+.card-number {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 1.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.card-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.card-copy:disabled { opacity: 0.45; cursor: default; }
+
+/* ── Upload dropzone + receipt preview ───────────────────────── */
+.upload-dropzone {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: right;
+  transition: border-color 0.16s, background 0.16s;
+}
+.upload-dropzone:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+.upload-dropzone-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+.upload-dropzone-text { flex: 1; min-width: 0; }
+.upload-dropzone-text strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.upload-dropzone-text small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.receipt-preview {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  animation: riseIn 0.24s ease;
+}
+.receipt-preview > img {
+  width: 72px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--color-surface-variant);
+}
+.receipt-preview-meta { flex: 1; min-width: 0; text-align: right; }
+.receipt-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.receipt-preview-size {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+.receipt-saving { color: var(--color-success-text); }
+.receipt-preview-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.receipt-preview-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.receipt-preview-actions button.danger { color: var(--color-error); }
+
+/* ── Crop sheet ──────────────────────────────────────────────── */
+.crop-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: riseIn 0.2s ease;
+}
+.crop-sheet-panel {
+  width: 100%;
+  max-width: var(--max-w);
+  background: var(--color-surface);
+  border-radius: 22px 22px 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 92dvh;
+}
+.crop-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+.crop-sheet-head h2 { font-size: 15px; font-weight: 700; }
+.crop-sheet-head button {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-surface-variant);
+  color: var(--color-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+/* react-easy-crop measures its own container, so this needs a real height. */
+.crop-stage {
+  position: relative;
+  width: 100%;
+  height: 58dvh;
+  background: #101010;
+}
+.crop-sheet-foot { padding: 14px 18px 22px; }
+.crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--color-muted);
+}
+.crop-zoom input[type="range"] {
+  flex: 1;
+  accent-color: var(--color-primary);
+  direction: ltr;
+}
+
+/* ── Booking success screen ──────────────────────────────────── */
+@keyframes ringPulse {
+  0%   { transform: scale(0.7); opacity: 0.55; }
+  70%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes badgeIn {
+  0%   { transform: scale(0.5); opacity: 0; }
+  55%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-24px) rotate(0deg); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(190px) rotate(420deg); opacity: 0; }
+}
+
+.success-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 28px 120px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.success-badge {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  margin-bottom: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #34d399, #059669);
+  box-shadow: 0 16px 38px rgba(5, 150, 105, 0.36);
+  animation: badgeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* Two expanding rings, offset in time, radiating from the badge. */
+.success-badge::before,
+.success-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(16, 185, 129, 0.55);
+  animation: ringPulse 2.4s ease-out infinite;
+}
+.success-badge::after { animation-delay: 1.2s; }
+
+.success-badge svg { width: 62px; height: 62px; position: relative; }
+.success-badge svg path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: drawCheck 0.45s 0.32s ease-out forwards;
+}
+
+.success-title {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 10px;
+  animation: riseIn 0.4s 0.3s ease both;
+}
+.success-sub {
+  font-size: 13.5px;
+  line-height: 2;
+  color: var(--color-muted);
+  max-width: 300px;
+  animation: riseIn 0.4s 0.42s ease both;
+}
+.success-card {
+  width: 100%;
+  max-width: 330px;
+  margin-top: 26px;
+  animation: riseIn 0.4s 0.54s ease both;
+}
+.success-actions {
+  width: 100%;
+  max-width: 330px;
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: riseIn 0.4s 0.66s ease both;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 12%;
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confettiFall 2.6s ease-in forwards;
+  pointer-events: none;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────
+   One switch for every decorative animation declared above. The
+   success check still needs to end up drawn, so it is finished
+   instantly rather than left at dashoffset 40 (an invisible tick). */
+@media (prefers-reduced-motion: reduce) {
+  .biz-hero,
+  .biz-hero::before,
+  .biz-hero::after,
+  .app-banner,
+  .app-banner::after,
+  .app-banner-blob,
+  .app-banner-logo,
+  .success-badge,
+  .success-badge::before,
+  .success-badge::after,
+  .success-title,
+  .success-sub,
+  .success-card,
+  .success-actions,
+  .confetti-piece,
+  .field-error,
+  .field-status,
+  .receipt-preview,
+  .crop-sheet {
+    animation: none !important;
+  }
+  .app-banner::after,
+  .confetti-piece { display: none; }
+  .success-badge svg path { stroke-dashoffset: 0; }
+  .success-title,
+  .success-sub,
+  .success-card,
+  .success-actions { opacity: 1; transform: none; }
 }
 

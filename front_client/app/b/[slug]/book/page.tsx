@@ -13,26 +13,20 @@ import {
 } from '@/lib/api';
 import BusinessUnavailable from '@/app/components/BusinessUnavailable';
 import BusinessNotice from '@/app/components/BusinessNotice';
+import Toolbar from '@/app/components/Toolbar';
+import TextField from '@/app/components/TextField';
+import Icon, { CATEGORY_ICON } from '@/app/components/Icon';
+import { toPersianDigits, validateFreeText } from '@/lib/validation';
 import { schedulePushPrompt } from '@/lib/push';
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  BEAUTY_SALON: '💅',
-  DOCTOR: '🏥',
-  CONSULTANT: '💼',
-  OTHER: '🏢',
-};
+const SERVICE_MAX = 100;
+const DESCRIPTION_MAX = 500;
 
-function toPersianNumerals(n: string): string {
-  const map: Record<string, string> = {
-    '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴',
-    '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹',
-  };
-  return n.replace(/[0-9]/g, (d) => map[d]);
-}
+const toPersianNumerals = (n: string) => toPersianDigits(n);
 
 function toDateString(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -163,7 +157,7 @@ export default function BookingPage({ params }: Props) {
     );
     if (match) {
       setSelectedSlot(match);
-      showToast('✅ زمان انتخابی شما بازیابی شد');
+      showToast('زمان انتخابی شما بازیابی شد');
     } else {
       showToast('زمان انتخابی شما دیگر در دسترس نیست، لطفاً زمان دیگری انتخاب کنید');
     }
@@ -212,12 +206,12 @@ export default function BookingPage({ params }: Props) {
       schedulePushPrompt();
 
       if (requires_payment) {
-        showToast('✅ نوبت با موفقیت قفل شد. در حال انتقال به درگاه پرداخت...');
-        setTimeout(() => router.push(`/b/${slug}/checkout/${appointmentId}`), 1500);
+        showToast('نوبت با موفقیت قفل شد. در حال انتقال به صفحهٔ پرداخت…');
+        setTimeout(() => router.push(`/b/${slug}/checkout/${appointmentId}`), 1200);
       } else {
-        // Basic plan / no deposit — the booking is complete, no payment step.
-        showToast('✅ نوبت شما ثبت شد و در انتظار تایید کسب‌وکار است.');
-        setTimeout(() => router.push('/appointments'), 1500);
+        // Basic plan / no deposit — the booking is complete, no payment step,
+        // so this lands straight on the animated confirmation.
+        router.replace(`/booking-success?id=${appointmentId}&kind=pending`);
       }
     } catch (err: unknown) {
       if (err instanceof UnauthorizedError) {
@@ -252,11 +246,7 @@ export default function BookingPage({ params }: Props) {
   if (loading) {
     return (
       <div className="page-content">
-        <div className="toolbar">
-          <div className="toolbar-placeholder" />
-          <h1 className="toolbar-title">انتخاب زمان نوبت</h1>
-          <button className="toolbar-back" onClick={() => router.back()}>›</button>
-        </div>
+        <Toolbar title="انتخاب زمان نوبت" />
         {/* business header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', borderBottom: '1px solid var(--color-border)' }}>
           <div className="skeleton" style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0 }} />
@@ -298,13 +288,11 @@ export default function BookingPage({ params }: Props) {
   if (!bookingEnabled) {
     return (
       <div className="page-content" style={{ background: 'var(--color-bg)' }}>
-        <div className="toolbar">
-          <div className="toolbar-placeholder" />
-          <h1 className="toolbar-title">رزرو نوبت</h1>
-          <button className="toolbar-back" onClick={() => router.back()}>›</button>
-        </div>
+        <Toolbar title="رزرو نوبت" />
         <div style={{ padding: 40, textAlign: 'center' }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🚫</div>
+          <span className="empty-state-icon" style={{ margin: '0 auto 16px', width: 60, height: 60, color: 'var(--color-error)' }}>
+            <Icon name="block" size={28} />
+          </span>
           <h2 style={{ fontSize: 16, color: 'var(--color-text)', fontWeight: 700, marginBottom: 8 }}>
             ثبت نوبت غیرفعال است
           </h2>
@@ -337,6 +325,13 @@ export default function BookingPage({ params }: Props) {
       current.includes(name) ? current.filter((s) => s !== name) : [...current, name]
     );
 
+  // Recomputed rather than stored: the "+" button and the field's own error
+  // must never disagree about whether what is typed can be added.
+  const customServiceError = validateFreeText(customService, {
+    max: SERVICE_MAX,
+    label: 'نام خدمت',
+  });
+
   const addCustomService = () => {
     // Commas separate services on the backend, so one inside a name would come
     // back as two. Folded to a space rather than rejected.
@@ -349,24 +344,27 @@ export default function BookingPage({ params }: Props) {
   return (
     <div className="page-content">
 
-      <div className="toolbar">
-        <div className="toolbar-placeholder" />
-        <h1 className="toolbar-title">انتخاب زمان نوبت</h1>
-        <button className="toolbar-back" onClick={() => router.back()}>›</button>
-      </div>
+      <Toolbar
+        title="انتخاب زمان نوبت"
+        actions={[{ icon: 'calendar', label: 'نوبت‌های من', onClick: () => router.push('/appointments') }]}
+      />
 
       <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)' }}>
         <div style={{
           width: 48, height: 48, borderRadius: '50%', background: 'var(--color-primary-tint)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0
+          color: 'var(--color-primary)', overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
         }}>
           {business.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote media host, no loader configured
             <img
               src={business.logo.startsWith('http') ? business.logo : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${business.logo}`}
               alt={business.title}
               style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
             />
-          ) : (CATEGORY_EMOJI[business.category] || '🏢')}
+          ) : (
+            <Icon name={CATEGORY_ICON[business.category] ?? 'storefront'} size={24} />
+          )}
         </div>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>{business.title}</h2>
@@ -427,12 +425,12 @@ export default function BookingPage({ params }: Props) {
             ))}
           </div>
         ) : slots.length === 0 ? (
-          <div style={{
-            textAlign: 'center', padding: '40px 0',
-            color: 'var(--color-muted)', fontSize: 13,
-          }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>🗓</div>
-            ساعت خالی در این روز وجود ندارد
+          <div className="empty-state" style={{ padding: '30px 20px' }}>
+            <span className="empty-state-icon">
+              <Icon name="eventBusy" size={26} />
+            </span>
+            <h3>ساعت خالی در این روز وجود ندارد</h3>
+            <p>روز دیگری را از نوار بالا انتخاب کنید</p>
           </div>
         ) : (
           <div className="slots-grid">
@@ -501,49 +499,46 @@ export default function BookingPage({ params }: Props) {
                     fontWeight: isSelected ? 700 : 500,
                   }}
                 >
-                  {isSelected ? '✓ ' : ''}{name}
+                  {isSelected && <Icon name="check" size={14} style={{ display: 'inline-block', verticalAlign: '-2px', marginLeft: 4 }} />}
+                  {name}
                 </button>
               );
             })}
           </div>
 
           {allowCustomService && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'flex-start' }}>
               <button
                 type="button"
                 onClick={addCustomService}
-                disabled={!customService.trim()}
+                disabled={!customService.trim() || !!customServiceError}
                 style={{
-                  width: 44, height: 44, flexShrink: 0,
+                  width: 54, height: 54, flexShrink: 0,
                   borderRadius: 12, border: '1px solid var(--color-border)',
                   background: 'var(--color-surface)', color: 'var(--color-primary)',
-                  fontSize: 20, fontFamily: 'inherit',
-                  cursor: customService.trim() ? 'pointer' : 'default',
-                  opacity: customService.trim() ? 1 : 0.5,
+                  display: 'grid', placeItems: 'center', fontFamily: 'inherit',
+                  cursor: customService.trim() && !customServiceError ? 'pointer' : 'default',
+                  opacity: customService.trim() && !customServiceError ? 1 : 0.5,
                 }}
                 aria-label="افزودن خدمت"
               >
-                +
+                <Icon name="add" size={22} />
               </button>
-              <input
-                type="text"
-                value={customService}
-                onChange={(e) => setCustomService(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addCustomService();
-                  }
-                }}
-                maxLength={100}
-                placeholder="خدمت دیگری می‌خواهید؟ بنویسید"
-                style={{
-                  flex: 1, minWidth: 0, boxSizing: 'border-box', height: 44,
-                  padding: '0 14px', borderRadius: 12, border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)', color: 'var(--color-text)',
-                  fontSize: 14, fontFamily: 'inherit', textAlign: 'right',
-                }}
-              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <TextField
+                  value={customService}
+                  onChange={setCustomService}
+                  validate={(v) => validateFreeText(v, { max: SERVICE_MAX, label: 'نام خدمت' })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomService();
+                    }
+                  }}
+                  maxLength={SERVICE_MAX}
+                  placeholder="خدمت دیگری می‌خواهید؟ بنویسید"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -552,25 +547,16 @@ export default function BookingPage({ params }: Props) {
       {/* ── Service Description (optional) ── */}
       {selectedSlot && (
         <div className="section" style={{ paddingTop: 0 }}>
-          <label
-            htmlFor="service-description"
-            style={{ display: 'block', textAlign: 'right', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 8 }}
-          >
-            توضیحات سرویس (اختیاری)
-          </label>
-          <textarea
-            id="service-description"
+          <TextField
+            label="توضیحات سرویس (اختیاری)"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
+            validate={(v) => validateFreeText(v, { max: DESCRIPTION_MAX, label: 'توضیحات' })}
+            type="textarea"
             rows={3}
-            maxLength={500}
+            maxLength={DESCRIPTION_MAX}
             placeholder="نوع خدمت مورد نظر خود را توضیح دهید"
-            style={{
-              width: '100%', boxSizing: 'border-box', resize: 'vertical',
-              padding: '12px 14px', borderRadius: 12, border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)', color: 'var(--color-text)',
-              fontSize: 14, fontFamily: 'inherit', textAlign: 'right',
-            }}
+            hint={`${toPersianDigits(description.trim().length)} از ${toPersianDigits(DESCRIPTION_MAX)} کاراکتر`}
           />
         </div>
       )}
@@ -586,13 +572,18 @@ export default function BookingPage({ params }: Props) {
             color: 'var(--color-primary)',
             border: '1.5px solid var(--color-primary)',
             borderRadius: 14,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: 600,
             fontFamily: 'inherit',
             cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 7,
           }}
         >
-          نوبت های من
+          <Icon name="calendar" size={18} />
+          نوبت‌های من
         </button>
       </div>
 

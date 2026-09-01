@@ -150,6 +150,7 @@ class VisitorDetailsViewModel(
             remoteMessages = try {
                 messageRepository.getRemoteMessages(
                     visitorId = visitorId,
+                    businessId = business.id,
                     businessTitle = business.title
                 )
             } catch (_: Exception) {

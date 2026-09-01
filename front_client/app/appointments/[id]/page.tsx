@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAppointment, cancelAppointment, categoryLabel, type Appointment } from '@/lib/api';
-import { CATEGORY_EMOJI, STATUS_LABELS, formatDate } from '@/lib/format';
+import { STATUS_LABELS, formatDate } from '@/lib/format';
+import Toolbar from '@/app/components/Toolbar';
+import Icon, { CATEGORY_ICON } from '@/app/components/Icon';
 
 // Anything still ahead of the appointment time can be cancelled by the client.
 const CANCELLABLE = ['LOCKED', 'PENDING_APPROVAL', 'PENDING_VERIFICATION', 'WAITING', 'CONFIRMED'];
@@ -56,11 +58,7 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   if (loading) {
     return (
       <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
-        <div className="toolbar">
-          <div className="toolbar-placeholder" />
-          <h1 className="toolbar-title">جزئیات نوبت</h1>
-          <button className="toolbar-back" onClick={() => router.back()}>›</button>
-        </div>
+        <Toolbar title="جزئیات نوبت" />
         <div style={{ padding: 24 }}>
           <div className="skeleton" style={{ width: 72, height: 72, borderRadius: '50%', margin: '8px auto 16px' }} />
           <div className="skeleton" style={{ height: 20, width: 160, borderRadius: 8, margin: '0 auto 24px' }} />
@@ -74,7 +72,9 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
   if (error || !appointment) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>😕</div>
+        <span className="empty-state-icon" style={{ margin: '0 auto 12px', color: 'var(--color-error)' }}>
+          <Icon name="error" size={26} />
+        </span>
         <p style={{ color: 'var(--color-muted)' }}>{error}</p>
         <button className="btn-primary" style={{ marginTop: 20, width: 'auto', padding: '0 32px' }} onClick={() => router.back()}>بازگشت</button>
       </div>
@@ -83,16 +83,12 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
 
   const st = STATUS_LABELS[appointment.status] || { label: appointment.status, color: 'var(--color-muted)', bg: '#f3f4f6' };
   const biz = appointment.business;
-  const emoji = CATEGORY_EMOJI[biz.category] || '🏢';
+  const categoryIcon = CATEGORY_ICON[biz.category] ?? 'storefront';
 
   return (
     <div className="page-content" style={{ background: 'var(--color-bg)', minHeight: '100dvh' }}>
 
-      <div className="toolbar">
-        <div className="toolbar-placeholder" />
-        <h1 className="toolbar-title">جزئیات نوبت</h1>
-        <button className="toolbar-back" onClick={() => router.back()}>›</button>
-      </div>
+      <Toolbar title="جزئیات نوبت" />
 
       <div style={{ padding: '24px 24px' }}>
 
@@ -101,9 +97,10 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
           <div style={{
             width: 76, height: 76, borderRadius: '50%', margin: '0 auto 12px',
             background: 'var(--color-primary-tint)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: 36,
+            alignItems: 'center', justifyContent: 'center',
+            color: 'var(--color-primary)',
           }}>
-            {emoji}
+            <Icon name={categoryIcon} size={36} />
           </div>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text)' }}>{biz.title}</h2>
           <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 4, marginBottom: 14 }}>
@@ -139,19 +136,15 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
               <div style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 8 }}>یادآوری</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {appointment.reminder_push_sent && (
-                  <span style={{
-                    background: 'var(--color-primary-tint)', color: 'var(--color-primary-dark)',
-                    padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                  }}>
-                    🔔 اعلان ارسال شد
+                  <span className="reminder-chip" style={{ fontSize: 11, padding: '4px 10px' }}>
+                    <Icon name="notifications" size={13} />
+                    اعلان ارسال شد
                   </span>
                 )}
                 {appointment.reminder_sms_sent && (
-                  <span style={{
-                    background: 'var(--color-primary-tint)', color: 'var(--color-primary-dark)',
-                    padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                  }}>
-                    💬 پیامک ارسال شد
+                  <span className="reminder-chip" style={{ fontSize: 11, padding: '4px 10px' }}>
+                    <Icon name="sms" size={13} />
+                    پیامک ارسال شد
                   </span>
                 )}
               </div>

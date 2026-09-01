@@ -53,8 +53,8 @@ class MessageRepositoryImpl(
         }
     }
 
-    override suspend fun getRemoteMessages(visitorId: Long, businessTitle: String): List<Message> {
-        val response = visitorApiService.getVisitorMessages(visitorId = visitorId)
+    override suspend fun getRemoteMessages(visitorId: Long, businessId: Long, businessTitle: String): List<Message> {
+        val response = visitorApiService.getVisitorMessages(visitorId = visitorId, businessId = businessId)
         return when (response) {
             is ApiResponse.Success -> response.data.results.map { dto ->
                 Message(

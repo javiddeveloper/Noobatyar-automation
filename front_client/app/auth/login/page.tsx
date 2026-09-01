@@ -1,10 +1,44 @@
 'use client';
 
-import { useState, Suspense, useRef, useEffect } from 'react';
+import { useState, Suspense, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sendOtp, verifyOtp, completeRegister } from '@/lib/api';
+import {
+  digitsOnly,
+  normalizePhone,
+  toPersianDigits,
+  validateName,
+  validateOtp,
+  validatePhone,
+  NAME_MAX_LENGTH,
+  OTP_LENGTH,
+} from '@/lib/validation';
+import Toolbar from '@/app/components/Toolbar';
+import TextField from '@/app/components/TextField';
+import Icon, { type IconName } from '@/app/components/Icon';
 
 type Step = 'PHONE' | 'OTP' | 'NAME';
+
+const STEP_META: Record<Step, { title: string; icon: IconName; heading: string; sub: string }> = {
+  PHONE: {
+    title: 'ورود / ثبت‌نام',
+    icon: 'smartphone',
+    heading: 'شماره موبایل خود را وارد کنید',
+    sub: 'کد تأیید به این شماره پیامک می‌شود',
+  },
+  OTP: {
+    title: 'کد تأیید',
+    icon: 'lock',
+    heading: 'کد تأیید ارسال شد',
+    sub: '',
+  },
+  NAME: {
+    title: 'تکمیل پروفایل',
+    icon: 'person',
+    heading: 'خوش آمدید!',
+    sub: 'برای تکمیل ثبت‌نام، نام خود را وارد کنید',
+  },
+};
 
 function LoginForm() {
   const router = useRouter();
@@ -13,83 +47,83 @@ function LoginForm() {
 
   const [step, setStep] = useState<Step>('PHONE');
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [name, setName] = useState('');
   const [registerToken, setRegisterToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Countdown timer for resend
   useEffect(() => {
     if (countdown <= 0) return;
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
 
-  const saveToken = (token: string) => {
-    localStorage.setItem('visitor_token', token);
-  };
+  const saveToken = (token: string) => localStorage.setItem('visitor_token', token);
 
-  /* ── Step 1: Send OTP ── */
-  const handleSendOtp = async () => {
-    const cleaned = phone.replace(/\s/g, '');
-    if (!/^09\d{9}$/.test(cleaned)) {
-      setError('شماره موبایل معتبر نیست (مثال: ۰۹۱۲۳۴۵۶۷۸۹)');
-      return;
-    }
+  /* ── Step 1: send the OTP ── */
+  const handleSendOtp = useCallback(async () => {
+    setSubmitAttempted(true);
+    // The field renders its own message once submitAttempted is set; repeating
+    // it in the banner below would show the same sentence twice.
+    if (validatePhone(phone)) return;
     setError('');
     setLoading(true);
     try {
-      await sendOtp(cleaned);
+      await sendOtp(normalizePhone(phone));
       setStep('OTP');
+      setSubmitAttempted(false);
       setCountdown(120);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'خطا در ارسال کد');
     } finally {
       setLoading(false);
     }
-  };
+  }, [phone]);
 
-  /* ── Step 2: Verify OTP ── */
-  const handleVerifyOtp = async () => {
-    const fullCode = code.join('');
-    if (fullCode.length !== 6) {
-      setError('کد ۶ رقمی را کامل وارد کنید');
+  /* ── Step 2: verify it ──
+     Takes the digits explicitly so the auto-submit path can hand over the
+     array it just built, instead of racing the `code` state update. */
+  const handleVerifyOtp = useCallback(async (digits: string[] = code) => {
+    setSubmitAttempted(true);
+    const fullCode = digits.join('');
+    const problem = validateOtp(fullCode);
+    if (problem) {
+      setError(problem);
       return;
     }
     setError('');
     setLoading(true);
     try {
-      const cleaned = phone.replace(/\s/g, '');
-      const result = await verifyOtp(cleaned, fullCode);
+      const result = await verifyOtp(normalizePhone(phone), fullCode);
       if (result.is_registered && result.token) {
         saveToken(result.token);
         router.push(redirect);
       } else if (!result.is_registered && result.register_token) {
         setRegisterToken(result.register_token);
         setStep('NAME');
+        setSubmitAttempted(false);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'کد وارد شده اشتباه است');
     } finally {
       setLoading(false);
     }
-  };
+  }, [code, phone, redirect, router]);
 
-  /* ── Step 3: Complete Registration ── */
+  /* ── Step 3: finish registering ── */
   const handleRegister = async () => {
-    if (name.trim().length < 2) {
-      setError('نام باید حداقل ۲ حرف باشد');
-      return;
-    }
+    setSubmitAttempted(true);
+    // Same as the phone step: the field itself explains the problem.
+    if (validateName(name)) return;
     setError('');
     setLoading(true);
     try {
-      const cleaned = phone.replace(/\s/g, '');
-      const result = await completeRegister(cleaned, registerToken, name.trim());
+      const result = await completeRegister(normalizePhone(phone), registerToken, name.trim());
       saveToken(result.token);
       router.push(redirect);
     } catch (err: unknown) {
@@ -99,24 +133,30 @@ function LoginForm() {
     }
   };
 
-  /* ── OTP digit input handler ── */
+  /* ── OTP boxes ── */
   const handleCodeInput = (index: number, val: string) => {
-    // Allow Persian/Arabic/Latin digits
-    const digit = val.replace(/[^0-9۰-۹]/g, '').slice(-1);
-    const latinDigit = digit.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+    // A paste lands entirely in one box: spread it across the remaining ones
+    // instead of keeping a single digit and dropping the rest.
+    const typed = digitsOnly(val);
     const next = [...code];
-    next[index] = latinDigit;
-    setCode(next);
-    if (latinDigit && index < 5) {
-      codeRefs.current[index + 1]?.focus();
+
+    if (typed.length > 1) {
+      for (let i = 0; i < typed.length && index + i < OTP_LENGTH; i++) {
+        next[index + i] = typed[i];
+      }
+      setCode(next);
+      codeRefs.current[Math.min(index + typed.length, OTP_LENGTH - 1)]?.focus();
+    } else {
+      const digit = typed.slice(-1);
+      next[index] = digit;
+      setCode(next);
+      if (digit && index < OTP_LENGTH - 1) codeRefs.current[index + 1]?.focus();
     }
-    if (next.every(Boolean) && next.join('').length === 6) {
-      // auto-submit when all 6 digits entered
-      setTimeout(() => {
-        const el = document.getElementById('otp-submit-btn');
-        el?.click();
-      }, 100);
-    }
+
+    // Submit as soon as the last box is filled. Done here rather than from an
+    // effect watching `code`, and handed `next` directly so it never reads the
+    // pre-update state.
+    if (!loading && next.every((d) => d !== '')) handleVerifyOtp(next);
   };
 
   const handleCodeKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -125,118 +165,121 @@ function LoginForm() {
     }
   };
 
-  /* ── UI ── */
+  const meta = STEP_META[step];
+  const submit =
+    step === 'PHONE' ? handleSendOtp : step === 'OTP' ? () => handleVerifyOtp() : handleRegister;
+
   return (
-    <div style={{
-      background: 'var(--color-bg)', minHeight: '100dvh',
-      display: 'flex', flexDirection: 'column',
-    }}>
+    <div style={{ background: 'var(--color-bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar
+        title={meta.title}
+        hideBack={step === 'PHONE'}
+        onBack={() => {
+          setStep(step === 'NAME' ? 'OTP' : 'PHONE');
+          setError('');
+          setSubmitAttempted(false);
+        }}
+      />
 
-      <div className="toolbar">
-        <div className="toolbar-placeholder" />
-        <h1 className="toolbar-title">
-          {step === 'PHONE' ? 'ورود / ثبت‌نام' : step === 'OTP' ? 'کد تأیید' : 'تکمیل پروفایل'}
-        </h1>
-        {step !== 'PHONE' ? (
-          <button
-            className="toolbar-back"
-            onClick={() => { setStep(step === 'NAME' ? 'OTP' : 'PHONE'); setError(''); }}
-          >›</button>
-        ) : (
-          <div className="toolbar-placeholder" />
-        )}
-      </div>
+      <div style={{ flex: 1, padding: '32px 24px 130px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 30 }}>
+          <span className="empty-state-icon" style={{ margin: '0 auto 14px', width: 60, height: 60 }}>
+            <Icon name={meta.icon} size={28} />
+          </span>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
+            {meta.heading}
+          </h2>
+          <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
+            {step === 'OTP'
+              ? `کد ${toPersianDigits(OTP_LENGTH)} رقمی ارسال‌شده به ${toPersianDigits(normalizePhone(phone))} را وارد کنید`
+              : meta.sub}
+          </p>
+        </div>
 
-      <div style={{ flex: 1, padding: '32px 24px 120px' }}>
-
-        {/* ── STEP 1: Phone ── */}
+        {/* ── STEP 1: phone ── */}
         {step === 'PHONE' && (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{ fontSize: 56, marginBottom: 12 }}>📱</div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
-                شماره موبایل خود را وارد کنید
-              </h2>
-              <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
-                کد تأیید به این شماره پیامک می‌شود
-              </p>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <input
-                type="tel"
-                placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
-                dir="ltr"
-                autoComplete="tel"
-                style={{
-                  width: '100%', height: 56, borderRadius: 16,
-                  border: '2px solid var(--color-border)', textAlign: 'center',
-                  fontSize: 18, fontFamily: 'inherit', outline: 'none',
-                  color: 'var(--color-text)', letterSpacing: 2,
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
-              />
-            </div>
-          </>
+          <TextField
+            value={phone}
+            onChange={setPhone}
+            transform={normalizePhone}
+            validate={validatePhone}
+            showError={submitAttempted}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+            type="tel"
+            inputMode="numeric"
+            icon="smartphone"
+            dir="ltr"
+            autoComplete="tel"
+            placeholder="09123456789"
+            hint="شمارهٔ ۱۱ رقمی، با ۰۹ شروع می‌شود"
+            required
+          />
         )}
 
         {/* ── STEP 2: OTP ── */}
         {step === 'OTP' && (
           <>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{ fontSize: 56, marginBottom: 12 }}>🔐</div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
-                کد تأیید ارسال شد
-              </h2>
-              <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
-                کد ۶ رقمی ارسال‌شده به {phone} را وارد کنید
-              </p>
-            </div>
-
-            {/* OTP boxes */}
-            <div style={{
-              display: 'flex', gap: 10, justifyContent: 'center',
-              direction: 'ltr', marginBottom: 24
-            }}>
+            <div style={{ display: 'flex', gap: 9, justifyContent: 'center', direction: 'ltr', marginBottom: 22 }}>
               {code.map((digit, i) => (
                 <input
                   key={i}
-                  ref={(el) => { codeRefs.current[i] = el; }}
+                  ref={(el) => {
+                    codeRefs.current[i] = el;
+                  }}
                   type="tel"
-                  maxLength={1}
+                  inputMode="numeric"
+                  autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                  aria-label={`رقم ${toPersianDigits(i + 1)} از کد تأیید`}
                   value={digit}
                   onChange={(e) => handleCodeInput(i, e.target.value)}
                   onKeyDown={(e) => handleCodeKeyDown(i, e)}
                   style={{
-                    width: 52, height: 56, borderRadius: 12,
-                    border: `2px solid ${digit ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                    textAlign: 'center', fontSize: 22, fontWeight: 700,
-                    fontFamily: 'inherit', outline: 'none',
+                    width: 50,
+                    height: 56,
+                    borderRadius: 12,
+                    border: `2px solid ${
+                      error ? 'var(--color-error)' : digit ? 'var(--color-primary)' : 'var(--color-border)'
+                    }`,
+                    textAlign: 'center',
+                    fontSize: 22,
+                    fontWeight: 700,
+                    fontFamily: 'inherit',
+                    outline: 'none',
                     background: digit ? 'var(--color-primary-tint)' : 'var(--color-surface)',
-                    color: 'var(--color-text)', transition: 'all 0.15s',
+                    color: 'var(--color-text)',
+                    transition: 'all 0.15s',
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
                 />
               ))}
             </div>
 
-            {/* Resend */}
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
               {countdown > 0 ? (
                 <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
-                  ارسال مجدد تا {countdown} ثانیه دیگر
+                  ارسال مجدد تا {toPersianDigits(countdown)} ثانیه دیگر
                 </span>
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setCode(['','','','','','']); handleSendOtp(); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}
+                  onClick={() => {
+                    setCode(Array(OTP_LENGTH).fill(''));
+                    setError('');
+                    handleSendOtp();
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--color-primary)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    fontFamily: 'inherit',
+                  }}
                 >
+                  <Icon name="refresh" size={15} />
                   ارسال مجدد کد
                 </button>
               )}
@@ -244,47 +287,42 @@ function LoginForm() {
           </>
         )}
 
-        {/* ── STEP 3: Name ── */}
+        {/* ── STEP 3: name ── */}
         {step === 'NAME' && (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{ fontSize: 56, marginBottom: 12 }}>👤</div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)', marginBottom: 8 }}>
-                خوش آمدید!
-              </h2>
-              <p style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.7 }}>
-                برای تکمیل ثبت‌نام، نام خود را وارد کنید
-              </p>
-            </div>
-
-            <input
-              type="text"
-              placeholder="نام و نام خانوادگی"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
-              autoFocus
-              style={{
-                width: '100%', height: 56, borderRadius: 16,
-                border: '2px solid var(--color-border)', textAlign: 'right',
-                fontSize: 15, fontFamily: 'inherit', outline: 'none',
-                color: 'var(--color-text)', padding: '0 16px',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
-            />
-          </>
+          <TextField
+            value={name}
+            onChange={setName}
+            validate={validateName}
+            showError={submitAttempted}
+            onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
+            icon="person"
+            maxLength={NAME_MAX_LENGTH}
+            placeholder="نام و نام خانوادگی"
+            hint="همین نام برای کسب‌وکار نمایش داده می‌شود"
+            autoFocus
+            required
+          />
         )}
 
-        {/* Error */}
         {error && (
-          <div style={{
-            background: 'var(--color-error-bg)', border: '1px solid var(--color-error)',
-            borderRadius: 12, padding: '12px 16px',
-            color: 'var(--color-error)', fontSize: 13, textAlign: 'right', marginTop: 12,
-          }}>
-            {error}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'var(--color-error-bg)',
+              border: '1px solid var(--color-error)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              color: 'var(--color-error)',
+              fontSize: 13,
+              textAlign: 'right',
+              marginTop: 12,
+            }}
+            role="alert"
+          >
+            <Icon name="error" size={18} />
+            <span>{error}</span>
           </div>
         )}
 
@@ -293,30 +331,19 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Fixed bottom button */}
-      <div style={{
-        position: 'fixed', bottom: 0, width: '100%', maxWidth: 390,
-        padding: '16px 24px', background: 'var(--color-surface)',
-        borderTop: '1px solid var(--color-surface-variant)',
-      }}>
-        <button
-          id="otp-submit-btn"
-          onClick={step === 'PHONE' ? handleSendOtp : step === 'OTP' ? handleVerifyOtp : handleRegister}
-          disabled={loading}
-          style={{
-            width: '100%', height: 52, background: loading ? 'var(--color-faint)' : 'var(--color-primary)',
-            color: 'white', border: 'none', borderRadius: 14,
-            fontSize: 16, fontWeight: 700, fontFamily: 'inherit',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            boxShadow: loading ? 'none' : '0 4px 14px var(--color-primary-shadow)',
-            transition: 'all 0.2s',
-          }}
-        >
-          {loading
-            ? 'لطفا صبر کنید...'
-            : step === 'PHONE' ? 'دریافت کد تأیید'
-            : step === 'OTP' ? 'تأیید و ورود'
-            : 'ثبت‌نام و ورود'}
+      <div className="btn-group">
+        <button className="btn-primary" onClick={submit} disabled={loading}>
+          {loading ? (
+            <>
+              <span className="btn-spinner" /> لطفاً صبر کنید…
+            </>
+          ) : step === 'PHONE' ? (
+            'دریافت کد تأیید'
+          ) : step === 'OTP' ? (
+            'تأیید و ورود'
+          ) : (
+            'ثبت‌نام و ورود'
+          )}
         </button>
       </div>
     </div>

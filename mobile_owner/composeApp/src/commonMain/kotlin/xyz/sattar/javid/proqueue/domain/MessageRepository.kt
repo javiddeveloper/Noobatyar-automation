@@ -13,5 +13,5 @@ interface MessageRepository {
      * records aren't tied to an appointment, so they don't fit the local
      * appointment-scoped Message table.
      */
-    suspend fun getRemoteMessages(visitorId: Long, businessTitle: String): List<Message>
+    suspend fun getRemoteMessages(visitorId: Long, businessId: Long, businessTitle: String): List<Message>
 }

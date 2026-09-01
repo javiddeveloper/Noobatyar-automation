@@ -349,14 +349,18 @@ class VisitorMessageHistoryView(APIView):
         page = _positive_int(request.query_params.get('page'), default=1)
         page_size = min(_positive_int(request.query_params.get('page_size'), default=10), 100)
 
+        # Visitor is global — shared by every business the person ever booked
+        # at — so business__user alone still merges every business the
+        # requesting owner happens to run, not just the one they're looking
+        # at. business_id pins the feed down to that single business.
+        logs = SmsLog.objects.filter(visitor=visitor, business__user=request.user)
+        business_id = request.query_params.get('business_id')
+        if business_id:
+            logs = logs.filter(business_id=business_id)
+
         # Kept as a queryset (not a list) so Paginator slices at the DB instead
         # of pulling the visitor's entire SMS history into memory.
-        logs = (
-            SmsLog.objects
-            .filter(visitor=visitor)
-            .select_related('business', 'visitor')
-            .order_by('-sent_at')
-        )
+        logs = logs.select_related('business', 'visitor').order_by('-sent_at')
 
         paginator = Paginator(logs, page_size)
         page_obj = paginator.get_page(page)
