@@ -11,10 +11,71 @@ class Business(models.Model):
     Represents a business profile for appointment management.
     Each user can have multiple businesses.
     """
+    # Ordered by theme (health → beauty → professional → education/sport →
+    # trades → other) rather than alphabetically: this list is rendered as a
+    # flat <select> in several places, and grouping related trades together is
+    # the only thing that keeps a ~35-entry dropdown scannable.
+    #
+    # Deliberately a flat list rather than Django's grouped-choices form
+    # (`[('گروه', [(k, v), ...])]`): several consumers iterate this as
+    # `for value, label in CATEGORY_CHOICES` — core/segments.py's
+    # BUSINESS_CATEGORY_CHOICES, the segment builder and campaign templates,
+    # ServiceCatalogItem.category — and grouped choices would hand them a list
+    # where they expect a label.
+    #
+    # The four original keys (BEAUTY_SALON, DOCTOR, CONSULTANT, OTHER) keep
+    # their exact values *and* labels. Renaming one would silently
+    # re-categorize every existing business holding it, and re-labelling
+    # BEAUTY_SALON as women-only would mis-describe the men's barbershops
+    # already filed under it — BARBERSHOP is offered for new ones instead.
     CATEGORY_CHOICES = [
-        ('BEAUTY_SALON', 'آرایشگاه و سالن زیبایی'),
+        # ── سلامت و درمان ──
         ('DOCTOR', 'پزشک و کلینیک'),
+        ('DENTIST', 'دندان‌پزشکی'),
+        ('PSYCHOLOGY', 'روان‌شناسی و روان‌پزشکی'),
+        ('PHYSIOTHERAPY', 'فیزیوتراپی و توان‌بخشی'),
+        ('NUTRITION', 'تغذیه و رژیم‌درمانی'),
+        ('LABORATORY', 'آزمایشگاه و تصویربرداری'),
+        ('OPTOMETRY', 'بینایی‌سنجی و عینک'),
+        ('SPEECH_THERAPY', 'گفتاردرمانی'),
+        ('MIDWIFERY', 'مامایی و سلامت بانوان'),
+        ('VETERINARY', 'دامپزشکی'),
+
+        # ── زیبایی و آرایش ──
+        ('BEAUTY_SALON', 'آرایشگاه و سالن زیبایی'),
+        ('BARBERSHOP', 'آرایشگاه مردانه'),
+        ('NAIL_SALON', 'سالن ناخن'),
+        ('SKIN_LASER', 'پوست، مو و لیزر'),
+        ('TATTOO', 'تتو و میکروپیگمنتیشن'),
+        ('MASSAGE_SPA', 'ماساژ و اسپا'),
+
+        # ── خدمات حرفه‌ای ──
         ('CONSULTANT', 'مشاوره'),
+        ('LAWYER', 'وکالت و مشاوره حقوقی'),
+        ('ACCOUNTING', 'حسابداری و مالیات'),
+        ('REAL_ESTATE', 'املاک و مستغلات'),
+        ('INSURANCE', 'بیمه'),
+        ('IMMIGRATION', 'مهاجرت و ویزا'),
+
+        # ── آموزش و ورزش ──
+        ('TUTORING', 'تدریس و کلاس خصوصی'),
+        ('LANGUAGE_SCHOOL', 'آموزشگاه زبان'),
+        ('MUSIC_SCHOOL', 'آموزش موسیقی'),
+        ('GYM', 'باشگاه ورزشی و مربی شخصی'),
+        ('YOGA_PILATES', 'یوگا و پیلاتس'),
+        ('DRIVING_SCHOOL', 'آموزشگاه رانندگی'),
+
+        # ── خدمات فنی و تعمیرات ──
+        ('AUTO_SERVICE', 'تعمیرگاه و خدمات خودرو'),
+        ('CAR_WASH', 'کارواش و دیتیلینگ'),
+        ('HOME_SERVICE', 'خدمات و تعمیرات منزل'),
+        ('DEVICE_REPAIR', 'تعمیر موبایل و لوازم برقی'),
+        ('TAILORING', 'خیاطی و طراحی لباس'),
+
+        # ── سایر ──
+        ('PHOTOGRAPHY', 'عکاسی و آتلیه'),
+        ('EVENT_SERVICES', 'تالار و خدمات مراسم'),
+        ('PET_GROOMING', 'آرایش و نگهداری حیوانات'),
         ('OTHER', 'سایر'),
     ]
 

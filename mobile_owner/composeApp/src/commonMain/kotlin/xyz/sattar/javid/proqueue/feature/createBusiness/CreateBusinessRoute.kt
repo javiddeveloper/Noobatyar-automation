@@ -1069,27 +1069,44 @@ fun CreateBusinessScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val filteredOptions = BusinessCategory.entries.filter {
-                    it.persianName.contains(searchQuery, ignoreCase = true)
-                }
+                // Grouped rather than one flat run: the list is ~35 entries
+                // long, and the section headers are what make it skimmable
+                // when the owner is browsing rather than searching. Groups
+                // with no match are dropped entirely, so a search never
+                // renders a header over an empty section.
+                val filteredGroups = BusinessCategory.grouped()
+                    .mapValues { (_, options) ->
+                        options.filter { it.persianName.contains(searchQuery, ignoreCase = true) }
+                    }
+                    .filterValues { it.isNotEmpty() }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(filteredOptions) { option ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onCategory(option)
-                                    showCategorySheet = false
-                                }
-                                .padding(vertical = 16.dp)
-                        ) {
+                    filteredGroups.forEach { (group, options) ->
+                        item(key = "header-${group.name}") {
                             Text(
-                                text = option.persianName,
-                                style = MaterialTheme.typography.bodyLarge
+                                text = group.persianName,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
                             )
+                        }
+                        items(options, key = { it.value }) { option ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onCategory(option)
+                                        showCategorySheet = false
+                                    }
+                                    .padding(vertical = 16.dp)
+                            ) {
+                                Text(
+                                    text = option.persianName,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
                         }
                     }
                     item {

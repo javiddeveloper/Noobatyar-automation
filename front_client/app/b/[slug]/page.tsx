@@ -11,9 +11,41 @@ interface Props {
  *  Anything unmapped falls back to the LocalBusiness base type rather than
  *  guessing: a wrong specific type is worse than a correct general one. */
 const SCHEMA_TYPE: Record<string, string> = {
-  BEAUTY_SALON: 'BeautySalon',
+  // سلامت — only categories with a real schema.org LocalBusiness subtype are
+  // named; the rest (nutrition, speech therapy, midwifery, physiotherapy) have
+  // no such type and fall back rather than being filed under a wrong one.
   DOCTOR: 'MedicalClinic',
+  DENTIST: 'Dentist',
+  PSYCHOLOGY: 'Physician',
+  LABORATORY: 'MedicalClinic',
+  OPTOMETRY: 'Optician',
+  VETERINARY: 'VeterinaryCare',
+  // زیبایی
+  BEAUTY_SALON: 'BeautySalon',
+  BARBERSHOP: 'HairSalon',
+  NAIL_SALON: 'NailSalon',
+  SKIN_LASER: 'HealthAndBeautyBusiness',
+  TATTOO: 'TattooParlor',
+  MASSAGE_SPA: 'DaySpa',
+  // خدمات حرفه‌ای
   CONSULTANT: 'ProfessionalService',
+  LAWYER: 'Attorney',
+  ACCOUNTING: 'AccountingService',
+  REAL_ESTATE: 'RealEstateAgent',
+  INSURANCE: 'InsuranceAgency',
+  IMMIGRATION: 'ProfessionalService',
+  // آموزش و ورزش
+  TUTORING: 'School',
+  LANGUAGE_SCHOOL: 'School',
+  MUSIC_SCHOOL: 'School',
+  DRIVING_SCHOOL: 'School',
+  GYM: 'ExerciseGym',
+  YOGA_PILATES: 'ExerciseGym',
+  // فنی و تعمیرات
+  AUTO_SERVICE: 'AutoRepair',
+  CAR_WASH: 'AutoWash',
+  HOME_SERVICE: 'HomeAndConstructionBusiness',
+  // سایر
   OTHER: 'LocalBusiness',
 };
 

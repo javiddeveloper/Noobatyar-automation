@@ -93,6 +93,18 @@ const PATHS = {
   medical:
     'M19 8h-2v3h-3v2h3v3h2v-3h3v-2h-3V8zM4 8h6v2H4V8zm0 4h6v2H4v-2zm0 4h6v2H4v-2zM2 4v16c0 1.1.9 2 2 2h8v-2H4V4h8V2H4c-1.1 0-2 .9-2 2z',
   work: 'M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z',
+  school:
+    'M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z',
+  fitness:
+    'M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z',
+  car: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z',
+  gavel:
+    'M1 21h12v2H1zM5.245 8.07l2.83-2.827 14.14 14.142-2.828 2.828zM12.317 1l5.657 5.656-2.83 2.83-5.654-5.66zM3.825 9.485l5.657 5.657-2.828 2.828-5.657-5.657z',
+  build:
+    'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
+  checkroom:
+    'M21.6 18.2L13 11.75v-.91c1.65-.49 2.8-2.17 2.41-4.06-.29-1.42-1.47-2.55-2.9-2.77C10.28 3.66 8.5 5.26 8.5 7.25h2c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5c0 .84-.69 1.52-1.53 1.5-.54-.01-.97.45-.97.99v2.1L2.4 18.2c-.77.58-.36 1.8.6 1.8h18c.96 0 1.37-1.22.6-1.8zM6 18l6-4.5 6 4.5H6z',
+  pets: 'M4.5 12.5c1.38 0 2.5-1.12 2.5-2.5S5.88 7.5 4.5 7.5 2 8.62 2 10s1.12 2.5 2.5 2.5zm5-4C10.88 8.5 12 7.38 12 6s-1.12-2.5-2.5-2.5S7 4.62 7 6s1.12 2.5 2.5 2.5zm5 0c1.38 0 2.5-1.12 2.5-2.5S15.88 3.5 14.5 3.5 12 4.62 12 6s1.12 2.5 2.5 2.5zm5 4c1.38 0 2.5-1.12 2.5-2.5S20.88 7.5 19.5 7.5 17 8.62 17 10s1.12 2.5 2.5 2.5zm-3.28 3.36c-.86-1.01-1.58-1.87-2.45-2.88-.46-.54-1.05-1.08-1.75-1.32-.11-.04-.22-.07-.33-.09-.25-.04-.52-.04-.78-.04s-.53 0-.79.05c-.11.02-.22.05-.33.09-.7.24-1.28.78-1.75 1.32-.87 1.01-1.59 1.87-2.45 2.88-1.3 1.3-2.9 2.73-2.6 4.76.29 1.01 1.01 2.01 2.31 2.3.72.14 3.04-.44 5.51-.44h.18c2.47 0 4.79.58 5.51.44 1.3-.29 2.02-1.29 2.31-2.3.3-2.04-1.3-3.46-2.59-4.77z',
 
   // ── Theme ──
   darkMode:
@@ -101,11 +113,58 @@ const PATHS = {
     'M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z',
 } as const;
 
-/** Business category → icon, replacing the old CATEGORY_EMOJI map. */
+/**
+ * Business category → icon, replacing the old CATEGORY_EMOJI map.
+ *
+ * Mirrors `Business.CATEGORY_CHOICES` (backend/business/models.py). Several
+ * categories deliberately share an icon — there is no Material glyph that
+ * distinguishes a nutritionist from a speech therapist, and inventing a
+ * near-identical one per category would make the list harder to scan, not
+ * easier. Anything unmapped falls back to `storefront` at the call sites.
+ */
 export const CATEGORY_ICON: Record<string, IconName> = {
-  BEAUTY_SALON: 'spa',
+  // سلامت و درمان
   DOCTOR: 'medical',
+  DENTIST: 'medical',
+  PSYCHOLOGY: 'person',
+  PHYSIOTHERAPY: 'fitness',
+  NUTRITION: 'medical',
+  LABORATORY: 'medical',
+  OPTOMETRY: 'medical',
+  SPEECH_THERAPY: 'forum',
+  MIDWIFERY: 'medical',
+  VETERINARY: 'pets',
+  // زیبایی و آرایش
+  BEAUTY_SALON: 'spa',
+  BARBERSHOP: 'spa',
+  NAIL_SALON: 'spa',
+  SKIN_LASER: 'spa',
+  TATTOO: 'spa',
+  MASSAGE_SPA: 'spa',
+  // خدمات حرفه‌ای
   CONSULTANT: 'work',
+  LAWYER: 'gavel',
+  ACCOUNTING: 'payments',
+  REAL_ESTATE: 'storefront',
+  INSURANCE: 'work',
+  IMMIGRATION: 'language',
+  // آموزش و ورزش
+  TUTORING: 'school',
+  LANGUAGE_SCHOOL: 'school',
+  MUSIC_SCHOOL: 'school',
+  GYM: 'fitness',
+  YOGA_PILATES: 'fitness',
+  DRIVING_SCHOOL: 'car',
+  // خدمات فنی و تعمیرات
+  AUTO_SERVICE: 'car',
+  CAR_WASH: 'car',
+  HOME_SERVICE: 'build',
+  DEVICE_REPAIR: 'build',
+  TAILORING: 'checkroom',
+  // سایر
+  PHOTOGRAPHY: 'photoCamera',
+  EVENT_SERVICES: 'storefront',
+  PET_GROOMING: 'pets',
   OTHER: 'storefront',
 };
 

@@ -439,11 +439,59 @@ export function extractCode(slug: string): string {
   return slug.replace(/^Noobatyar-/i, '');
 }
 
+/**
+ * Persian label for a business category.
+ *
+ * Mirrors `Business.CATEGORY_CHOICES` in backend/business/models.py, which is
+ * the source of truth. An unknown key falls through to the raw value rather
+ * than "سایر": a category this build predates should still read as *something*
+ * specific, and showing the code makes the drift obvious instead of quietly
+ * mislabelling every new business as "other".
+ */
 export function categoryLabel(category: string): string {
   const map: Record<string, string> = {
-    BEAUTY_SALON: 'آرایشگاه و سالن زیبایی',
+    // سلامت و درمان
     DOCTOR: 'پزشک و کلینیک',
+    DENTIST: 'دندان‌پزشکی',
+    PSYCHOLOGY: 'روان‌شناسی و روان‌پزشکی',
+    PHYSIOTHERAPY: 'فیزیوتراپی و توان‌بخشی',
+    NUTRITION: 'تغذیه و رژیم‌درمانی',
+    LABORATORY: 'آزمایشگاه و تصویربرداری',
+    OPTOMETRY: 'بینایی‌سنجی و عینک',
+    SPEECH_THERAPY: 'گفتاردرمانی',
+    MIDWIFERY: 'مامایی و سلامت بانوان',
+    VETERINARY: 'دامپزشکی',
+    // زیبایی و آرایش
+    BEAUTY_SALON: 'آرایشگاه و سالن زیبایی',
+    BARBERSHOP: 'آرایشگاه مردانه',
+    NAIL_SALON: 'سالن ناخن',
+    SKIN_LASER: 'پوست، مو و لیزر',
+    TATTOO: 'تتو و میکروپیگمنتیشن',
+    MASSAGE_SPA: 'ماساژ و اسپا',
+    // خدمات حرفه‌ای
     CONSULTANT: 'مشاوره',
+    LAWYER: 'وکالت و مشاوره حقوقی',
+    ACCOUNTING: 'حسابداری و مالیات',
+    REAL_ESTATE: 'املاک و مستغلات',
+    INSURANCE: 'بیمه',
+    IMMIGRATION: 'مهاجرت و ویزا',
+    // آموزش و ورزش
+    TUTORING: 'تدریس و کلاس خصوصی',
+    LANGUAGE_SCHOOL: 'آموزشگاه زبان',
+    MUSIC_SCHOOL: 'آموزش موسیقی',
+    GYM: 'باشگاه ورزشی و مربی شخصی',
+    YOGA_PILATES: 'یوگا و پیلاتس',
+    DRIVING_SCHOOL: 'آموزشگاه رانندگی',
+    // خدمات فنی و تعمیرات
+    AUTO_SERVICE: 'تعمیرگاه و خدمات خودرو',
+    CAR_WASH: 'کارواش و دیتیلینگ',
+    HOME_SERVICE: 'خدمات و تعمیرات منزل',
+    DEVICE_REPAIR: 'تعمیر موبایل و لوازم برقی',
+    TAILORING: 'خیاطی و طراحی لباس',
+    // سایر
+    PHOTOGRAPHY: 'عکاسی و آتلیه',
+    EVENT_SERVICES: 'تالار و خدمات مراسم',
+    PET_GROOMING: 'آرایش و نگهداری حیوانات',
     OTHER: 'سایر',
   };
   return map[category] || category;
