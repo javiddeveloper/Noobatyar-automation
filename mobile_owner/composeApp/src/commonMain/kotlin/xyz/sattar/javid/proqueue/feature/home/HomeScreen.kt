@@ -335,11 +335,24 @@ private fun HomePhoneContent(
                         // «۷ روز آینده» آن تب).
                         NeonLineChart(
                             counts = uiState.dailyCounts.map { it.count },
+                            dayLabels = uiState.dailyCounts.map {
+                                DateTimeUtils.shortWeekdayFromIsoDate(it.date)
+                            },
                             onClick = {
                                 val today = DateTimeUtils.startOfTodayMillis()
                                 val sevenDaysAgo = today - 6L * 24 * 60 * 60 * 1000L
                                 onNavigateToVisitors(
-                                    VisitorsNavArgs(dateFrom = sevenDaysAgo, dateTo = DateTimeUtils.systemCurrentMilliseconds())
+                                    VisitorsNavArgs(
+                                        // Tab 0 is مراجعین (the appointment
+                                        // list). Without it the destination
+                                        // falls back to LastVisitorsState's
+                                        // default of 1 — صف — which is live
+                                        // queue state, not the past week the
+                                        // chart just showed.
+                                        tab = 0,
+                                        dateFrom = sevenDaysAgo,
+                                        dateTo = DateTimeUtils.systemCurrentMilliseconds()
+                                    )
                                 )
                             }
                         )
@@ -472,16 +485,22 @@ private fun HomeWebContent(
         // نمودار روند و مصرف ماه — دو ستون هم‌عرض. هر دو کارت‌های
         // «یک نگاه سریع» هستند و هیچ‌کدام بر دیگری اولویت ندارد، پس
         // وزن برابر می‌گیرند نه ۶۲/۳۸.
+        // IntrinsicSize.Max + fillMaxHeight on both columns: the chart card is
+        // naturally shorter than the usage meter beside it, so left alone the
+        // two cards ended at different heights and the row read as crooked.
+        // Sized to the taller of the pair, with the chart growing into the
+        // extra room (fillHeight) rather than leaving it blank.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // سمت راست در RTL (اولین فرزند Row). Column و نه Box: داخل یک
             // Row، فراخوانی AnimatedVisibility به اورلود RowScope می‌رسد و
             // کامپایل نمی‌شود.
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 AnimatedVisibility(
                     visible = visible,
+                    modifier = Modifier.fillMaxHeight(),
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
                         animationSpec = tween(500, delayMillis = 250)
                     )
@@ -490,12 +509,24 @@ private fun HomeWebContent(
                         HomeChartShimmer()
                     } else if (uiState.dailyCounts.isNotEmpty()) {
                         NeonLineChart(
+                            modifier = Modifier.fillMaxHeight(),
+                            fillHeight = true,
                             counts = uiState.dailyCounts.map { it.count },
+                            dayLabels = uiState.dailyCounts.map {
+                                DateTimeUtils.shortWeekdayFromIsoDate(it.date)
+                            },
                             onClick = {
                                 val today = DateTimeUtils.startOfTodayMillis()
                                 val sevenDaysAgo = today - 6L * 24 * 60 * 60 * 1000L
                                 onNavigateToVisitors(
-                                    VisitorsNavArgs(dateFrom = sevenDaysAgo, dateTo = DateTimeUtils.systemCurrentMilliseconds())
+                                    VisitorsNavArgs(
+                                        // See the phone call site: tab 0 is
+                                        // مراجعین, and omitting it lands on
+                                        // the صف default instead.
+                                        tab = 0,
+                                        dateFrom = sevenDaysAgo,
+                                        dateTo = DateTimeUtils.systemCurrentMilliseconds()
+                                    )
                                 )
                             }
                         )
@@ -503,7 +534,7 @@ private fun HomeWebContent(
                 }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 AnimatedVisibility(
                     visible = visible,
                     enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(

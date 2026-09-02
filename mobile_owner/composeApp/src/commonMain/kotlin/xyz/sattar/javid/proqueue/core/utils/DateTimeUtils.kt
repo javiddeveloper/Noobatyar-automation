@@ -1,6 +1,7 @@
 package xyz.sattar.javid.proqueue.core.utils
 
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.isoDayNumber
@@ -171,6 +172,33 @@ object DateTimeUtils {
         val minute = localDateTime.minute.toString().padStart(2, '0')
         return "$hour:$minute"
     }
+
+    /**
+     * Single-letter Persian weekday for an ISO `YYYY-MM-DD` date — the format
+     * the daily-counts endpoint returns (see
+     * backend/appointment/views/daily_counts_view.py). For the home chart's
+     * axis, where a full name would not fit under a seven-point curve.
+     *
+     * Parsed rather than derived from the point's index so a gap in the series
+     * can't silently shift every label by a day. Returns "" if the string
+     * isn't a date, so one bad row costs a blank tick instead of throwing
+     * inside a draw pass.
+     */
+    fun shortWeekdayFromIsoDate(isoDate: String): String =
+        try {
+            when (LocalDate.parse(isoDate).dayOfWeek.isoDayNumber) {
+                1 -> "د"
+                2 -> "س"
+                3 -> "چ"
+                4 -> "پ"
+                5 -> "ج"
+                6 -> "ش"
+                7 -> "ی"
+                else -> ""
+            }
+        } catch (e: Exception) {
+            ""
+        }
 
     fun getDayOfWeekName(millis: Long): String {
         val instant = Instant.fromEpochMilliseconds(millis)
