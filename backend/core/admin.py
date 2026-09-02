@@ -85,7 +85,11 @@ class AdminMessageLogAdmin(admin.ModelAdmin):
 @admin.register(MarketingPushLog)
 class MarketingPushLogAdmin(admin.ModelAdmin):
     """Read-only campaign audit — same reasoning as the other two logs above."""
-    list_display = ['sent_at', 'title', 'recipient_count', 'delivered_count', 'sent_by']
+    list_display = [
+        'sent_at', 'audience', 'title',
+        'recipient_count', 'reachable_count', 'delivered_count', 'failed_count', 'sent_by',
+    ]
+    list_filter = ['audience', 'sent_at']
     search_fields = ['title', 'body', 'sent_by__phone', 'sent_by__name']
     readonly_fields = [f.name for f in MarketingPushLog._meta.fields]
 

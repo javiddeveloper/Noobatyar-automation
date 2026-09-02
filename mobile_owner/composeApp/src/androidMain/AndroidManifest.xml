@@ -30,6 +30,28 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="noobatyar" android:host="payment" android:path="/result" />
             </intent-filter>
+            <!-- Promotional campaign deep links (backend core/campaigns.py).
+                 Hosts are enumerated rather than declaring a bare
+                 scheme-only filter: a catch-all would also swallow
+                 noobatyar://payment/result above, and the accepted set is
+                 already a closed vocabulary on the Kotlin side
+                 (NotificationNavigationManager.parseDeepLink). -->
+            <intent-filter android:label="Notification Link">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="noobatyar" android:host="home" />
+                <data android:scheme="noobatyar" android:host="visitors" />
+                <data android:scheme="noobatyar" android:host="customers" />
+                <data android:scheme="noobatyar" android:host="notifications" />
+                <data android:scheme="noobatyar" android:host="sms-report" />
+                <data android:scheme="noobatyar" android:host="smsreport" />
+                <data android:scheme="noobatyar" android:host="addons" />
+                <data android:scheme="noobatyar" android:host="add-ons" />
+                <data android:scheme="noobatyar" android:host="subscription" />
+                <data android:scheme="noobatyar" android:host="plans" />
+                <data android:scheme="noobatyar" android:host="settings" />
+            </intent-filter>
         </activity>
         
         <receiver android:name=".core.notifications.ReminderReceiver" />

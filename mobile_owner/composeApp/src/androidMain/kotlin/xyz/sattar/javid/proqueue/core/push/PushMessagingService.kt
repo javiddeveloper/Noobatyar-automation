@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -61,13 +62,53 @@ class PushMessagingService : FirebaseMessagingService(), KoinComponent {
         showNotification(title, body, message.data)
     }
 
+    /**
+     * Where a tap should land, in priority order:
+     *
+     * 1. `deep_link` (`noobatyar://…`) — opens the app on a specific screen.
+     *    Sent by promotional campaigns from the admin panel
+     *    (backend `core/campaigns.py`).
+     * 2. `link` (`https://…`) — opens the browser. Also campaign-only.
+     * 3. Nothing — the plain launch intent, which is what every transactional
+     *    notification (new booking, reminder) has always used.
+     *
+     * The deep link is dispatched as a real ACTION_VIEW rather than an extra so
+     * it goes through the same manifest intent-filter routing as a link tapped
+     * anywhere else on the device; there is then exactly one way into a screen
+     * by URL, not one for notifications and another for everything else.
+     */
+    private fun destinationIntent(data: Map<String, String>): Intent? {
+        val deepLink = data["deep_link"]?.takeIf { it.isNotBlank() }
+        if (deepLink != null) {
+            val intent = Intent(Intent.ACTION_VIEW, deepLink.toUri()).apply {
+                // Keep it inside this app: an implicit VIEW on our own scheme
+                // could otherwise be picked up by another handler.
+                setPackage(packageName)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            // resolveActivity guards against a campaign sending a deep link
+            // this build has no route for (the panel can outrun the installed
+            // app); falling through to the launcher beats a dead tap.
+            if (intent.resolveActivity(packageManager) != null) return intent
+        }
+
+        data["link"]?.takeIf { it.isNotBlank() }?.let { url ->
+            val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            if (intent.resolveActivity(packageManager) != null) return intent
+        }
+
+        return null
+    }
+
     private fun showNotification(title: String, body: String, data: Map<String, String>) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Belt and braces — ProQueueApp already created it at startup.
         NotificationChannels.ensureCreated(this)
 
-        val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+        val launch = destinationIntent(data) ?: packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("from_notification", true)
             data["business_id"]?.toLongOrNull()?.let { putExtra("businessId", it) }

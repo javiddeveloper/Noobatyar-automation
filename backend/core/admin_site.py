@@ -16,7 +16,7 @@ import logging
 
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -108,6 +108,25 @@ class NobatyarAdminSite(admin.AdminSite):
                 'core/segments/notify/',
                 self.admin_view(self.segment_notify_view),
                 name='core_segment_notify',
+            ),
+            # ── Phase 5: promotional push campaigns ─────────────────────────
+            # A section of its own rather than another button on the segment
+            # builder: a campaign targets *both* audiences at once, which the
+            # builder's one-kind-at-a-time tab model cannot express.
+            path(
+                'core/campaigns/',
+                self.admin_view(self.campaign_view),
+                name='core_campaigns',
+            ),
+            path(
+                'core/campaigns/send/',
+                self.admin_view(self.campaign_send_view),
+                name='core_campaign_send',
+            ),
+            path(
+                'core/campaigns/preview-count/',
+                self.admin_view(self.campaign_count_view),
+                name='core_campaign_count',
             ),
         ]
         return extra_urls + super().get_urls()
@@ -528,48 +547,255 @@ class NobatyarAdminSite(admin.AdminSite):
         current filter who has an active device token. Gate: core.send_
         marketing_push — see core.models.MarketingPushLog's Meta.permissions
         comment for why this is its own permission rather than folded into
-        visitor.view_visitor. Visitor segments only; there is no equivalent
-        "push to owners" here — Phase 2's business_detail_view message form
-        already covers reaching an individual owner."""
+        visitor.view_visitor.
+
+        Kept alongside the richer campaign_send_view: this one reaches only
+        visitors but can target the segment builder's *full* filter set (last
+        booking date, appointment status, plan…), whereas the campaign page
+        trades those for multi-audience sends and media. Both go through
+        core.messaging.send_push_campaign so a campaign sent from either place
+        is logged and counted identically."""
         from django.contrib import messages
 
         from core import segments
-        from core.messaging import send_marketing_push
+        from core.campaigns import CampaignError, PushCampaign
+        from core.messaging import send_push_campaign
+        from core.models import MarketingPushLog
 
         if not request.user.has_perm('core.send_marketing_push'):
             raise PermissionDenied
         if request.method != 'POST':
             raise PermissionDenied
 
-        title = (request.POST.get('notify_title') or '').strip()
-        body = (request.POST.get('notify_body') or '').strip()
         exclude_opted_out = request.POST.get('exclude_opted_out', '1') != '0'
 
-        if not body:
-            messages.error(request, 'متن پوش نمی‌تواند خالی باشد.')
+        try:
+            campaign = PushCampaign.create(
+                title=request.POST.get('notify_title', ''),
+                body=request.POST.get('notify_body', ''),
+            )
+            filters = segments.parse_filters('visitor', request.POST)
+            definition = segments.raw_params('visitor', request.POST)
+            definition['exclude_opted_out'] = exclude_opted_out
+            log = send_push_campaign(
+                campaign, MarketingPushLog.AUDIENCE_VISITOR, filters, definition,
+                exclude_opted_out=exclude_opted_out, actor=request.user,
+            )
+        except (CampaignError, segments.SegmentFilterError) as exc:
+            messages.error(request, str(exc))
         else:
-            try:
-                filters = segments.parse_filters('visitor', request.POST)
-                definition = segments.raw_params('visitor', request.POST)
-                definition['exclude_opted_out'] = exclude_opted_out
-                log = send_marketing_push(
-                    filters, title, body, definition,
-                    exclude_opted_out=exclude_opted_out, actor=request.user,
-                )
-            except segments.SegmentFilterError as exc:
-                messages.error(request, str(exc))
+            if log.reachable_count == 0:
+                messages.warning(request, 'هیچ مخاطبی با اعلان فعال در این فیلتر یافت نشد.')
             else:
-                if log.recipient_count == 0:
-                    messages.warning(request, 'هیچ مخاطبی با اعلان فعال در این فیلتر یافت نشد.')
-                else:
-                    messages.success(
-                        request,
-                        f'پوش برای {log.recipient_count} مخاطب واجد شرایط پردازش شد؛ '
-                        f'{log.delivered_count} مورد تحویل داده شد.',
-                    )
+                messages.success(
+                    request,
+                    f'از {log.recipient_count} مخاطب واجد شرایط، {log.reachable_count} نفر اعلان '
+                    f'فعال داشتند و {log.delivered_count} مورد توسط فایربیس پذیرفته شد.',
+                )
 
         base = reverse('admin:core_segment_builder', current_app=self.name)
         return HttpResponseRedirect(f'{base}?{request.POST.get("return_qs", "")}')
+
+    # ── Promotional push campaigns ────────────────────────────────────────────
+    # Compose once, send to customers and/or business owners, filtered by
+    # business category. Deliberately a separate section from the segment
+    # builder: that page is one-audience-at-a-time by design (its whole
+    # querystring is scoped to a single `kind`), and the thing operators
+    # actually want here — "this announcement, to doctors' customers *and*
+    # doctor owners" — cannot be said in that model.
+
+    #: Audience checkbox key → the segment `kind` its filters are parsed as.
+    CAMPAIGN_AUDIENCES = {
+        'visitor': 'visitor',
+        'owner': 'owner',
+    }
+
+    def _campaign_filters(self, audience, category):
+        """Build a segment filter dict for one audience from the campaign form.
+
+        The campaign form is deliberately far simpler than the segment builder
+        (audience + category, not fifteen filters), so rather than reusing
+        `segments.parse_filters` on a querystring the form doesn't produce,
+        this constructs the one filter shape it needs. Going through
+        `parse_filters` would mean synthesising a fake querystring purely to
+        parse it straight back out.
+        """
+        from core import segments
+
+        params = {'business_category': category} if category else {}
+        return segments.parse_filters(audience, params)
+
+    def _campaign_context(self, request, form=None, error=None):
+        from core import segments
+        from core.models import MarketingPushLog
+
+        # Grouped so a two-audience campaign reads as one entry with two rows,
+        # matching how it was actually sent.
+        recent = list(
+            MarketingPushLog.objects.select_related('sent_by').order_by('-sent_at')[:40]
+        )
+        grouped = {}
+        for row in recent:
+            grouped.setdefault(row.group_id, []).append(row)
+        campaigns = [
+            {
+                'rows': rows,
+                'sent_at': rows[0].sent_at,
+                'title': rows[0].title,
+                'body': rows[0].body,
+                'image_url': rows[0].image_url,
+                'link': rows[0].link,
+                'deep_link': rows[0].deep_link,
+                'sent_by': rows[0].sent_by,
+                'recipient_total': sum(r.recipient_count for r in rows),
+                'reachable_total': sum(r.reachable_count for r in rows),
+                'delivered_total': sum(r.delivered_count for r in rows),
+                'failed_total': sum(r.failed_count for r in rows),
+            }
+            for rows in grouped.values()
+        ]
+        campaigns.sort(key=lambda c: c['sent_at'], reverse=True)
+
+        from api.services import push
+        return {
+            **self.each_context(request),
+            'title': 'اعلان تبلیغاتی',
+            'business_categories': segments.BUSINESS_CATEGORY_CHOICES,
+            'campaigns': campaigns,
+            'form': form or {},
+            'error': error,
+            'push_configured': push.is_configured(),
+        }
+
+    def campaign_view(self, request):
+        """Compose form + delivery report for past campaigns."""
+        if not request.user.has_perm('core.send_marketing_push'):
+            raise PermissionDenied
+        return TemplateResponse(
+            request, 'admin/core/push_campaigns.html', self._campaign_context(request),
+        )
+
+    def campaign_count_view(self, request):
+        """Live "how many will this reach" preview, as JSON.
+
+        Counts only — no names, no phone numbers — so this needs no
+        `export_pii` gate: it is the same information the send confirmation
+        would show a moment later.
+        """
+        from core import segments
+        from core.models import MarketingPushLog
+
+        if not request.user.has_perm('core.send_marketing_push'):
+            raise PermissionDenied
+
+        category = request.GET.get('business_category') or ''
+        exclude_opted_out = request.GET.get('exclude_opted_out', '1') != '0'
+        wanted = [a for a in self.CAMPAIGN_AUDIENCES if request.GET.get(f'audience_{a}') == '1']
+
+        out = {}
+        try:
+            for audience in wanted:
+                filters = self._campaign_filters(audience, category)
+                if audience == MarketingPushLog.AUDIENCE_VISITOR:
+                    from core.messaging import _visitor_recipients
+                    matched, reachable = _visitor_recipients(filters, exclude_opted_out)
+                else:
+                    from core.messaging import _owner_recipients
+                    matched, reachable = _owner_recipients(filters)
+                out[audience] = {'matched': matched, 'reachable': len(reachable)}
+        except segments.SegmentFilterError as exc:
+            return JsonResponse({'error': str(exc)}, status=400)
+
+        return JsonResponse({'audiences': out})
+
+    def campaign_send_view(self, request):
+        """POST-only: build one PushCampaign and send it to each ticked audience.
+
+        Gate: `core.send_marketing_push` — the same permission the visitor-only
+        Phase 3 send used; see core.models.MarketingPushLog's Meta.permissions
+        for why it is standalone rather than folded into a view permission.
+        """
+        import uuid
+
+        from django.contrib import messages
+
+        from core import segments
+        from core.campaigns import CampaignError, PushCampaign
+        from core.messaging import send_push_campaign
+
+        if not request.user.has_perm('core.send_marketing_push'):
+            raise PermissionDenied
+        if request.method != 'POST':
+            raise PermissionDenied
+
+        category = request.POST.get('business_category') or ''
+        exclude_opted_out = request.POST.get('exclude_opted_out', '1') != '0'
+        audiences = [a for a in self.CAMPAIGN_AUDIENCES if request.POST.get(f'audience_{a}') == '1']
+
+        # Re-rendered rather than redirected on error, so a long composed body
+        # survives a validation failure instead of being thrown away.
+        form = {
+            'title': request.POST.get('title', ''),
+            'body': request.POST.get('body', ''),
+            'image_url': request.POST.get('image_url', ''),
+            'link': request.POST.get('link', ''),
+            'deep_link': request.POST.get('deep_link', ''),
+            'business_category': category,
+            'exclude_opted_out': exclude_opted_out,
+            'audience_visitor': 'visitor' in audiences,
+            'audience_owner': 'owner' in audiences,
+        }
+
+        def fail(msg):
+            return TemplateResponse(
+                request, 'admin/core/push_campaigns.html',
+                self._campaign_context(request, form=form, error=msg),
+            )
+
+        if not audiences:
+            return fail('حداقل یک گروه مخاطب (مشتریان یا صاحبان کسب‌وکار) را انتخاب کنید.')
+
+        try:
+            campaign = PushCampaign.create(
+                title=form['title'], body=form['body'],
+                image_url=form['image_url'], link=form['link'],
+                deep_link=form['deep_link'],
+            )
+        except CampaignError as exc:
+            return fail(str(exc))
+
+        group_id = uuid.uuid4()
+        logs = []
+        try:
+            for audience in audiences:
+                filters = self._campaign_filters(audience, category)
+                definition = {'business_category': category, 'exclude_opted_out': exclude_opted_out}
+                logs.append(send_push_campaign(
+                    campaign, audience, filters, definition,
+                    group_id=group_id, exclude_opted_out=exclude_opted_out,
+                    actor=request.user,
+                ))
+        except segments.SegmentFilterError as exc:
+            return fail(str(exc))
+
+        for log in logs:
+            label = log.get_audience_display()
+            if log.reachable_count == 0:
+                messages.warning(
+                    request,
+                    f'{label}: {log.recipient_count} نفر با فیلتر مطابقت داشتند، '
+                    f'اما هیچ‌کدام اعلان فعال ندارند.',
+                )
+            else:
+                messages.success(
+                    request,
+                    f'{label}: از {log.recipient_count} نفر واجد شرایط، '
+                    f'{log.reachable_count} نفر اعلان فعال داشتند و '
+                    f'{log.delivered_count} مورد توسط فایربیس پذیرفته شد'
+                    + (f' ({log.failed_count} ناموفق).' if log.failed_count else '.'),
+                )
+
+        return HttpResponseRedirect(reverse('admin:core_campaigns', current_app=self.name))
 
     def each_context(self, request):
         """

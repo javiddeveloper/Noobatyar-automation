@@ -24,6 +24,7 @@ FCM must never turn a reminder run into a traceback — it logs and returns Fals
 import json
 import logging
 import threading
+from dataclasses import dataclass
 
 import requests
 from django.conf import settings
@@ -107,7 +108,14 @@ def is_configured() -> bool:
     return True
 
 
-def send_to_token(token: str, title: str, body: str, data: dict | None = None) -> tuple[bool, str]:
+def send_to_token(
+    token: str,
+    title: str,
+    body: str,
+    data: dict | None = None,
+    image: str | None = None,
+    link: str | None = None,
+) -> tuple[bool, str]:
     """
     Deliver one notification to one device.
 
@@ -118,6 +126,10 @@ def send_to_token(token: str, title: str, body: str, data: dict | None = None) -
     ``data`` values must be strings — FCM rejects a data payload containing
     numbers or booleans — so everything is stringified here rather than at each
     call site.
+
+    ``image`` and ``link`` exist for promotional campaigns
+    (``core.campaigns.PushCampaign``); every transactional call site omits both
+    and gets exactly the payload it got before they were added.
     """
     try:
         url = FCM_ENDPOINT.format(project_id=_project_id())
@@ -168,11 +180,22 @@ def send_to_token(token: str, title: str, body: str, data: dict | None = None) -
                     'badge': '/icons/badge-72.png',
                 },
                 'fcm_options': {
-                    'link': getattr(settings, 'FCM_WEBPUSH_CLICK_URL', 'https://panel.noobatyar.ir/'),
+                    # A campaign's own link wins; everything else keeps landing
+                    # on the panel, as it did before campaigns existed.
+                    'link': link or getattr(settings, 'FCM_WEBPUSH_CLICK_URL', 'https://panel.noobatyar.ir/'),
                 },
             },
         }
     }
+
+    if image:
+        # Set on the platform-independent `notification` (covers Android and,
+        # via FCM's own mapping, APNs) *and* explicitly on webpush: the
+        # top-level image is not applied to web push by FCM, so a campaign
+        # image would silently vanish for exactly the audience — front_client
+        # customers — that most campaigns target.
+        message['message']['notification']['image'] = image
+        message['message']['webpush']['notification']['image'] = image
 
     try:
         response = requests.post(url, headers=headers, json=message, timeout=10)
@@ -202,6 +225,65 @@ def _error_status(response) -> str:
     return error.get('status', '') or f'HTTP {response.status_code}'
 
 
+#: Error codes that mean "this address will never work again", as opposed to a
+#: transient failure worth leaving the token active for.
+DEAD_TOKEN_CODES = ('UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND')
+
+
+@dataclass
+class SendResult:
+    """Outcome of fanning one notification out to a set of device tokens.
+
+    Exists because a bare "delivered" count cannot answer the question a
+    campaign report actually asks: a zero could mean nobody had the app
+    installed, or that every single send errored. Keeping ``failed`` and
+    ``dead`` separate distinguishes "FCM refused it" from "that install is
+    gone", which is the difference between a broken campaign and normal
+    attrition.
+
+    Note ``delivered`` means *accepted by FCM*, never "shown on a phone" —
+    the send API reports nothing beyond acceptance. Every label rendered from
+    this in the admin panel is worded accordingly.
+    """
+
+    delivered: int = 0
+    failed: int = 0
+    dead: int = 0
+
+    def __iadd__(self, other: 'SendResult') -> 'SendResult':
+        self.delivered += other.delivered
+        self.failed += other.failed
+        self.dead += other.dead
+        return self
+
+
+def _fan_out(token_rows, model, owner_label: str, title, body, data, image=None, link=None) -> SendResult:
+    """Send to every ``(row_id, token)`` in ``token_rows``, reaping dead ones.
+
+    Shared by the owner and visitor paths below: the two differ only in which
+    model holds the tokens, and duplicating the reaping logic once per
+    identity type is how the two quietly drift apart.
+    """
+    result = SendResult()
+    dead_ids = []
+
+    for row_id, token in token_rows:
+        ok, detail = send_to_token(token, title, body, data, image=image, link=link)
+        if ok:
+            result.delivered += 1
+        else:
+            result.failed += 1
+            if detail in DEAD_TOKEN_CODES:
+                dead_ids.append(row_id)
+
+    if dead_ids:
+        model.objects.filter(id__in=dead_ids).update(is_active=False)
+        result.dead = len(dead_ids)
+        logger.info('Deactivated %d dead FCM token(s) for %s', len(dead_ids), owner_label)
+
+    return result
+
+
 def send_to_user(user_id: int, title: str, body: str, data: dict | None = None) -> int:
     """
     Push to every active device the owner has registered.
@@ -210,6 +292,16 @@ def send_to_user(user_id: int, title: str, body: str, data: dict | None = None) 
     are deactivated in place, so the table does not grow a tail of addresses
     that can never be delivered to.
     """
+    return deliver_to_user(user_id, title, body, data).delivered
+
+
+def deliver_to_user(
+    user_id: int, title: str, body: str, data: dict | None = None,
+    image: str | None = None, link: str | None = None,
+) -> SendResult:
+    """:func:`send_to_user` with the full :class:`SendResult`, plus the
+    campaign-only ``image``/``link``. Kept as a separate entry point so the
+    dozen existing ``send_to_user`` call sites keep their simple int return."""
     from api.models import DeviceToken
 
     tokens = list(
@@ -217,22 +309,9 @@ def send_to_user(user_id: int, title: str, body: str, data: dict | None = None) 
         .values_list('id', 'token')
     )
     if not tokens:
-        return 0
+        return SendResult()
 
-    delivered = 0
-    dead = []
-    for row_id, token in tokens:
-        ok, detail = send_to_token(token, title, body, data)
-        if ok:
-            delivered += 1
-        elif detail in ('UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'):
-            dead.append(row_id)
-
-    if dead:
-        DeviceToken.objects.filter(id__in=dead).update(is_active=False)
-        logger.info('Deactivated %d dead FCM token(s) for user %s', len(dead), user_id)
-
-    return delivered
+    return _fan_out(tokens, DeviceToken, f'user {user_id}', title, body, data, image=image, link=link)
 
 
 def send_to_visitor(visitor_id: int, title: str, body: str, data: dict | None = None) -> int:
@@ -243,6 +322,15 @@ def send_to_visitor(visitor_id: int, title: str, body: str, data: dict | None = 
     — kept as a separate function rather than a shared one taking a queryset,
     so each call site stays obviously scoped to the identity it means.
     """
+    return deliver_to_visitor(visitor_id, title, body, data).delivered
+
+
+def deliver_to_visitor(
+    visitor_id: int, title: str, body: str, data: dict | None = None,
+    image: str | None = None, link: str | None = None,
+) -> SendResult:
+    """:func:`send_to_visitor` with the full :class:`SendResult`, plus the
+    campaign-only ``image``/``link``."""
     from visitor.models import VisitorDeviceToken
 
     tokens = list(
@@ -250,22 +338,12 @@ def send_to_visitor(visitor_id: int, title: str, body: str, data: dict | None = 
         .values_list('id', 'token')
     )
     if not tokens:
-        return 0
+        return SendResult()
 
-    delivered = 0
-    dead = []
-    for row_id, token in tokens:
-        ok, detail = send_to_token(token, title, body, data)
-        if ok:
-            delivered += 1
-        elif detail in ('UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'):
-            dead.append(row_id)
-
-    if dead:
-        VisitorDeviceToken.objects.filter(id__in=dead).update(is_active=False)
-        logger.info('Deactivated %d dead FCM token(s) for visitor %s', len(dead), visitor_id)
-
-    return delivered
+    return _fan_out(
+        tokens, VisitorDeviceToken, f'visitor {visitor_id}',
+        title, body, data, image=image, link=link,
+    )
 
 
 def send_visitor_appointment_push(business_id, visitor_id, appointment_id, title, body):

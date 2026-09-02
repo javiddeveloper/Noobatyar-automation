@@ -106,16 +106,95 @@ def _send_sms(business, body, actor) -> AdminMessageLog:
     )
 
 
-def send_marketing_push(filters, title: str, body: str, definition, exclude_opted_out=True, actor=None) -> MarketingPushLog:
-    """
-    Sends a promotional push to every visitor matching ``filters`` who has
-    granted notification permission (i.e. has an active VisitorDeviceToken).
-    Visitors without one are silently skipped — there is nothing to send to,
-    same as any other channel a recipient hasn't opted into.
+# ── Promotional campaigns ────────────────────────────────────────────────────
+# One code path for both audiences. The *only* thing that differs between
+# pushing to customers and pushing to business owners is which table the
+# recipients and their device tokens come from, so that difference is isolated
+# to _visitor_recipients/_owner_recipients below and everything after it — the
+# payload, the personalization, the loop, the counters, the audit row — is
+# literally the same code. Two parallel implementations is exactly how the two
+# audiences would end up supporting different features.
 
-    ``{full_name}`` in ``title``/``body`` is replaced per-recipient — the one
-    supported personalization token here, same "not a template engine"
-    reasoning as ``_personalize`` above for business messages.
+
+def _visitor_recipients(filters, exclude_opted_out):
+    """``(matched, reachable)`` for the customer audience.
+
+    ``matched`` is everyone the filter selected; ``reachable`` is the subset
+    with at least one active device token, as ``(id, display_name)`` pairs.
+    Both are returned because the gap between them — people who never granted
+    notification permission — is the most useful number on the report, and it
+    is unrecoverable once you only count the ones you could reach.
+    """
+    from core import segments
+
+    qs = segments.visitor_queryset(filters, exclude_opted_out=exclude_opted_out)
+    matched = qs.count()
+    reachable = list(
+        qs.filter(device_tokens__is_active=True)
+        .distinct()
+        .values_list('id', 'full_name')
+    )
+    return matched, reachable
+
+
+def _owner_recipients(filters, exclude_opted_out=None):
+    """``(matched, reachable)`` for the business-owner audience.
+
+    ``exclude_opted_out`` is accepted and ignored so the two recipient
+    functions stay interchangeable: ``Visitor.marketing_opt_out`` has no
+    owner-side equivalent (see core/segments.py — owners have no marketing
+    consent flag), and silently accepting the argument is clearer than making
+    the caller special-case which audience takes it.
+    """
+    from api.models import User
+    from core import segments
+
+    owner_ids = segments.owner_ids_for_segment(filters)
+    reachable = list(
+        User.objects.filter(id__in=owner_ids, device_tokens__is_active=True)
+        .distinct()
+        .values_list('id', 'name')
+    )
+    return len(owner_ids), reachable
+
+
+#: audience key → (recipient lookup, push delivery function). Adding a third
+#: audience later means adding a row here, not a third branch in the sender.
+_AUDIENCE_DISPATCH = {
+    MarketingPushLog.AUDIENCE_VISITOR: _visitor_recipients,
+    MarketingPushLog.AUDIENCE_OWNER: _owner_recipients,
+}
+
+
+def _deliver(audience, recipient_id, campaign):
+    from api.services import push
+
+    if audience == MarketingPushLog.AUDIENCE_VISITOR:
+        return push.deliver_to_visitor(
+            recipient_id, title=campaign.title, body=campaign.body,
+            data=campaign.data_payload(), image=campaign.image_url or None,
+            link=campaign.link or None,
+        )
+    return push.deliver_to_user(
+        recipient_id, title=campaign.title, body=campaign.body,
+        data=campaign.data_payload(), image=campaign.image_url or None,
+        link=campaign.link or None,
+    )
+
+
+def send_push_campaign(campaign, audience, filters, definition, *,
+                       group_id=None, exclude_opted_out=True, actor=None) -> MarketingPushLog:
+    """
+    Send ``campaign`` (a :class:`core.campaigns.PushCampaign`) to everyone in
+    one audience matching ``filters``, and record the result.
+
+    Recipients without an active device token are skipped rather than failed —
+    there is nothing to send to, same as any other channel someone hasn't
+    opted into — but they are still counted in ``recipient_count`` so the
+    report can show how much of the audience is simply unreachable.
+
+    ``{full_name}`` in the title/body is replaced per recipient; see
+    :meth:`PushCampaign.personalized`.
 
     A synchronous loop, same as the reminder job and every other admin bulk
     action in this codebase — acceptable for the segment sizes this admin
@@ -124,31 +203,42 @@ def send_marketing_push(filters, title: str, body: str, definition, exclude_opte
     request/response cycle; that is a real scaling note, not something this
     function tries to solve.
     """
+    import uuid
+
     from api.services import push
-    from core import segments
-    from visitor.models import VisitorDeviceToken
+    from api.services.push import SendResult
 
-    recipients = list(
-        segments.visitor_queryset(filters, exclude_opted_out=exclude_opted_out)
-        .filter(device_tokens__is_active=True)
-        .distinct()
-        .values_list('id', 'full_name')
-    )
+    lookup = _AUDIENCE_DISPATCH[audience]
+    matched, reachable = lookup(filters, exclude_opted_out)
 
-    delivered = 0
-    if push.is_configured():
-        for visitor_id, full_name in recipients:
-            personalized_title = (title or '').replace('{full_name}', full_name)
-            personalized_body = (body or '').replace('{full_name}', full_name)
+    totals = SendResult()
+    if not push.is_configured():
+        if reachable:
+            logger.warning(
+                'Campaign skipped for %d reachable %s — FCM not configured',
+                len(reachable), audience,
+            )
+    else:
+        for recipient_id, display_name in reachable:
             try:
-                if push.send_to_visitor(visitor_id, title=personalized_title, body=personalized_body):
-                    delivered += 1
+                totals += _deliver(audience, recipient_id, campaign.personalized(display_name))
             except Exception:
-                logger.exception('Marketing push to visitor %s failed', visitor_id)
-    elif recipients:
-        logger.warning('Marketing push skipped for %d recipients — FCM not configured', len(recipients))
+                logger.exception('Campaign push to %s %s failed', audience, recipient_id)
+                totals.failed += 1
 
     return MarketingPushLog.objects.create(
-        definition=definition, title=title, body=body,
-        recipient_count=len(recipients), delivered_count=delivered, sent_by=actor,
+        group_id=group_id or uuid.uuid4(),
+        audience=audience,
+        definition=definition,
+        title=campaign.title,
+        body=campaign.body,
+        image_url=campaign.image_url,
+        link=campaign.link,
+        deep_link=campaign.deep_link,
+        recipient_count=matched,
+        reachable_count=len(reachable),
+        delivered_count=totals.delivered,
+        failed_count=totals.failed,
+        dead_token_count=totals.dead,
+        sent_by=actor,
     )

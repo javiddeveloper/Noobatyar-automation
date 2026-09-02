@@ -1,0 +1,328 @@
+{% extends "admin/base_site.html" %}
+
+{# ---------------------------------------------------------------------------
+  Promotional push campaigns
+  (core.admin_site.NobatyarAdminSite.campaign_view / campaign_send_view).
+
+  Compose once, tick who it goes to, send. Same no-framework, server
+  round-trip approach as segment_builder.html — the one bit of JS is the live
+  recipient counter, which hits campaign_count_view for numbers only (never
+  names/phones, so it needs no export_pii gate) and degrades to "press send
+  and read the result message" if it fails.
+
+  Why this is its own page rather than another button on the segment builder:
+  that page is scoped to one audience at a time by construction (its whole
+  querystring carries a single `kind`), and the thing operators want here —
+  one announcement to customers *and* owners — cannot be expressed there.
+--------------------------------------------------------------------------- #}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .pc-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,340px); gap:20px; align-items:start; }
+  @media (max-width:1000px){ .pc-grid { grid-template-columns:1fr; } }
+  .pc-box { border:1px solid #e3e3e3; border-radius:8px; background:#fff; padding:16px; margin-block-end:20px; }
+  .pc-box h2 { font-size:14px; margin:0 0 14px; padding:0 0 8px; border-block-end:1px solid #eee; }
+  .pc-field { display:flex; flex-direction:column; gap:4px; margin-block-end:14px; font-size:12px; color:#555; }
+  .pc-field input[type=text], .pc-field input[type=url], .pc-field textarea, .pc-field select {
+    padding:8px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:13px; width:100%;
+    box-sizing:border-box; }
+  .pc-field textarea { min-height:96px; resize:vertical; line-height:1.9; }
+  .pc-ltr { direction:ltr; text-align:left; }
+  .pc-hint { font-size:11px; color:#888; }
+  .pc-audiences { display:flex; flex-wrap:wrap; gap:10px; margin-block-end:14px; }
+  .pc-aud { display:flex; align-items:center; gap:8px; border:1px solid #ccc; border-radius:8px;
+            padding:10px 14px; cursor:pointer; font-size:13px; background:#fafafa; }
+  .pc-aud input { margin:0; }
+  .pc-counts { display:flex; flex-wrap:wrap; gap:10px; margin-block-end:14px; }
+  .pc-card { border:1px solid #ddd; border-radius:8px; padding:10px 14px; min-width:150px; background:#fff; }
+  .pc-card-title { font-size:11px; color:#666; margin-block-end:4px; }
+  .pc-card-value { font-size:20px; font-weight:700; direction:ltr; text-align:end; }
+  .pc-warn { border:1px solid #e0a800; background:#fff8e6; border-radius:8px; padding:10px 14px;
+             font-size:12px; color:#7a5c00; margin-block-end:16px; line-height:1.9; }
+  .pc-err { border:1px solid #d9534f; background:#fdf3f3; border-radius:8px; padding:10px 14px;
+            font-size:12px; color:#a94442; margin-block-end:16px; }
+  .pc-table { width:100%; border-collapse:collapse; background:#fff; }
+  .pc-table th, .pc-table td { border:1px solid #e6e6e6; padding:6px 9px; font-size:12px; }
+  .pc-table th { background:#fafafa; text-align:start; }
+  .pc-num { direction:ltr; text-align:end; font-variant-numeric:tabular-nums; }
+  .pc-campaign { border:1px solid #e3e3e3; border-radius:8px; margin-block-end:14px; overflow:hidden; }
+  .pc-campaign-head { background:#fafafa; padding:10px 14px; border-block-end:1px solid #e6e6e6; }
+  .pc-campaign-title { font-size:13px; font-weight:700; }
+  .pc-campaign-meta { font-size:11px; color:#777; margin-block-start:3px; }
+  .pc-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#eef3f6; color:#417690; }
+  .pc-preview { border:1px solid #ddd; border-radius:10px; padding:12px; background:#fff; }
+  .pc-preview-title { font-size:13px; font-weight:700; }
+  .pc-preview-body { font-size:12px; color:#444; line-height:1.9; white-space:pre-line; margin-block-start:4px; }
+  .pc-preview-img { max-width:100%; border-radius:6px; margin-block-start:8px; display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+{# No <h1> here: base_site.html already renders one from the `title` context
+   key, same as segment_builder.html. #}
+
+{% if not push_configured %}
+  <div class="pc-warn">
+    سرویس اعلان (FCM) روی این سرور پیکربندی نشده است. می‌توانید کمپین بسازید، اما
+    هیچ اعلانی ارسال نخواهد شد و همه‌ی ارسال‌ها با «۰ پذیرفته‌شده» ثبت می‌شوند.
+  </div>
+{% endif %}
+
+{% if error %}<div class="pc-err">{{ error }}</div>{% endif %}
+
+<div class="pc-grid">
+  <div>
+    <form method="post" action="{% url 'admin:core_campaign_send' %}" id="pc-form">
+      {% csrf_token %}
+
+      <div class="pc-box">
+        <h2>۱. مخاطب</h2>
+
+        <div class="pc-audiences">
+          <label class="pc-aud">
+            <input type="checkbox" name="audience_visitor" value="1" data-count
+                   {% if form.audience_visitor or not form %}checked{% endif %}>
+            مشتریان
+          </label>
+          <label class="pc-aud">
+            <input type="checkbox" name="audience_owner" value="1" data-count
+                   {% if form.audience_owner %}checked{% endif %}>
+            صاحبان کسب‌وکار
+          </label>
+        </div>
+
+        <label class="pc-field">
+          دسته‌بندی کسب‌وکار
+          <select name="business_category" data-count>
+            <option value="">همه</option>
+            {% for value, label in business_categories %}
+              <option value="{{ value }}" {% if form.business_category == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <span class="pc-hint">
+            برای مشتریان یعنی «مشتریانی که در این دسته نوبت گرفته‌اند»؛
+            برای صاحبان کسب‌وکار یعنی «صاحب کسب‌وکاری در این دسته».
+          </span>
+        </label>
+
+        <label class="pc-aud" style="width:fit-content">
+          <input type="checkbox" name="exclude_opted_out" value="1" data-count
+                 {% if form.exclude_opted_out or not form %}checked{% endif %}>
+          مشتریانی که تبلیغات را خاموش کرده‌اند حذف شوند
+        </label>
+
+        <div class="pc-counts" id="pc-counts" style="margin-block-start:14px"></div>
+      </div>
+
+      <div class="pc-box">
+        <h2>۲. محتوا</h2>
+
+        <label class="pc-field">
+          عنوان
+          <input type="text" name="title" maxlength="120" id="pc-title" value="{{ form.title|default:'' }}">
+        </label>
+
+        <label class="pc-field">
+          متن <span style="color:#d9534f">*</span>
+          <textarea name="body" maxlength="1000" id="pc-body" required>{{ form.body|default:'' }}</textarea>
+          <span class="pc-hint">می‌توانید از <code>{{ '{full_name}' }}</code> برای درج نام مخاطب استفاده کنید.</span>
+        </label>
+
+        <label class="pc-field">
+          آدرس تصویر (اختیاری)
+          <input type="url" name="image_url" class="pc-ltr" id="pc-image" value="{{ form.image_url|default:'' }}"
+                 placeholder="https://…">
+          <span class="pc-hint">باید یک آدرس عمومی https باشد؛ فایربیس تصویر را از همان‌جا می‌خواند.</span>
+        </label>
+
+        <label class="pc-field">
+          لینک (اختیاری)
+          <input type="url" name="link" class="pc-ltr" value="{{ form.link|default:'' }}" placeholder="https://…">
+          <span class="pc-hint">با کلیک روی اعلان در وب باز می‌شود.</span>
+        </label>
+
+        <label class="pc-field">
+          دیپ‌لینک اپ (اختیاری)
+          <input type="text" name="deep_link" class="pc-ltr" value="{{ form.deep_link|default:'' }}"
+                 placeholder="noobatyar://home">
+          <span class="pc-hint">
+            اگر پر شود، کلیک روی اعلان به‌جای مرورگر، همین صفحه را داخل اپ صاحب کسب‌وکار باز می‌کند.
+            صفحه‌های پشتیبانی‌شده:
+            <code dir="ltr">noobatyar://home</code>،
+            <code dir="ltr">noobatyar://visitors</code>،
+            <code dir="ltr">noobatyar://notifications</code>،
+            <code dir="ltr">noobatyar://sms-report</code>،
+            <code dir="ltr">noobatyar://addons</code>،
+            <code dir="ltr">noobatyar://settings</code>.
+            آدرس ناشناخته نادیده گرفته می‌شود و اعلان فقط اپ را باز می‌کند.
+          </span>
+        </label>
+      </div>
+
+      <div class="pc-box">
+        <button type="submit" class="default">ارسال اعلان</button>
+        <span class="pc-hint" style="margin-inline-start:10px">
+          ارسال بلافاصله و بدون تأیید دوم انجام می‌شود.
+        </span>
+      </div>
+    </form>
+  </div>
+
+  {# ── Live preview ── #}
+  <div>
+    <div class="pc-box">
+      <h2>پیش‌نمایش</h2>
+      <div class="pc-preview">
+        <div class="pc-preview-title" id="pv-title">{{ form.title|default:"عنوان اعلان" }}</div>
+        <div class="pc-preview-body" id="pv-body">{{ form.body|default:"متن اعلان اینجا نمایش داده می‌شود." }}</div>
+        <img class="pc-preview-img" id="pv-image" alt=""
+             {% if form.image_url %}src="{{ form.image_url }}"{% else %}style="display:none"{% endif %}>
+      </div>
+      <p class="pc-hint" style="margin-block-start:10px">
+        ظاهر واقعی اعلان بسته به سیستم‌عامل و مرورگر کمی فرق می‌کند.
+      </p>
+    </div>
+  </div>
+</div>
+
+{# ── Delivery report ── #}
+<div class="pc-box">
+  <h2>گزارش ارسال‌ها</h2>
+
+  <div class="pc-warn">
+    «پذیرفته‌شده» یعنی فایربیس پیام را قبول کرده است — نه اینکه حتماً روی گوشی نمایش
+    داده شده یا باز شده. API ارسال فایربیس هیچ آمار تحویل یا بازشدنی برنمی‌گرداند،
+    بنابراین این اعداد از سمت ما شمرده می‌شوند.
+  </div>
+
+  {% if not campaigns %}
+    <p class="pc-hint">هنوز کمپینی ارسال نشده است.</p>
+  {% endif %}
+
+  {% for c in campaigns %}
+    <div class="pc-campaign">
+      <div class="pc-campaign-head">
+        <div class="pc-campaign-title">{{ c.title|default:c.body|truncatechars:70 }}</div>
+        <div class="pc-campaign-meta">
+          {{ c.sent_at }} —
+          {% if c.sent_by %}{{ c.sent_by.name|default:c.sent_by.phone }}{% else %}—{% endif %}
+          {% if c.link %} — <span dir="ltr">{{ c.link }}</span>{% endif %}
+          {% if c.deep_link %} — <span dir="ltr">{{ c.deep_link }}</span>{% endif %}
+        </div>
+      </div>
+      <table class="pc-table">
+        <thead>
+          <tr>
+            <th>مخاطب</th>
+            <th>واجد شرایط</th>
+            <th>اعلان فعال</th>
+            <th>بدون اعلان</th>
+            <th>پذیرفته‌شده</th>
+            <th>ناموفق</th>
+            <th>توکن منقضی</th>
+            <th>نرخ پذیرش</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in c.rows %}
+            <tr>
+              <td><span class="pc-badge">{{ r.get_audience_display }}</span></td>
+              <td class="pc-num">{{ r.recipient_count }}</td>
+              <td class="pc-num">{{ r.reachable_count }}</td>
+              <td class="pc-num">{{ r.unreachable_count }}</td>
+              <td class="pc-num">{{ r.delivered_count }}</td>
+              <td class="pc-num">{{ r.failed_count }}</td>
+              <td class="pc-num">{{ r.dead_token_count }}</td>
+              <td class="pc-num">{{ r.delivery_rate }}٪</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('pc-form');
+  if (!form) return;
+
+  // ── Live preview ──
+  function bind(inputId, render) {
+    var el = document.getElementById(inputId);
+    if (el) el.addEventListener('input', render);
+  }
+  var pvTitle = document.getElementById('pv-title');
+  var pvBody = document.getElementById('pv-body');
+  var pvImage = document.getElementById('pv-image');
+
+  bind('pc-title', function () {
+    pvTitle.textContent = this.value || 'عنوان اعلان';
+  });
+  bind('pc-body', function () {
+    pvBody.textContent = this.value || 'متن اعلان اینجا نمایش داده می‌شود.';
+  });
+  bind('pc-image', function () {
+    var v = this.value.trim();
+    // A half-typed URL 404s noisily in the console on every keystroke; only
+    // attempt to load something that at least looks complete.
+    if (/^https?:\/\/.+/.test(v)) { pvImage.src = v; pvImage.style.display = ''; }
+    else { pvImage.removeAttribute('src'); pvImage.style.display = 'none'; }
+  });
+  pvImage.addEventListener('error', function () { this.style.display = 'none'; });
+
+  // ── Live recipient count ──
+  var countsBox = document.getElementById('pc-counts');
+  var labels = { visitor: 'مشتریان', owner: 'صاحبان کسب‌وکار' };
+  var timer = null;
+
+  function card(title, value, hint) {
+    return '<div class="pc-card"><div class="pc-card-title">' + title +
+           '</div><div class="pc-card-value">' + value + '</div>' +
+           (hint ? '<div class="pc-card-title" style="margin-block-start:4px">' + hint + '</div>' : '') +
+           '</div>';
+  }
+
+  function refresh() {
+    var params = new URLSearchParams();
+    var any = false;
+    ['visitor', 'owner'].forEach(function (a) {
+      var cb = form.querySelector('[name=audience_' + a + ']');
+      if (cb && cb.checked) { params.set('audience_' + a, '1'); any = true; }
+    });
+    if (!any) { countsBox.innerHTML = ''; return; }
+
+    params.set('business_category', form.querySelector('[name=business_category]').value);
+    var opt = form.querySelector('[name=exclude_opted_out]');
+    params.set('exclude_opted_out', opt && opt.checked ? '1' : '0');
+
+    countsBox.innerHTML = card('در حال شمارش…', '…');
+    fetch('{% url "admin:core_campaign_count" %}?' + params.toString(), {
+      credentials: 'same-origin',
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        var html = '';
+        Object.keys(d.audiences).forEach(function (a) {
+          var v = d.audiences[a];
+          html += card(labels[a] + ' — اعلان فعال', v.reachable,
+                       'از ' + v.matched + ' نفر واجد شرایط');
+        });
+        countsBox.innerHTML = html;
+      })
+      // The count is a convenience, not a gate: if it fails the operator can
+      // still send and read the real numbers off the result message.
+      .catch(function () { countsBox.innerHTML = card('تعداد مخاطب', '—', 'شمارش ناموفق بود'); });
+  }
+
+  form.querySelectorAll('[data-count]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      clearTimeout(timer);
+      timer = setTimeout(refresh, 150);
+    });
+  });
+
+  refresh();
+})();
+</script>
+{% endblock %}

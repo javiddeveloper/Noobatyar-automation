@@ -32,6 +32,12 @@
       آخرین محاسبه: {{ dashboard_generated_at }}
       {% if dashboard_cached %}(از حافظهٔ موقت){% endif %}
     </span>
+    {% comment %} Tools that live at their own URL rather than as a ModelAdmin
+       changelist, so nothing in the stock app list links to them. {% endcomment %}
+    {% if perms.core.send_marketing_push %}
+      <a class="button" href="{% url 'admin:core_campaigns' %}">اعلان تبلیغاتی</a>
+    {% endif %}
+    <a class="button" href="{% url 'admin:core_segment_builder' %}">گروه مخاطب</a>
     <a class="button" href="{% url 'admin:dashboard_refresh' %}">بروزرسانی</a>
   </div>
 

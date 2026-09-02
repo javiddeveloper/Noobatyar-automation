@@ -12,6 +12,7 @@ import xyz.sattar.javid.proqueue.core.navigation.NotificationNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.NavigationEvent
 import xyz.sattar.javid.proqueue.core.navigation.PaymentNavigationManager
 import xyz.sattar.javid.proqueue.core.navigation.PaymentResultEvent
+import xyz.sattar.javid.proqueue.core.navigation.parseDeepLink
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,6 +21,7 @@ class MainActivity : ComponentActivity() {
 
         handleNotificationIntent(intent)
         handlePaymentDeepLink(intent)
+        handleCampaignDeepLink(intent)
 
         setContent {
             App()
@@ -30,6 +32,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         handleNotificationIntent(intent)
         handlePaymentDeepLink(intent)
+        handleCampaignDeepLink(intent)
     }
 
     private fun handleNotificationIntent(intent: Intent?) {
@@ -73,6 +76,30 @@ class MainActivity : ComponentActivity() {
             )
             intent.data = null
         }
+    }
+
+    /**
+     * Routes a promotional campaign's `noobatyar://<screen>` deep link (sent
+     * from the admin panel — backend `core/campaigns.py`).
+     *
+     * Clears `intent.data` for the same reason [handlePaymentDeepLink] does:
+     * MainNavHost is torn down and recreated on every business switch, and an
+     * Intent left holding a deep link would re-navigate each time.
+     *
+     * A host this build has no route for is ignored rather than guessed at —
+     * the panel can be edited by people who are not shipping the app, so it
+     * can legitimately name a screen a given installed version predates.
+     */
+    private fun handleCampaignDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "noobatyar") return
+        // payment/result is handled above and must not fall through to here.
+        if (uri.host == "payment") return
+
+        parseDeepLink(uri.host)?.let { target ->
+            NotificationNavigationManager.navigate(NavigationEvent.ToDeepLink(target))
+        }
+        intent.data = null
     }
 }
 

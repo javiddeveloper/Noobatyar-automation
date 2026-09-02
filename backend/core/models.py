@@ -9,6 +9,8 @@ core/apps.py's CoreConfig docstring) and had no models.py or migrations. This
 is its first model, hence the first migration under core/migrations/.
 """
 
+import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -171,23 +173,72 @@ class AdminMessageLog(models.Model):
 
 class MarketingPushLog(models.Model):
     """
-    Audit trail for one promotional push campaign sent to a visitor segment
-    (NobatyarAdminSite.segment_notify_view).
+    Audit trail for one promotional push campaign sent to one audience
+    (NobatyarAdminSite.campaign_send_view).
 
-    One row per *campaign*, not per recipient — unlike AdminMessageLog (one
-    business per send) or PushLog (one appointment reminder per visitor),
-    a marketing blast can reach thousands of visitors, and a queryable
-    per-recipient row for each would turn one click into a write storm this
-    audit trail has no actual use for. `definition` is the filter snapshot
-    (same JSON shape core.segments.raw_params produces) so the campaign
-    stays self-explaining even after the underlying segment/filters change.
+    One row per *(campaign, audience)*, not per recipient — unlike
+    AdminMessageLog (one business per send) or PushLog (one appointment
+    reminder per visitor), a marketing blast can reach thousands of people,
+    and a queryable per-recipient row for each would turn one click into a
+    write storm this audit trail has no actual use for.
+
+    A campaign aimed at customers *and* owners writes two rows sharing one
+    `group_id`, rather than one row with two sets of counters. Same reasoning
+    as AdminMessageLog's one-row-per-channel: the two audiences are filtered
+    differently, can fail independently, and a single row whose numbers mix
+    them cannot answer "did it reach the owners?" at all.
+
+    `definition` is the filter snapshot (same JSON shape
+    core.segments.raw_params produces) so the campaign stays self-explaining
+    even after the underlying segment/filters change.
+
+    ── On the counters ──────────────────────────────────────────────────────
+    `delivered_count` means **accepted by FCM**, not "shown on a phone".
+    Google's send API reports nothing past acceptance: there is no delivery
+    receipt and no open/click signal in the response (the aggregate
+    Firebase Data API is per-app-per-day, not per-campaign). Everything the
+    panel renders from these fields is worded to say "accepted" rather than
+    implying a read receipt we do not have.
     """
+
+    AUDIENCE_VISITOR = 'visitor'
+    AUDIENCE_OWNER = 'owner'
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_VISITOR, 'مشتریان'),
+        (AUDIENCE_OWNER, 'صاحبان کسب‌وکار'),
+    ]
+
+    # Ties the rows of one multi-audience send together. Not a ForeignKey to a
+    # parent "Campaign" table: the group has no attributes of its own that the
+    # rows don't already carry, so a parent row would be two joins for nothing.
+    group_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True, verbose_name='شناسه کمپین')
+    audience = models.CharField(
+        max_length=10, choices=AUDIENCE_CHOICES,
+        default=AUDIENCE_VISITOR, verbose_name='مخاطب',
+    )
 
     definition = models.JSONField(default=dict, blank=True, verbose_name='فیلترهای اجراشده')
     title = models.CharField(max_length=255, blank=True, verbose_name='عنوان')
     body = models.TextField(verbose_name='متن')
+    image_url = models.URLField(max_length=500, blank=True, verbose_name='تصویر')
+    link = models.URLField(max_length=500, blank=True, verbose_name='لینک')
+    # Not a URLField: Django's URL validator rejects custom schemes, and this
+    # is always `noobatyar://…` (see core.campaigns.DEEP_LINK_SCHEME).
+    deep_link = models.CharField(max_length=500, blank=True, verbose_name='دیپ‌لینک')
+
+    # Matched the segment filter, before checking whether they can be reached.
     recipient_count = models.PositiveIntegerField(verbose_name='تعداد مخاطب واجد شرایط')
-    delivered_count = models.PositiveIntegerField(verbose_name='تعداد تحویل‌شده')
+    # …and of those, how many had at least one active device token. The gap
+    # between the two is the single most useful number on the report: it is
+    # the share of the audience that has never granted notification
+    # permission, which no amount of resending will fix.
+    reachable_count = models.PositiveIntegerField(default=0, verbose_name='تعداد دارای اعلان فعال')
+    delivered_count = models.PositiveIntegerField(verbose_name='تعداد پذیرفته‌شده توسط فایربیس')
+    failed_count = models.PositiveIntegerField(default=0, verbose_name='تعداد ناموفق')
+    # Tokens FCM reported as permanently gone during this send; they are
+    # deactivated as a side effect, so this doubles as "installs lost".
+    dead_token_count = models.PositiveIntegerField(default=0, verbose_name='تعداد توکن منقضی')
+
     sent_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='sent_marketing_pushes', verbose_name='ارسال‌شده توسط',
@@ -209,4 +260,17 @@ class MarketingPushLog(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.title or self.body[:30]} — {self.delivered_count}/{self.recipient_count}'
+        return f'{self.get_audience_display()} — {self.title or self.body[:30]} — {self.delivered_count}/{self.recipient_count}'
+
+    @property
+    def unreachable_count(self):
+        """Matched the filter but had no active device token — i.e. never
+        granted notification permission (or uninstalled since)."""
+        return max(self.recipient_count - self.reachable_count, 0)
+
+    @property
+    def delivery_rate(self):
+        """Accepted-by-FCM as a percentage of those we could even try."""
+        if not self.reachable_count:
+            return 0
+        return round(self.delivered_count * 100 / self.reachable_count)
