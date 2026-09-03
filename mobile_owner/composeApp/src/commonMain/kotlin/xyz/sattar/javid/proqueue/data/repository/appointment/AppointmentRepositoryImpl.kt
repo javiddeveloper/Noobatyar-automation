@@ -28,10 +28,11 @@ class AppointmentRepositoryImpl(
 ) : AppointmentRepository {
     override suspend fun getDailyCounts(
         businessId: Long,
-        days: Int
+        days: Int,
+        daysAhead: Int
     ): List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto> {
         return try {
-            when (val response = appointmentApiService.getDailyCounts(businessId, days)) {
+            when (val response = appointmentApiService.getDailyCounts(businessId, days, daysAhead)) {
                 is ApiResponse.Success -> response.data
                 is ApiResponse.Error -> emptyList()
             }

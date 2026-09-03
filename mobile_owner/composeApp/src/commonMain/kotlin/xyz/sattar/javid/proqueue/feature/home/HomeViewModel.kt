@@ -105,6 +105,8 @@ class HomeViewModel(
                 )
             is HomeState.PartialState.LoadDailyCounts ->
                 currentState.copy(dailyCounts = partialState.counts, chartLoaded = true)
+            is HomeState.PartialState.LoadMonthOverview ->
+                currentState.copy(monthOverview = partialState.overview)
             HomeState.PartialState.ClearMessage ->
                 currentState.copy(message = null)
         }
@@ -205,20 +207,86 @@ class HomeViewModel(
                 if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadStats(stats))
 
-                val daily = getDailyCountsUseCase(business.id, 7)
+                // One request covers both the 7-day trend chart and the month
+                // card: the card needs a whole Jalali month either side of
+                // today, and the chart's seven points are a slice of that same
+                // window. Two requests would only make them disagree.
+                val (daysBack, daysAhead) = DateTimeUtils.monthWindowDayOffsets()
+                val window = getDailyCountsUseCase(business.id, daysBack, daysAhead)
                 if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
-                emit(HomeState.PartialState.LoadDailyCounts(daily))
+                emit(HomeState.PartialState.LoadDailyCounts(chartSlice(window)))
+                emit(HomeState.PartialState.LoadMonthOverview(buildMonthOverview(window)))
             } catch (e: Exception) {
                 if (BusinessStateHolder.selectedBusiness.value?.id != business.id) return@flow
                 emit(HomeState.PartialState.LoadStats(DashboardStats()))
                 emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
+                emit(HomeState.PartialState.LoadMonthOverview(null))
                 emit(HomeState.PartialState.ShowMessage(UiMessage.error(e.message ?: "خطا در بارگذاری")))
             }
         } else {
             emit(HomeState.PartialState.LoadStats(DashboardStats()))
             emit(HomeState.PartialState.LoadDailyCounts(emptyList()))
+            emit(HomeState.PartialState.LoadMonthOverview(null))
         }
         emit(HomeState.PartialState.IsLoading(false))
+    }
+
+    /**
+     * The last seven days up to and including today, for the trend chart.
+     *
+     * Filtered by date rather than `takeLast(7)`: the window now runs into the
+     * future, so the final seven entries would be next month's empty days and
+     * the chart would read as a business that has stopped taking bookings.
+     */
+    private fun chartSlice(
+        window: List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto>
+    ): List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto> {
+        val today = DateTimeUtils.startOfTodayMillis()
+        return window
+            .filter { row ->
+                val millis = DateTimeUtils.parseIsoDateToEpochMillis(row.date)
+                millis != null && millis <= today
+            }
+            .takeLast(7)
+    }
+
+    /** Bucket a daily-count window into last month / this month / next month. */
+    private fun buildMonthOverview(
+        window: List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto>
+    ): MonthOverview? {
+        if (window.isEmpty()) return null
+
+        val currentIndex = DateTimeUtils.currentJalaliMonthIndex()
+        // Unparseable dates are dropped rather than defaulted: a row that
+        // cannot be placed in a month must not inflate an arbitrary bucket.
+        val dated = window.mapNotNull { row ->
+            DateTimeUtils.parseIsoDateToEpochMillis(row.date)?.let { it to row.count }
+        }
+        if (dated.isEmpty()) return null
+
+        fun bucket(monthIndex: Int): MonthBucket {
+            val days = dated
+                .filter { (millis, _) -> DateTimeUtils.jalaliMonthIndex(millis) == monthIndex }
+                .sortedBy { it.first }
+            return MonthBucket(
+                monthIndex = monthIndex,
+                label = DateTimeUtils.jalaliMonthName(monthIndex),
+                total = days.sumOf { it.second },
+                dailyCounts = days.map { it.second },
+                rangeStart = days.firstOrNull()?.first ?: 0L,
+                rangeEndExclusive = days.lastOrNull()?.first?.plus(DAY_MILLIS) ?: 0L,
+            )
+        }
+
+        return MonthOverview(
+            previous = bucket(currentIndex - 1),
+            current = bucket(currentIndex),
+            next = bucket(currentIndex + 1),
+        )
+    }
+
+    private companion object {
+        const val DAY_MILLIS = 24L * 60 * 60 * 1000
     }
 
     private fun purchasePlan(planId: Int): Flow<HomeState.PartialState> = flow {

@@ -97,6 +97,15 @@ fun HomeDashboardShimmer() {
     }
 }
 
+/** Placeholder for the single full-width queue row above the stats grid. */
+@Composable
+fun HomeQueueRowShimmer() {
+    ShimmerBox(
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(22.dp)
+    )
+}
+
 @Composable
 fun HomeChartShimmer() {
     ShimmerBox(

@@ -25,7 +25,8 @@ data class HomeState(
     val entitlements: EntitlementsResponseDto? = null,
     val entitlementsLoaded: Boolean = false,
     val dailyCounts: List<DailyCountDto> = emptyList(),
-    val chartLoaded: Boolean = false
+    val chartLoaded: Boolean = false,
+    val monthOverview: MonthOverview? = null
 ) {
     sealed class PartialState {
         data class IsLoading(val isLoading: Boolean) : PartialState()
@@ -40,7 +41,39 @@ data class HomeState(
         data class LoadSubscription(val subscription: SubscriptionDto?) : PartialState()
         data class LoadEntitlements(val entitlements: EntitlementsResponseDto?) : PartialState()
         data class LoadDailyCounts(val counts: List<DailyCountDto>) : PartialState()
+        data class LoadMonthOverview(val overview: MonthOverview?) : PartialState()
     }
+}
+
+/**
+ * One month's worth of appointment counts, for the home screen's month card.
+ *
+ * [dailyCounts] is kept alongside [total] so the card can draw the shape of the
+ * month (which days are busy) rather than only its sum — a month with 20
+ * appointments spread evenly and one with all 20 on a single day are the same
+ * number and very different weeks.
+ *
+ * [rangeStart]/[rangeEndExclusive] are carried so tapping the card can open the
+ * visitors list over exactly the range shown, instead of the list recomputing
+ * month boundaries and risking a different answer.
+ */
+@Immutable
+data class MonthBucket(
+    val monthIndex: Int,
+    val label: String,
+    val total: Int,
+    val dailyCounts: List<Int> = emptyList(),
+    val rangeStart: Long = 0L,
+    val rangeEndExclusive: Long = 0L,
+)
+
+@Immutable
+data class MonthOverview(
+    val previous: MonthBucket,
+    val current: MonthBucket,
+    val next: MonthBucket,
+) {
+    val buckets: List<MonthBucket> get() = listOf(previous, current, next)
 }
 
 data class QueueItem(

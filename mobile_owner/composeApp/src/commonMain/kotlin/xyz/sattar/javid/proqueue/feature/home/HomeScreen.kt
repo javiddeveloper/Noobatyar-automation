@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -61,6 +62,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +87,7 @@ import xyz.sattar.javid.proqueue.core.ui.components.HomeButtonShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeChartShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeDashboardShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomePlanBannerShimmer
+import xyz.sattar.javid.proqueue.core.ui.components.HomeQueueRowShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.HomeUsageShimmer
 import xyz.sattar.javid.proqueue.core.ui.components.MainTopAppBar
 import xyz.sattar.javid.proqueue.core.ui.components.PullToRefreshBox
@@ -134,8 +137,15 @@ fun HomeScreen(
 }
 
 /**
+ * Scroll distance, in pixels, over which [HomeHero] folds from expanded to
+ * compact. Roughly the height of its action row, so the fold finishes just as
+ * that row would have scrolled out of view.
+ */
+private const val COLLAPSE_DISTANCE_PX = 130f
+
+/**
  * Arguments for jumping into the visitors/appointments tab pre-filtered —
- * used when tapping a Home stat card, the queue row, or the 7-day chart.
+ * used when tapping a Home stat card, the queue row, or the month card.
  */
 data class VisitorsNavArgs(
     val status: String? = null,
@@ -160,6 +170,18 @@ fun HomeScreenContent(
 
     LaunchedEffect(Unit) {
         visible = true
+    }
+
+    val listState = rememberLazyListState()
+    // 0 = hero fully expanded, 1 = folded to its compact row. derivedStateOf so
+    // the fraction is read during layout without recomposing the whole screen
+    // on every scroll pixel; once past the first item the hero is simply
+    // pinned collapsed rather than tracking an offset it can no longer see.
+    val collapseFraction by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) 1f
+            else (listState.firstVisibleItemScrollOffset / COLLAPSE_DISTANCE_PX).coerceIn(0f, 1f)
+        }
     }
 
     LaunchedEffect(uiState.message) {
@@ -209,138 +231,146 @@ fun HomeScreenContent(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-        LazyColumn(
+        Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            // contentPadding (not a padding modifier) so items scroll *under* the
-            // glass top bar rather than starting below an opaque gap.
-            contentPadding = PaddingValues(top = paddingValues.calculateTopPadding()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
-            // ۱. هدر تاریخ (سلام/زمینه‌ی امروز) + تعداد نوبت‌های امروز
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 150)
-                    )
-                ) {
-                    DateHeader(
-                        todayAppointmentsCount = uiState.stats.totalAppointments.takeIf { uiState.statsLoaded }
-                    )
-                }
-            }
+            // Pinned, collapsing head. Holds the two actions an owner reaches
+            // for most (calendar, booking link), which used to be a tab away
+            // and the fifth section down respectively.
+            HomeHero(
+                collapseFraction = collapseFraction,
+                todayAppointmentsCount = uiState.stats.totalAppointments.takeIf { uiState.statsLoaded },
+                business = uiState.business,
+                onOpenCalendar = onNavigateToCalendar
+            )
 
-            // ۲. آمار داشبورد امروز (۴ مستطیل + یک سطر کامل برای صف)
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 200)
-                    )
-                ) {
-                    when {
-                        !uiState.statsLoaded -> HomeDashboardShimmer()
-                        else -> DashboardStatsSection(
-                            stats = uiState.stats,
-                            peopleInQueue = uiState.queue.size,
-                            // tab = 0 (مراجعین/history) explicitly — LastVisitorsState
-                            // defaults selectedTab to 1 (صف/queue), where a status
-                            // filter like "cancelled" has nothing to show.
-                            onStatClick = { status -> onNavigateToVisitors(VisitorsNavArgs(status = status, tab = 0)) },
-                            onQueueClick = { onNavigateToVisitors(VisitorsNavArgs(tab = 1)) }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // ۱. صف امروز — تنها بخش «زنده»‌ی صفحه، پس اول می‌آید.
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 120)
                         )
+                    ) {
+                        if (!uiState.statsLoaded) {
+                            HomeQueueRowShimmer()
+                        } else {
+                            QueueStatRow(
+                                count = uiState.queue.size,
+                                onClick = { onNavigateToVisitors(VisitorsNavArgs(tab = 1)) }
+                            )
+                        }
                     }
                 }
-            }
 
-            // ۳. نمودار روند نوبت‌های ۷ روز اخیر
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 250)
-                    )
-                ) {
-                    if (!uiState.chartLoaded) {
-                        HomeChartShimmer()
-                    } else if (uiState.dailyCounts.isNotEmpty()) {
-                        // نمودار «۷ روز اخیر» است (گذشته)، پس با تپ روی آن به تب
-                        // مراجعین با همان بازه‌ی گذشته می‌رویم تا داده‌ی نمایش داده
-                        // شده با مقصد ناوبری همخوانی داشته باشد (نه بازه‌ی پیش‌فرض
-                        // «۷ روز آینده» آن تب).
-                        NeonLineChart(
-                            counts = uiState.dailyCounts.map { it.count },
-                            onClick = {
-                                val today = DateTimeUtils.startOfTodayMillis()
-                                val sevenDaysAgo = today - 6L * 24 * 60 * 60 * 1000L
-                                onNavigateToVisitors(
-                                    VisitorsNavArgs(dateFrom = sevenDaysAgo, dateTo = DateTimeUtils.systemCurrentMilliseconds())
+                // ۲. آمار امروز (۲×۲)
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 180)
+                        )
+                    ) {
+                        if (!uiState.statsLoaded) {
+                            HomeDashboardShimmer()
+                        } else {
+                            DashboardStatsGrid(
+                                stats = uiState.stats,
+                                // tab = 0 (مراجعین/history) explicitly — LastVisitorsState
+                                // defaults selectedTab to 1 (صف/queue), where a status
+                                // filter like "cancelled" has nothing to show.
+                                onStatClick = { status ->
+                                    onNavigateToVisitors(VisitorsNavArgs(status = status, tab = 0))
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // ۳. روند ماهانه (ماه گذشته / این ماه / ماه آینده).
+                //    جای نمودار جداگانه‌ی «۷ روز اخیر» را گرفته: آن نمودار
+                //    زیرمجموعه‌ی همین ماه بود و یک بخش کامل اسکرول می‌گرفت.
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 240)
+                        )
+                    ) {
+                        if (!uiState.chartLoaded) {
+                            HomeChartShimmer()
+                        } else {
+                            uiState.monthOverview?.let { overview ->
+                                MonthOverviewCard(
+                                    overview = overview,
+                                    onRangeClick = { start, endExclusive ->
+                                        onNavigateToVisitors(
+                                            VisitorsNavArgs(
+                                                dateFrom = start,
+                                                // endExclusive − 1ms so the range
+                                                // ends inside the last day shown
+                                                // rather than the day after it.
+                                                dateTo = endExclusive - 1
+                                            )
+                                        )
+                                    }
                                 )
                             }
+                        }
+                    }
+                }
+
+                // ۴. مصرف‌سنج ماهانه
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 300)
                         )
+                    ) {
+                        if (!uiState.entitlementsLoaded) {
+                            HomeUsageShimmer()
+                        } else if (uiState.entitlements != null) {
+                            UsageMeterSection(
+                                entitlements = uiState.entitlements,
+                                onNavigateToAddons = onNavigateToAddons
+                            )
+                        }
                     }
                 }
-            }
 
-            // ۴. مصرف‌سنج ماهانه
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 300)
-                    )
-                ) {
-                    if (!uiState.entitlementsLoaded) {
-                        HomeUsageShimmer()
-                    } else if (uiState.entitlements != null) {
-                        UsageMeterSection(
-                            entitlements = uiState.entitlements,
-                            onNavigateToAddons = onNavigateToAddons
+                // ۵. بنرهای پلن اشتراک
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
+                            animationSpec = tween(500, delayMillis = 360)
                         )
+                    ) {
+                        if (!uiState.plansLoaded) {
+                            HomePlanBannerShimmer()
+                        } else if (uiState.plans.isNotEmpty()) {
+                            PlanBannerSection(
+                                plans = uiState.plans,
+                                onPlanClick = { plan ->
+                                    onIntent(HomeIntent.PurchasePlan(plan.id))
+                                }
+                            )
+                        }
                     }
                 }
-            }
 
-            // ۵. لینک دریافت نوبت
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 350)
-                    )
-                ) {
-                    if (uiState.business == null && uiState.isLoading) {
-                        HomeButtonShimmer()
-                    } else if (uiState.business != null) {
-                        BookingLinkButton(uiState.business)
-                    }
-                }
+                item { BottomBarSpacer() }
             }
-
-            // ۶. بنرهای پلن اشتراک
-            item {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn(
-                        animationSpec = tween(500, delayMillis = 400)
-                    )
-                ) {
-                    if (!uiState.plansLoaded) {
-                        HomePlanBannerShimmer()
-                    } else if (uiState.plans.isNotEmpty()) {
-                        PlanBannerSection(
-                            plans = uiState.plans,
-                            onPlanClick = { plan ->
-                                onIntent(HomeIntent.PurchasePlan(plan.id))
-                            }
-                        )
-                    }
-                }
-            }
-
-            item { BottomBarSpacer() }
         }
         }
     }
@@ -658,78 +688,18 @@ fun PlanBannerItem(
     }
 }
 
+/**
+ * The 2×2 stat grid on its own.
+ *
+ * Split out from the old DashboardStatsSection, which also owned the queue
+ * row. Home now shows the queue *above* the grid — it is the only live,
+ * act-on-it-now number on the screen — and one composable cannot be in two
+ * places in the list.
+ */
 @Composable
-fun DateHeader(modifier: Modifier = Modifier, todayAppointmentsCount: Int? = null) {
-    val currentTime = DateTimeUtils.systemCurrentMilliseconds()
-    val formattedDate = DateTimeUtils.formatDate(currentTime)
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Rounded.CalendarToday,
-                    null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "امروز، $formattedDate",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-
-        // تعداد نوبت‌های امروز — قبلاً یک مستطیل جدا بود («نوبت‌های امروز»)،
-        // حالا کنار هدر تاریخ به‌صورت یک بج کوچک نمایش داده می‌شود.
-        if (todayAppointmentsCount != null) {
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Rounded.Event,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "$todayAppointmentsCount نوبت",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DashboardStatsSection(
+fun DashboardStatsGrid(
     stats: DashboardStats,
-    peopleInQueue: Int = 0,
-    onStatClick: (status: String?) -> Unit = {},
-    onQueueClick: () -> Unit = {}
+    onStatClick: (status: String?) -> Unit = {}
 ) {
     val isDark = !MaterialTheme.colorScheme.surface.let { color ->
         (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) > 0.5
@@ -786,9 +756,6 @@ fun DashboardStatsSection(
                 onClick = { onStatClick("CANCELLED") }
             )
         }
-
-        // سطر کامل: افراد در حال حاضر در صف (امروز، در انتظار)
-        QueueStatRow(count = peopleInQueue, onClick = onQueueClick)
     }
 }
 
@@ -897,89 +864,6 @@ fun StatCard(
                     fontWeight = FontWeight.Black,
                     color = contentColor
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun BookingLinkButton(business: Business) {
-    val uniqueCode = business.uniqueCode ?: return
-    val clipboard = LocalClipboardManager.current
-    val link = "${xyz.sattar.javid.proqueue.BuildKonfig.BOOKING_BASE_URL}/b/$uniqueCode"
-
-    var copied by remember { mutableStateOf(false) }
-
-    // بعد ۲ ثانیه برگردد
-    LaunchedEffect(copied) {
-        if (copied) {
-            kotlinx.coroutines.delay(2000)
-            copied = false
-        }
-    }
-
-    val containerColor by animateColorAsState(
-        targetValue = if (copied) Color(0xFF1B5E20) else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(400)
-    )
-    val contentColor = Color.White
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                clipboard.setText(buildAnnotatedString { append(link) })
-                copied = true
-            },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (copied) "کپی شد! برای مشتریان بفرستید 🎉" else "لینک نوبت‌گیری آنلاین",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = if (copied) link else "مشتریان با یک کلیک نوبت می‌گیرن",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            AnimatedContent(
-                targetState = copied,
-                transitionSpec = {
-                    (fadeIn(tween(300)) + scaleIn(tween(300))) togetherWith
-                    (fadeOut(tween(200)) + scaleOut(tween(200)))
-                }
-            ) { isCopied ->
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isCopied) Icons.Rounded.Check else Icons.Rounded.Share,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
             }
         }
     }

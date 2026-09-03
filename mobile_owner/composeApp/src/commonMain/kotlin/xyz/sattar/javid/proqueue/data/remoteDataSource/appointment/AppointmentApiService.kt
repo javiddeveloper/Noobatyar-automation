@@ -93,13 +93,17 @@ class AppointmentApiService(private val httpClient: HttpClient) {
 
     suspend fun getDailyCounts(
             businessId: Long,
-            days: Int
+            days: Int,
+            daysAhead: Int = 0
     ): ApiResponse<List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto>> {
         return httpClient
                 .get("appointment/daily-counts/") {
                     contentType(ContentType.Application.Json)
                     parameter("business_id", businessId)
                     parameter("days", days)
+                    // Forward half of the window; 0 keeps the plain 7-day
+                    // trend chart's original request shape.
+                    parameter("days_ahead", daysAhead)
                 }
                 .toApiResponse()
     }

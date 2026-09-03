@@ -21,7 +21,7 @@ interface AppointmentRepository {
     suspend fun deleteAppointmentsByVisitorId(visitorId: Long)
     suspend fun getConflictingAppointments(businessId: Long, startTime: Long, endTime: Long, defaultDuration: Int): List<AppointmentWithDetails>
     suspend fun getAppointmentsForDate(businessId: Long, date: Long): List<AppointmentWithDetails>
-    suspend fun getDailyCounts(businessId: Long, days: Int): List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto>
+    suspend fun getDailyCounts(businessId: Long, days: Int, daysAhead: Int = 0): List<xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.DailyCountDto>
 
     suspend fun syncAppointments(
         businessId: Long,
