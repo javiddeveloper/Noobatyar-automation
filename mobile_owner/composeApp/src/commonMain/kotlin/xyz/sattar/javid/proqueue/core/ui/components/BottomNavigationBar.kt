@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -116,15 +117,31 @@ fun BottomNavigationBar(
         contentAlignment = Alignment.BottomCenter
     ) {
         // Main Navigation Bar Background — frosted glass over the scrolling content.
+        //
+        // surfaceContainerHigh, not surface: both schemes define that token
+        // specifically as the bottom bar's tone (a distinct grey in light, a
+        // lifted dark in dark), but the bar was painting plain `surface` at
+        // alpha 0.6 — which in the light theme is near-white over a near-white
+        // page, so the bar all but disappeared. The outline stroke gives the
+        // top edge a definite line rather than leaving it to a soft shadow
+        // that is invisible on a white background.
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp)
                 .clip(barShape)
-                .hazeEffect(state = hazeState, style = HazeMaterials.ultraThin(MaterialTheme.colorScheme.surfaceContainer)),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeMaterials.ultraThin(MaterialTheme.colorScheme.surfaceContainerHigh),
+                )
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                    shape = barShape,
+                ),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
             shape = barShape,
-            shadowElevation = 4.dp
+            shadowElevation = 10.dp
         ) {
             Row(
                 modifier = Modifier
