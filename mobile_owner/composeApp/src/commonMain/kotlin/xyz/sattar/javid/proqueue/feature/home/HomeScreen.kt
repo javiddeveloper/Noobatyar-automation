@@ -296,9 +296,9 @@ fun HomeScreenContent(
                     }
                 }
 
-                // ۳. روند ماهانه (ماه گذشته / این ماه / ماه آینده).
-                //    جای نمودار جداگانه‌ی «۷ روز اخیر» را گرفته: آن نمودار
-                //    زیرمجموعه‌ی همین ماه بود و یک بخش کامل اسکرول می‌گرفت.
+                // ۳. روند نوبت‌ها — هفتگی یا ماهانه.
+                //    نمودار خطی با دو حالت هفتگی/ماهانه، جای دو بخش جدا
+                //    (نمودار ۷ روزه + کارت ماه) را می‌گیرد.
                 item {
                     AnimatedVisibility(
                         visible = visible,
@@ -309,22 +309,21 @@ fun HomeScreenContent(
                         if (!uiState.chartLoaded) {
                             HomeChartShimmer()
                         } else {
-                            uiState.monthOverview?.let { overview ->
-                                MonthOverviewCard(
-                                    overview = overview,
-                                    onRangeClick = { start, endExclusive ->
-                                        onNavigateToVisitors(
-                                            VisitorsNavArgs(
-                                                dateFrom = start,
-                                                // endExclusive − 1ms so the range
-                                                // ends inside the last day shown
-                                                // rather than the day after it.
-                                                dateTo = endExclusive - 1
-                                            )
+                            HomeTrendCard(
+                                weeklyCounts = uiState.dailyCounts.map { it.count },
+                                overview = uiState.monthOverview,
+                                onRangeClick = { start, endExclusive ->
+                                    onNavigateToVisitors(
+                                        VisitorsNavArgs(
+                                            dateFrom = start,
+                                            // endExclusive − 1ms so the range ends
+                                            // inside the last day shown rather than
+                                            // the day after it.
+                                            dateTo = endExclusive - 1
                                         )
-                                    }
-                                )
-                            }
+                                    )
+                                }
+                            )
                         }
                     }
                 }
