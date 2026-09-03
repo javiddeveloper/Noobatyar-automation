@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -39,6 +40,16 @@ private val LightColorScheme = lightColorScheme(
 )
 
 
+/**
+ * Whether the dark scheme is active.
+ *
+ * AppTheme already knows this exactly, but never published it, so components
+ * needing a light/dark branch resorted to guessing from the luminance of
+ * `colorScheme.surface`. That works until a scheme changes and is impossible
+ * to grep for; this is the same answer, stated once at the source.
+ */
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
 @Composable
 fun AppTheme(
     themeMode: AppThemeMode = AppThemeMode.SYSTEM,
@@ -50,11 +61,12 @@ fun AppTheme(
         AppThemeMode.DARK -> true
     }
     val colorScheme = if (isDarkTheme) DarkColorScheme else LightColorScheme
-    
+
     SystemAppearance(!isDarkTheme)
 
     CompositionLocalProvider(
-        LocalLayoutDirection provides LayoutDirection.Rtl
+        LocalLayoutDirection provides LayoutDirection.Rtl,
+        LocalIsDarkTheme provides isDarkTheme
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
