@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .sms_views import PushLogListView, PushLogSummaryView, SmsLogListView, SmsLogSummaryView
-from .views import BusinessView, ServiceCatalogView
+from .views import BusinessCategoriesView, BusinessView, ServiceCatalogView
 
 urlpatterns = [
     # ... existing routes
@@ -18,5 +18,8 @@ urlpatterns = [
     # '<int:business_id>/' since a catalog item is shared across every
     # business in the category, not owned by one.
     path('service-catalog/', ServiceCatalogView.as_view(), name='service-catalog'),
+    # Static vocabulary, no business context — same "not nested under
+    # <business_id>" reasoning as service-catalog above.
+    path('categories/', BusinessCategoriesView.as_view(), name='business-categories'),
     path('<int:business_id>/', BusinessView.as_view(), name='business-detail'),
 ]

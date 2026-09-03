@@ -12,6 +12,9 @@ export interface Business {
   id: number;
   title: string;
   category: string;
+  /** Persian label as the server rendered it. Preferred over the local map so
+   *  a category added after this build shipped still reads correctly. */
+  category_display?: string;
   unique_code: string;
   bio?: string | null;
   phone: string | null;
@@ -448,6 +451,12 @@ export function extractCode(slug: string): string {
  * specific, and showing the code makes the drift obvious instead of quietly
  * mislabelling every new business as "other".
  */
+export function businessCategoryLabel(
+  biz: { category: string; category_display?: string },
+): string {
+  return biz.category_display?.trim() || categoryLabel(biz.category);
+}
+
 export function categoryLabel(category: string): string {
   const map: Record<string, string> = {
     // سلامت و درمان

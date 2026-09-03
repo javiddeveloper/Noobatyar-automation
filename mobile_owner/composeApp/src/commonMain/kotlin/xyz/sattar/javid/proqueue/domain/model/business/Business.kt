@@ -3,7 +3,16 @@ package xyz.sattar.javid.proqueue.domain.model.business
 data class Business(
     val id: Long = 0,
     val title: String,
-    val category: BusinessCategory,
+    /** Wire code, e.g. "DENTIST". Deliberately the raw string rather than
+     *  [BusinessCategory]: the server's vocabulary grows, and an enum would
+     *  silently coerce any category added after this build to OTHER — which
+     *  would then be written back on the next save. */
+    val category: String,
+    /** Persian label as the *server* described it (`category_display`), so a
+     *  category this build predates still renders correctly. Falls back to the
+     *  compiled-in enum when absent (an older server, or a Room row written
+     *  before this field existed). */
+    val categoryLabel: String,
     val uniqueCode: String? = null,
     val phone: String,
     val address: String,

@@ -6,7 +6,7 @@ import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 sealed class CreateBusinessIntent {
     data class CreateBusiness(
         val title: String,
-        val category: BusinessCategory,
+        val category: String,
         val phone: String,
         val address: String,
         val defaultProgress: String,
@@ -37,10 +37,10 @@ sealed class CreateBusinessIntent {
     object LoadEntitlements : CreateBusinessIntent()
     data class UpgradePlan(val planId: Int) : CreateBusinessIntent()
     /** Chips to offer in the service-menu picker, for the picked category. */
-    data class LoadServiceCatalog(val category: BusinessCategory) : CreateBusinessIntent()
+    data class LoadServiceCatalog(val category: String) : CreateBusinessIntent()
     /** Adds a brand-new chip to the category's shared catalog. */
     data class AddServiceCatalogItem(
-        val category: BusinessCategory,
+        val category: String,
         val name: String
     ) : CreateBusinessIntent()
 }

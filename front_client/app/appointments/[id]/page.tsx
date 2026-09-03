@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAppointment, cancelAppointment, categoryLabel, type Appointment } from '@/lib/api';
+import { getAppointment, cancelAppointment, businessCategoryLabel, type Appointment } from '@/lib/api';
 import { STATUS_LABELS, formatDate } from '@/lib/format';
 import Toolbar from '@/app/components/Toolbar';
 import Icon, { CATEGORY_ICON } from '@/app/components/Icon';
@@ -104,7 +104,7 @@ export default function AppointmentDetailsPage({ params }: { params: Promise<{ i
           </div>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text)' }}>{biz.title}</h2>
           <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 4, marginBottom: 14 }}>
-            {categoryLabel(biz.category)}
+            {businessCategoryLabel(biz)}
           </div>
           <div style={{ display: 'inline-block', background: st.bg, color: st.color, padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
             {st.label}

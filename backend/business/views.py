@@ -1,5 +1,5 @@
 from adrf.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
@@ -252,6 +252,47 @@ class BusinessView(APIView):
                 message="خطا در حذف کسب و کار، لطفا مجددا تلاش کنید",
                 code=500
             )
+
+
+class BusinessCategoriesView(APIView):
+    """
+    The business-category vocabulary, grouped.
+
+    GET -> {"groups": [{"key", "label", "categories": [{"value", "label"}]}],
+            "categories": [{"value", "label", "group"}]}
+
+    Exists so a client never has to ship its own copy of the ~35 categories:
+    before this, adding one meant a mobile release, and until that release
+    every business in a new category rendered as "سایر" (the app's enum falls
+    back to OTHER for anything it does not know). Clients should render this
+    and keep their local list only as an offline fallback.
+
+    Both shapes are returned from one call rather than making the client
+    reshape: `groups` is what a sectioned picker renders, `categories` is what
+    a flat filter or a label lookup wants, and computing the second from the
+    first in every client is duplicated work over a payload this small.
+
+    ``AllowAny``: this is a static vocabulary with no user data in it, it is
+    already visible on every public booking page (the category label is
+    rendered there), and the sign-up flow needs it *before* an account exists.
+    """
+    permission_classes = [AllowAny]
+
+    async def get(self, request):
+        groups = [
+            {
+                'key': key,
+                'label': label,
+                'categories': [{'value': value, 'label': text} for value, text in pairs],
+            }
+            for key, label, pairs in Business.CATEGORY_GROUPS
+        ]
+        flat = [
+            {'value': value, 'label': text, 'group': key}
+            for key, _label, pairs in Business.CATEGORY_GROUPS
+            for value, text in pairs
+        ]
+        return APIResponse.success(data={'groups': groups, 'categories': flat})
 
 
 class ServiceCatalogView(APIView):

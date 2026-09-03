@@ -6,6 +6,9 @@ import xyz.sattar.javid.proqueue.data.localDataSource.business.toEntity
 import xyz.sattar.javid.proqueue.data.localDataSource.business.toRequestDto
 import xyz.sattar.javid.proqueue.domain.BusinessRepository
 import xyz.sattar.javid.proqueue.domain.model.business.Business
+import xyz.sattar.javid.proqueue.domain.model.business.CategoryGroup
+import xyz.sattar.javid.proqueue.domain.model.business.CategoryOption
+import xyz.sattar.javid.proqueue.domain.model.business.fallbackCategoryGroups
 
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.BusinessApiService
 import kotlinx.coroutines.flow.Flow
@@ -161,4 +164,39 @@ class BusinessRepositoryImpl(
 
     override suspend fun addServiceCatalogItem(category: String, name: String): ApiResponse<ServiceCatalogItemDto> =
         businessApiService.addServiceCatalogItem(category, name)
+
+    /**
+     * Cached for the process lifetime: the vocabulary changes on the order of
+     * months, and the picker would otherwise re-fetch every time it opens.
+     * A failed fetch is not cached, so the next open retries rather than
+     * pinning the user to the fallback for the whole session.
+     */
+    private var cachedCategoryGroups: List<CategoryGroup>? = null
+
+    override suspend fun getCategoryGroups(): List<CategoryGroup> {
+        cachedCategoryGroups?.let { return it }
+
+        val remote = runCatching {
+            when (val response = businessApiService.getCategories()) {
+                is ApiResponse.Success -> response.data.groups
+                    .map { group ->
+                        CategoryGroup(
+                            key = group.key,
+                            label = group.label,
+                            categories = group.categories.map { CategoryOption(it.value, it.label) },
+                        )
+                    }
+                    .filter { it.categories.isNotEmpty() }
+                else -> emptyList()
+            }
+        }.getOrDefault(emptyList())
+
+        // Falling back on an empty result, not just on a thrown error: an old
+        // server without this endpoint answers 404, which surfaces here as an
+        // empty list rather than an exception, and an empty picker is the one
+        // outcome that leaves the owner unable to finish creating a business.
+        val groups = remote.ifEmpty { fallbackCategoryGroups() }
+        if (remote.isNotEmpty()) cachedCategoryGroups = groups
+        return groups
+    }
 }

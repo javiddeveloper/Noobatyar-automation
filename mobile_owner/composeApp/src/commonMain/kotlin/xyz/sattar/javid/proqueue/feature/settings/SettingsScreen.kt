@@ -662,7 +662,7 @@ private fun ProfileHeaderCard(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = business.category.persianName,
+                                    text = business.categoryLabel,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )

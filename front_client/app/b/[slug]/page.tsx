@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getBusinessByCode, categoryLabel, mediaUrl, type Business } from '@/lib/api';
+import { getBusinessByCode, businessCategoryLabel, mediaUrl, type Business } from '@/lib/api';
 import { absoluteBusinessUrl } from '@/lib/site';
 import BusinessProfileClient from './BusinessProfileClient';
 
@@ -55,7 +55,7 @@ function businessDescription(biz: Business): string {
   const parts = [
     biz.bio?.trim(),
     `رزرو آنلاین نوبت در ${biz.title}`,
-    categoryLabel(biz.category),
+    businessCategoryLabel(biz),
     biz.address?.trim(),
   ].filter(Boolean);
   return parts.join('. ').slice(0, 160);

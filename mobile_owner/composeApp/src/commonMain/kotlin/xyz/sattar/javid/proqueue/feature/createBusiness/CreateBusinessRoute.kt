@@ -84,6 +84,9 @@ import xyz.sattar.javid.proqueue.core.ui.components.ServiceCatalogBottomSheet
 import xyz.sattar.javid.proqueue.core.ui.components.ServiceDurationBottomSheet
 import xyz.sattar.javid.proqueue.core.ui.components.formatServiceDuration
 import xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory
+import xyz.sattar.javid.proqueue.domain.model.business.CategoryGroup
+import xyz.sattar.javid.proqueue.domain.model.business.CategoryOption
+import xyz.sattar.javid.proqueue.domain.model.business.fallbackCategoryGroups
 import xyz.sattar.javid.proqueue.domain.model.business.ModerationStatus
 import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 import androidx.compose.foundation.layout.Box
@@ -112,7 +115,16 @@ fun CreateBusinessRoute(
     val uiState by viewModel.uiState.collectAsState()
 
     var title by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf(BusinessCategory.OTHER) }
+    // Holds the picked category as the server describes it, so a category
+    // added after this build shipped is still submitted with its real code
+    // instead of being coerced to OTHER by the enum.
+    var category by remember {
+        mutableStateOf(CategoryOption(BusinessCategory.OTHER.value, BusinessCategory.OTHER.persianName))
+    }
+    // Fetched once; falls back to this build's enum when the server is
+    // unreachable or too old to serve the endpoint.
+    var categoryGroups by remember { mutableStateOf(fallbackCategoryGroups()) }
+    LaunchedEffect(Unit) { categoryGroups = viewModel.loadCategoryGroups() }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var defaultProgress by remember { mutableStateOf("") }
@@ -157,13 +169,13 @@ fun CreateBusinessRoute(
     // The pickable chips are category-scoped, so they reload whenever the
     // owner switches category — a salon must not be offered clinic services.
     LaunchedEffect(category) {
-        viewModel.sendIntent(CreateBusinessIntent.LoadServiceCatalog(category))
+        viewModel.sendIntent(CreateBusinessIntent.LoadServiceCatalog(category.value))
     }
 
     LaunchedEffect(uiState.business) {
         uiState.business?.let {
             title = it.title
-            category = it.category
+            category = CategoryOption(it.category, it.categoryLabel)
             phone = it.phone
             address = it.address
             defaultProgress = it.defaultServiceDuration.toString()
@@ -198,6 +210,7 @@ fun CreateBusinessRoute(
         onIntent = viewModel::sendIntent,
         title = title,
         category = category,
+        categoryGroups = categoryGroups,
         phone = phone,
         address = address,
         defaultProgress = defaultProgress,
@@ -265,7 +278,7 @@ fun CreateBusinessRoute(
             // their own menu. The intent adds it to the shared category catalog
             // so other businesses can pick it too.
             if (!services.contains(name)) services = services + name
-            viewModel.sendIntent(CreateBusinessIntent.AddServiceCatalogItem(category, name))
+            viewModel.sendIntent(CreateBusinessIntent.AddServiceCatalogItem(category.value, name))
         },
         onAllowClientAddService = { allowClientAddService = it },
         onLogoBytes = { logoBytes = it },
@@ -288,14 +301,15 @@ fun CreateBusinessScreen(
     uiState: CreateBusinessState,
     onIntent: (CreateBusinessIntent) -> Unit,
     title: String,
-    category: BusinessCategory,
+    category: CategoryOption,
+    categoryGroups: List<CategoryGroup>,
     phone: String,
     address: String,
     defaultProgress: String,
     workStartHour: String,
     workEndHour: String,
     onTitle: (String) -> Unit,
-    onCategory: (BusinessCategory) -> Unit,
+    onCategory: (CategoryOption) -> Unit,
     onPhone: (String) -> Unit,
     onAddress: (String) -> Unit,
     onDefaultProgress: (String) -> Unit,
@@ -466,7 +480,7 @@ fun CreateBusinessScreen(
                                 val intent =
                                     CreateBusinessIntent.CreateBusiness(
                                         title = t,
-                                        category = category,
+                                        category = category.value,
                                         phone = p,
                                         address = a,
                                         defaultProgress = d,
@@ -629,7 +643,7 @@ fun CreateBusinessScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            val selectedCategoryText = category.persianName
+            val selectedCategoryText = category.label
 
             Box(modifier = Modifier.fillMaxWidth().clickable {
                 if (!uiState.isLoading) showCategorySheet = true
@@ -1074,25 +1088,29 @@ fun CreateBusinessScreen(
                 // when the owner is browsing rather than searching. Groups
                 // with no match are dropped entirely, so a search never
                 // renders a header over an empty section.
-                val filteredGroups = BusinessCategory.grouped()
-                    .mapValues { (_, options) ->
-                        options.filter { it.persianName.contains(searchQuery, ignoreCase = true) }
+                val filteredGroups = categoryGroups
+                    .map { group ->
+                        group.copy(
+                            categories = group.categories.filter {
+                                it.label.contains(searchQuery, ignoreCase = true)
+                            }
+                        )
                     }
-                    .filterValues { it.isNotEmpty() }
+                    .filter { it.categories.isNotEmpty() }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    filteredGroups.forEach { (group, options) ->
-                        item(key = "header-${group.name}") {
+                    filteredGroups.forEach { group ->
+                        item(key = "header-${group.key}") {
                             Text(
-                                text = group.persianName,
+                                text = group.label,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
                             )
                         }
-                        items(options, key = { it.value }) { option ->
+                        items(group.categories, key = { it.value }) { option ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1103,7 +1121,7 @@ fun CreateBusinessScreen(
                                     .padding(vertical = 16.dp)
                             ) {
                                 Text(
-                                    text = option.persianName,
+                                    text = option.label,
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                             }
@@ -1151,7 +1169,8 @@ fun PreviewDashboardScreen() {
             uiState = CreateBusinessState(),
             onIntent = {},
             title = "",
-            category = BusinessCategory.OTHER,
+            category = CategoryOption(BusinessCategory.OTHER.value, BusinessCategory.OTHER.persianName),
+            categoryGroups = fallbackCategoryGroups(),
             phone = "",
             address = "",
             defaultProgress = "",

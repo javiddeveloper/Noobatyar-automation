@@ -10,7 +10,11 @@ import xyz.sattar.javid.proqueue.domain.model.business.ReminderDelivery
 fun BusinessEntity.toDomain() = Business(
     id = id,
     title = title,
-    category = BusinessCategory.fromString(category),
+    category = category ?: BusinessCategory.OTHER.value,
+    // Stored server label wins; the enum is the fallback for rows written
+    // before this column existed, or by a server that does not send it.
+    categoryLabel = categoryLabel
+        ?: BusinessCategory.fromString(category).persianName,
     uniqueCode = uniqueCode,
     phone = phone,
     address = address,
@@ -49,7 +53,8 @@ fun BusinessEntity.toDomain() = Business(
 fun Business.toEntity() = BusinessEntity(
     id = id,
     title = title,
-    category = category.value,
+    category = category,
+    categoryLabel = categoryLabel,
     uniqueCode = uniqueCode,
     phone = phone,
     address = address,
@@ -87,7 +92,7 @@ fun Business.toEntity() = BusinessEntity(
 
 fun Business.toRequestDto() = CreateBusinessRequestDto(
     title = title,
-    category = category.value,
+    category = category,
     phone = phone,
     address = address,
     defaultServiceDuration = defaultServiceDuration,
@@ -122,6 +127,7 @@ fun BusinessDto.toEntity(): BusinessEntity {
         id = id,
         title = title,
         category = category,
+        categoryLabel = categoryDisplay,
         uniqueCode = uniqueCode,
         phone = phone,
         address = address,

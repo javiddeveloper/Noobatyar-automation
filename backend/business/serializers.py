@@ -109,6 +109,14 @@ class BusinessSerializer(serializers.ModelSerializer):
     moderation_status_display = serializers.CharField(
         source='get_moderation_status_display', read_only=True,
     )
+    # Same reasoning as moderation_status_display above, for the same reason:
+    # the category vocabulary is ~35 entries and grows, and a client keeping
+    # its own copy of the labels shows "سایر" for every category added after
+    # the installed build. Clients should render this and fall back to their
+    # local map only when it is absent (an older server).
+    category_display = serializers.CharField(
+        source='get_category_display', read_only=True,
+    )
     # moderation_status alone no longer tells the owner app whether customers
     # can currently see the business: PENDING covers both "never reviewed,
     # hidden" and "approved before, an edit is staged, still showing the old
@@ -120,7 +128,7 @@ class BusinessSerializer(serializers.ModelSerializer):
         model = Business
         fields = [
             # Identity
-            'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
+            'id', 'title', 'category', 'category_display', 'unique_code', 'phone', 'address', 'logo',
             # Schedule
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             # Notifications (legacy)
@@ -331,12 +339,20 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
         so the fields would be constant here, and `moderation_note` is a
         reviewer's private wording addressed to the owner, not to the public.
     """
+    # Persian label alongside the raw code, so the booking page and any other
+    # public client render a category added after their build shipped instead
+    # of falling back to "سایر". Same rationale as BusinessSerializer's.
+    category_display = serializers.CharField(
+        source='get_category_display', read_only=True,
+    )
+
     class Meta:
         model = Business
         fields = [
             'id',
             'unique_code',
             'category',
+            'category_display',
             'title',
             'logo',
             'address',
@@ -397,11 +413,14 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
     gateway is available without the merchant id itself crossing the wire.
     """
     online_gateway_enabled = serializers.SerializerMethodField()
+    category_display = serializers.CharField(
+        source='get_category_display', read_only=True,
+    )
 
     class Meta:
         model = Business
         fields = [
-            'id', 'title', 'category', 'unique_code', 'phone', 'address', 'logo',
+            'id', 'title', 'category', 'category_display', 'unique_code', 'phone', 'address', 'logo',
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             'allow_anonymous_view',
             'notice_message', 'notice_enabled', 'booking_enabled',

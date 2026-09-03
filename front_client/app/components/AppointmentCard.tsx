@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { categoryLabel, mediaUrl, type Appointment } from '@/lib/api';
+import { businessCategoryLabel, mediaUrl, type Appointment } from '@/lib/api';
 import { STATUS_LABELS, formatDate, toPersianNumerals } from '@/lib/format';
 import Icon, { CATEGORY_ICON } from './Icon';
 
@@ -155,7 +155,7 @@ export default function AppointmentCard({ appt }: { appt: Appointment }) {
               {appt.business.title}
             </h3>
             <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 3 }}>
-              {categoryLabel(appt.business.category)}
+              {businessCategoryLabel(appt.business)}
             </div>
           </div>
         </div>

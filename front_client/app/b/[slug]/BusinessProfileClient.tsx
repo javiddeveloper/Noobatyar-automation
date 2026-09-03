@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { categoryLabel, type Business } from '@/lib/api';
+import { businessCategoryLabel, type Business } from '@/lib/api';
 import BusinessNotice from '@/app/components/BusinessNotice';
 import Icon, { CATEGORY_ICON, type IconName } from '@/app/components/Icon';
 import { toPersianDigits as toFa } from '@/lib/validation';
@@ -84,11 +84,11 @@ export default function BusinessProfileClient({ business, slug }: Props) {
 
         <span className="biz-hero-chip">
           <Icon name={categoryIcon} size={14} />
-          <span>{categoryLabel(business.category)}</span>
+          <span>{businessCategoryLabel(business)}</span>
         </span>
 
         <p className="biz-hero-bio">
-          {business.bio || `ارائه خدمات تخصصی در زمینه ${categoryLabel(business.category)} توسط کادر مجرب.`}
+          {business.bio || `ارائه خدمات تخصصی در زمینه ${businessCategoryLabel(business)} توسط کادر مجرب.`}
         </p>
 
         {business.phone && (

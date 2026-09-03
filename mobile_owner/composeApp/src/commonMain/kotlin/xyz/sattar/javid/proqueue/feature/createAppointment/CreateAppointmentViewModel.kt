@@ -348,7 +348,7 @@ class CreateAppointmentViewModel(
         val business = BusinessStateHolder.selectedBusiness.value ?: return@flow
         emit(CreateAppointmentState.PartialState.ServiceCatalogLoading(true))
         try {
-            val items = getServiceCatalogUseCase(business.category.value)
+            val items = getServiceCatalogUseCase(business.category)
             emit(
                 CreateAppointmentState.PartialState.LoadServiceCatalog(
                     (business.services + items).distinct()
@@ -370,7 +370,7 @@ class CreateAppointmentViewModel(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return@flow
         try {
-            val addedName = addServiceCatalogItemUseCase(business.category.value, trimmed)
+            val addedName = addServiceCatalogItemUseCase(business.category, trimmed)
             val updatedCatalog = (uiState.value.serviceCatalog + addedName).distinct()
             emit(CreateAppointmentState.PartialState.LoadServiceCatalog(updatedCatalog))
             val updatedSelected = (uiState.value.selectedServices + addedName).distinct()

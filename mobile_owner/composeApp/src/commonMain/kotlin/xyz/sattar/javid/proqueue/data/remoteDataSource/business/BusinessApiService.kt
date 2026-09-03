@@ -13,6 +13,7 @@ import xyz.sattar.javid.proqueue.core.network.ApiResponse
 import xyz.sattar.javid.proqueue.core.network.PaginatedResponseDto
 import xyz.sattar.javid.proqueue.core.network.toApiResponse
 import xyz.sattar.javid.proqueue.core.network.toDirectApiResponse
+import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessCategoriesDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.BusinessDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.CreateBusinessRequestDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.AddServiceCatalogItemRequestDto
@@ -49,7 +50,7 @@ class BusinessApiService(private val httpClient: HttpClient) {
         return io.ktor.client.request.forms.MultiPartFormDataContent(
             io.ktor.client.request.forms.formData {
                 append("title", business.title)
-                append("category", business.category.value)
+                append("category", business.category)
                 append("phone", business.phone)
                 append("address", business.address)
                 append("default_service_duration", business.defaultServiceDuration.toString())
@@ -185,6 +186,17 @@ class BusinessApiService(private val httpClient: HttpClient) {
         return httpClient.post("business/service-catalog/") {
             contentType(ContentType.Application.Json)
             setBody(AddServiceCatalogItemRequestDto(category = category, name = name))
+        }.toApiResponse()
+    }
+
+    /**
+     * The category vocabulary. Unauthenticated on the server (it is a static
+     * list with no user data), but sent through the same client as everything
+     * else so it picks up the base URL and interceptors.
+     */
+    suspend fun getCategories(): ApiResponse<BusinessCategoriesDto> {
+        return httpClient.get("business/categories/") {
+            contentType(ContentType.Application.Json)
         }.toApiResponse()
     }
 }

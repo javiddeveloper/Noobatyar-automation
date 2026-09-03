@@ -7,6 +7,7 @@ import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.ServiceCat
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogPageDto
 import xyz.sattar.javid.proqueue.data.remoteDataSource.business.model.SmsLogSummaryDto
 import xyz.sattar.javid.proqueue.domain.model.business.Business
+import xyz.sattar.javid.proqueue.domain.model.business.CategoryGroup
 
 interface BusinessRepository {
     suspend fun upsertBusiness(business: Business): Boolean
@@ -45,6 +46,14 @@ interface BusinessRepository {
     suspend fun getPushLogSummary(businessId: Long): ApiResponse<PushLogSummaryDto>
 
     // --- Service catalog (shared across every business in a category) ---
+    /**
+     * The category vocabulary, from the server when reachable and from this
+     * build's own [BusinessCategory][xyz.sattar.javid.proqueue.domain.model.business.BusinessCategory]
+     * enum otherwise. Never fails and never returns empty — the picker must
+     * always have something to show.
+     */
+    suspend fun getCategoryGroups(): List<CategoryGroup>
+
     suspend fun getServiceCatalog(category: String): ApiResponse<List<ServiceCatalogItemDto>>
     suspend fun addServiceCatalogItem(category: String, name: String): ApiResponse<ServiceCatalogItemDto>
 }
