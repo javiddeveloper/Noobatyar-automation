@@ -529,6 +529,18 @@ class Business(models.Model):
         if self._logo_changed():
             from .theme_color import color_from_logo
             self.theme_color = color_from_logo(self.logo)
+            # apply_decision() (moderation.py) promotes pending_logo onto logo
+            # and saves with an explicit update_fields list built before this
+            # method runs, so it has no way to know theme_color needs to be in
+            # it too. With update_fields passed, Django's UPDATE only SETs the
+            # named columns — recomputing self.theme_color above changes the
+            # Python attribute but not what gets written, so the edit that
+            # changed the photo silently kept the old header colour in the DB.
+            # Add it here, the one place that knows the recompute happened,
+            # rather than requiring every caller to remember to list it.
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'theme_color' not in update_fields:
+                kwargs['update_fields'] = [*update_fields, 'theme_color']
 
         if not self.unique_code:
             # Generate a random CODE_LENGTH-character code of uppercase letters
