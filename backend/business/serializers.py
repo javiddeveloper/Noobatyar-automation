@@ -128,7 +128,7 @@ class BusinessSerializer(serializers.ModelSerializer):
         model = Business
         fields = [
             # Identity
-            'id', 'title', 'category', 'category_display', 'unique_code', 'phone', 'address', 'logo',
+            'id', 'title', 'category', 'category_display', 'unique_code', 'phone', 'address', 'logo', 'theme_color',
             # Schedule
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             # Notifications (legacy)
@@ -177,6 +177,10 @@ class BusinessSerializer(serializers.ModelSerializer):
             # Only ever written server-side, via services.stage_pending_moderated_fields.
             'pending_title', 'pending_bio', 'pending_address', 'pending_logo',
             'is_publicly_visible',
+            # Derived from the logo in Business.save(). Accepting it from the
+            # client would let an owner set a header colour unrelated to their
+            # logo, and it would be overwritten on their next logo change anyway.
+            'theme_color',
         ]
         extra_kwargs = {
             # Restated even though the model field is already CharField(300):
@@ -355,6 +359,7 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
             'category_display',
             'title',
             'logo',
+            'theme_color',
             'address',
             'phone',
             'work_start_hour',
@@ -420,7 +425,7 @@ class ClientBusinessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = [
-            'id', 'title', 'category', 'category_display', 'unique_code', 'phone', 'address', 'logo',
+            'id', 'title', 'category', 'category_display', 'unique_code', 'phone', 'address', 'logo', 'theme_color',
             'default_service_duration', 'work_start_hour', 'work_end_hour',
             'allow_anonymous_view',
             'notice_message', 'notice_enabled', 'booking_enabled',

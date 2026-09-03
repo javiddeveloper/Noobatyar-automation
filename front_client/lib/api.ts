@@ -15,6 +15,9 @@ export interface Business {
   /** Persian label as the server rendered it. Preferred over the local map so
    *  a category added after this build shipped still reads correctly. */
   category_display?: string;
+  /** Hex colour derived from the logo server-side, already contrast-checked
+   *  against white text. Empty/absent for a business with no logo. */
+  theme_color?: string;
   unique_code: string;
   bio?: string | null;
   phone: string | null;
@@ -459,45 +462,70 @@ export function businessCategoryLabel(
 
 export function categoryLabel(category: string): string {
   const map: Record<string, string> = {
-    // سلامت و درمان
     DOCTOR: 'پزشک و کلینیک',
+    GENERAL_PRACTITIONER: 'پزشک عمومی',
+    INTERNAL_MEDICINE: 'داخلی',
+    CARDIOLOGY: 'قلب و عروق',
+    DERMATOLOGY: 'پوست، مو و زیبایی (پزشک)',
+    ORTHOPEDICS: 'ارتوپدی',
+    PEDIATRICS: 'اطفال و کودکان',
+    GYNECOLOGY: 'زنان و زایمان',
+    ENT: 'گوش، حلق و بینی',
+    OPHTHALMOLOGY: 'چشم‌پزشکی',
+    NEUROLOGY: 'مغز و اعصاب',
+    UROLOGY: 'اورولوژی',
+    ENDOCRINOLOGY: 'غدد و دیابت',
+    GASTROENTEROLOGY: 'گوارش و کبد',
+    ONCOLOGY: 'انکولوژی',
+    SURGERY: 'جراحی',
+    PSYCHIATRY: 'روان‌پزشکی',
+    INFERTILITY: 'ناباروری و IVF',
     DENTIST: 'دندان‌پزشکی',
-    PSYCHOLOGY: 'روان‌شناسی و روان‌پزشکی',
+    ORTHODONTICS: 'ارتودنسی',
+    DENTAL_IMPLANT: 'ایمپلنت و جراحی دهان',
+    PEDIATRIC_DENTISTRY: 'دندان‌پزشکی کودکان',
+    PSYCHOLOGY: 'روان‌شناسی و مشاوره',
     PHYSIOTHERAPY: 'فیزیوتراپی و توان‌بخشی',
     NUTRITION: 'تغذیه و رژیم‌درمانی',
-    LABORATORY: 'آزمایشگاه و تصویربرداری',
+    LABORATORY: 'آزمایشگاه',
+    RADIOLOGY: 'رادیولوژی و سونوگرافی',
     OPTOMETRY: 'بینایی‌سنجی و عینک',
     SPEECH_THERAPY: 'گفتاردرمانی',
+    OCCUPATIONAL_THERAPY: 'کاردرمانی',
     MIDWIFERY: 'مامایی و سلامت بانوان',
+    NURSING: 'پرستاری و خدمات در منزل',
+    PHARMACY: 'داروخانه',
     VETERINARY: 'دامپزشکی',
-    // زیبایی و آرایش
     BEAUTY_SALON: 'آرایشگاه و سالن زیبایی',
+    WOMENS_SALON: 'سالن زیبایی زنانه',
     BARBERSHOP: 'آرایشگاه مردانه',
+    HAIR_SALON: 'سالن مو (رنگ و کراتین)',
+    HAIR_TRANSPLANT: 'کاشت مو و ابرو',
+    MAKEUP: 'میکاپ و گریم',
+    BRIDAL: 'عروس و خدمات مجلسی',
     NAIL_SALON: 'سالن ناخن',
-    SKIN_LASER: 'پوست، مو و لیزر',
+    EYEBROW_LASH: 'ابرو، مژه و میکروبلیدینگ',
+    SKIN_LASER: 'پوست و لیزر',
     TATTOO: 'تتو و میکروپیگمنتیشن',
     MASSAGE_SPA: 'ماساژ و اسپا',
-    // خدمات حرفه‌ای
+    SLIMMING: 'لاغری و تناسب اندام',
     CONSULTANT: 'مشاوره',
     LAWYER: 'وکالت و مشاوره حقوقی',
     ACCOUNTING: 'حسابداری و مالیات',
     REAL_ESTATE: 'املاک و مستغلات',
     INSURANCE: 'بیمه',
     IMMIGRATION: 'مهاجرت و ویزا',
-    // آموزش و ورزش
     TUTORING: 'تدریس و کلاس خصوصی',
     LANGUAGE_SCHOOL: 'آموزشگاه زبان',
     MUSIC_SCHOOL: 'آموزش موسیقی',
     GYM: 'باشگاه ورزشی و مربی شخصی',
     YOGA_PILATES: 'یوگا و پیلاتس',
     DRIVING_SCHOOL: 'آموزشگاه رانندگی',
-    // خدمات فنی و تعمیرات
     AUTO_SERVICE: 'تعمیرگاه و خدمات خودرو',
     CAR_WASH: 'کارواش و دیتیلینگ',
     HOME_SERVICE: 'خدمات و تعمیرات منزل',
     DEVICE_REPAIR: 'تعمیر موبایل و لوازم برقی',
     TAILORING: 'خیاطی و طراحی لباس',
-    // سایر
     PHOTOGRAPHY: 'عکاسی و آتلیه',
     EVENT_SERVICES: 'تالار و خدمات مراسم',
     PET_GROOMING: 'آرایش و نگهداری حیوانات',

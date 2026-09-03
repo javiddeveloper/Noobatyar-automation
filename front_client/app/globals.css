@@ -889,18 +889,47 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 }
 
 /* ── Animated hero / header ──────────────────────────────────── */
+/* --hero-color is set inline per business from Business.theme_color, which is
+   derived from the logo and already clamped to ≥4.5:1 against white
+   server-side (backend/business/theme_color.py). The gradient is built from
+   that single colour with colour-mix, so one variable re-themes the whole
+   header; the fallback keeps every logo-less business on the brand purple. */
 .biz-hero {
+  --hero-color: var(--color-primary);
   background: linear-gradient(135deg,
-    var(--color-primary-light) 0%,
-    var(--color-primary) 30%,
-    var(--color-primary-dark) 55%,
-    var(--color-primary) 78%,
-    var(--color-primary-light) 100%);
+    color-mix(in srgb, var(--hero-color) 78%, white) 0%,
+    var(--hero-color) 32%,
+    color-mix(in srgb, var(--hero-color) 78%, black) 58%,
+    var(--hero-color) 80%,
+    color-mix(in srgb, var(--hero-color) 78%, white) 100%);
   background-size: 320% 320%;
   animation: auroraShift 18s ease-in-out infinite;
 }
-.biz-hero::before { animation: blobFloat 11s ease-in-out infinite; }
-.biz-hero::after  { animation: blobFloat 14s ease-in-out infinite reverse; }
+/* The two decorative blobs are gone — .biz-hero-art draws the category mark
+   in their place. The soft radial glow stays: it keeps the avatar from
+   sitting on a flat field. */
+.biz-hero::before {
+  top: -46px; inset-inline-start: -34px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(255,255,255,0.16), transparent 70%);
+  animation: blobFloat 11s ease-in-out infinite;
+}
+.biz-hero::after { content: none; }
+
+/* Category line-art. Sits behind everything (.biz-hero > * is z-index 1),
+   large and low-opacity so it reads as a watermark rather than an icon. */
+.biz-hero-art {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  top: 50%;
+  inset-inline-end: -34px;
+  transform: translateY(-50%) rotate(-8deg);
+  color: #fff;
+  opacity: 0.16;
+  pointer-events: none;
+  animation: floatY 9s ease-in-out infinite;
+}
 
 /* ── App banner (home) ───────────────────────────────────────── */
 .app-banner {
@@ -1425,6 +1454,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   .biz-hero,
   .biz-hero::before,
   .biz-hero::after,
+  .biz-hero-art,
   .app-banner,
   .app-banner::after,
   .app-banner-blob,

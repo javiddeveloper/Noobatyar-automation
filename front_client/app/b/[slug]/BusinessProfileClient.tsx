@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { businessCategoryLabel, type Business } from '@/lib/api';
 import BusinessNotice from '@/app/components/BusinessNotice';
 import Icon, { CATEGORY_ICON, type IconName } from '@/app/components/Icon';
+import CategoryArt from '@/app/components/CategoryArt';
 import { toPersianDigits as toFa } from '@/lib/validation';
 
 interface Props {
@@ -17,6 +18,10 @@ export default function BusinessProfileClient({ business, slug }: Props) {
   const [isNavigating, setIsNavigating] = useState(false);
 
   const categoryIcon: IconName = CATEGORY_ICON[business.category] ?? 'storefront';
+  // Derived from the logo server-side (Business.theme_color) and already
+  // contrast-clamped for white text there, so it can be used raw. Falls back
+  // to the brand purple for a business with no logo.
+  const heroColor = business.theme_color || '#8b5cf6';
   const bookingEnabled = business.booking_enabled !== false; // default true if undefined
 
   const logoUrl = business.logo
@@ -70,7 +75,13 @@ export default function BusinessProfileClient({ business, slug }: Props) {
     <div className="page-content">
 
       {/* ── Hero ── */}
-      <div className="biz-hero">
+      <div
+        className="biz-hero"
+        style={{ ['--hero-color' as string]: heroColor }}
+      >
+        {/* Category line-art, in place of the decorative blobs this used to
+            draw: it says what the business actually does. */}
+        <CategoryArt category={business.category} className="biz-hero-art" />
         <div className="biz-hero-avatar">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- remote media host, no loader configured

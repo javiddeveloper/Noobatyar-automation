@@ -30,25 +30,66 @@ class Business(models.Model):
     # BEAUTY_SALON as women-only would mis-describe the men's barbershops
     # already filed under it — BARBERSHOP is offered for new ones instead.
     CATEGORY_GROUPS = [
-        ('HEALTH', 'سلامت و درمان', [
+        ('MEDICAL', 'پزشکی و تخصص‌ها', [
+            # DOCTOR stays first and keeps its generic label: it is what every
+            # existing clinic is filed under, and a business that has not
+            # picked a specialty should still have somewhere correct to sit.
             ('DOCTOR', 'پزشک و کلینیک'),
+            ('GENERAL_PRACTITIONER', 'پزشک عمومی'),
+            ('INTERNAL_MEDICINE', 'داخلی'),
+            ('CARDIOLOGY', 'قلب و عروق'),
+            ('DERMATOLOGY', 'پوست، مو و زیبایی (پزشک)'),
+            ('ORTHOPEDICS', 'ارتوپدی'),
+            ('PEDIATRICS', 'اطفال و کودکان'),
+            ('GYNECOLOGY', 'زنان و زایمان'),
+            ('ENT', 'گوش، حلق و بینی'),
+            ('OPHTHALMOLOGY', 'چشم‌پزشکی'),
+            ('NEUROLOGY', 'مغز و اعصاب'),
+            ('UROLOGY', 'اورولوژی'),
+            ('ENDOCRINOLOGY', 'غدد و دیابت'),
+            ('GASTROENTEROLOGY', 'گوارش و کبد'),
+            ('ONCOLOGY', 'انکولوژی'),
+            ('SURGERY', 'جراحی'),
+            ('PSYCHIATRY', 'روان‌پزشکی'),
+            ('INFERTILITY', 'ناباروری و IVF'),
+        ]),
+        ('DENTAL', 'دندان‌پزشکی', [
             ('DENTIST', 'دندان‌پزشکی'),
-            ('PSYCHOLOGY', 'روان‌شناسی و روان‌پزشکی'),
+            ('ORTHODONTICS', 'ارتودنسی'),
+            ('DENTAL_IMPLANT', 'ایمپلنت و جراحی دهان'),
+            ('PEDIATRIC_DENTISTRY', 'دندان‌پزشکی کودکان'),
+        ]),
+        ('HEALTH', 'سلامت و درمان', [
+            ('PSYCHOLOGY', 'روان‌شناسی و مشاوره'),
             ('PHYSIOTHERAPY', 'فیزیوتراپی و توان‌بخشی'),
             ('NUTRITION', 'تغذیه و رژیم‌درمانی'),
-            ('LABORATORY', 'آزمایشگاه و تصویربرداری'),
+            ('LABORATORY', 'آزمایشگاه'),
+            ('RADIOLOGY', 'رادیولوژی و سونوگرافی'),
             ('OPTOMETRY', 'بینایی‌سنجی و عینک'),
             ('SPEECH_THERAPY', 'گفتاردرمانی'),
+            ('OCCUPATIONAL_THERAPY', 'کاردرمانی'),
             ('MIDWIFERY', 'مامایی و سلامت بانوان'),
+            ('NURSING', 'پرستاری و خدمات در منزل'),
+            ('PHARMACY', 'داروخانه'),
             ('VETERINARY', 'دامپزشکی'),
         ]),
-        ('BEAUTY', 'زیبایی و آرایش', [
+        ('BEAUTY', 'آرایش و زیبایی', [
+            # BEAUTY_SALON keeps its original value and label — it is what
+            # every existing salon holds, and narrowing it now would
+            # re-describe businesses nobody re-picked a category for.
             ('BEAUTY_SALON', 'آرایشگاه و سالن زیبایی'),
+            ('WOMENS_SALON', 'سالن زیبایی زنانه'),
             ('BARBERSHOP', 'آرایشگاه مردانه'),
+            ('HAIR_SALON', 'سالن مو (رنگ و کراتین)'),
+            ('HAIR_TRANSPLANT', 'کاشت مو و ابرو'),
+            ('MAKEUP', 'میکاپ و گریم'),
+            ('BRIDAL', 'عروس و خدمات مجلسی'),
             ('NAIL_SALON', 'سالن ناخن'),
-            ('SKIN_LASER', 'پوست، مو و لیزر'),
+            ('EYEBROW_LASH', 'ابرو، مژه و میکروبلیدینگ'),
+            ('SKIN_LASER', 'پوست و لیزر'),
             ('TATTOO', 'تتو و میکروپیگمنتیشن'),
             ('MASSAGE_SPA', 'ماساژ و اسپا'),
+            ('SLIMMING', 'لاغری و تناسب اندام'),
         ]),
         ('PROFESSIONAL', 'خدمات حرفه‌ای', [
             ('CONSULTANT', 'مشاوره'),
@@ -131,6 +172,13 @@ class Business(models.Model):
     address = models.TextField()
     bio = models.CharField(max_length=50, blank=True, null=True)
     logo = models.ImageField(upload_to='business_logos/', blank=True, null=True, help_text="Business logo image")
+    # Header colour derived from `logo` at save time — see business/theme_color.py
+    # for why this is computed here rather than sampled in the browser. Blank
+    # means "never computed"; the clients fall back to the brand purple.
+    theme_color = models.CharField(
+        max_length=7, blank=True, default='',
+        help_text="Hex colour derived from the logo, used as the public header background",
+    )
     default_service_duration = models.IntegerField(help_text="Default duration in minutes")
     work_start_hour = models.IntegerField(help_text="0-23")
     work_end_hour = models.IntegerField(help_text="0-23")
@@ -475,6 +523,13 @@ class Business(models.Model):
             })
 
     def save(self, *args, **kwargs):
+        # Recompute only when the logo actually changed. Doing it on every save
+        # would decode an image on every unrelated field edit — and a booking
+        # toggle should not pay for image processing.
+        if self._logo_changed():
+            from .theme_color import color_from_logo
+            self.theme_color = color_from_logo(self.logo)
+
         if not self.unique_code:
             # Generate a random CODE_LENGTH-character code of uppercase letters
             # and digits. Compared case-insensitively so a generated code can
@@ -487,6 +542,28 @@ class Business(models.Model):
                     self.unique_code = code
                     break
         super().save(*args, **kwargs)
+
+    def _logo_changed(self) -> bool:
+        """True when `logo` differs from what is stored (or this is a create).
+
+        Compares against the DB rather than tracking state in __init__: the
+        moderation flow copies `pending_logo` onto `logo` and saves, which an
+        __init__ snapshot taken before that assignment would miss.
+        """
+        if not self.pk:
+            return bool(self.logo)
+        try:
+            stored = Business.objects.only('logo', 'theme_color').get(pk=self.pk)
+        except Business.DoesNotExist:
+            return bool(self.logo)
+        if stored.logo != self.logo:
+            return True
+        # Recompute whenever a logo exists but the colour is missing — on the
+        # instance *or* in the DB. Checking only the stored value meant
+        # clearing the field (a backfill script, or an admin blanking it to
+        # force a refresh) saved the blank straight back instead of
+        # regenerating, which is the opposite of what clearing it means.
+        return bool(self.logo) and not (self.theme_color and stored.theme_color)
 
     def __str__(self):
         return f"{self.title} ({self.user.phone})"
