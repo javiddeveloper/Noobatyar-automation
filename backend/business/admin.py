@@ -471,10 +471,14 @@ class BusinessAdmin(admin.ModelAdmin):
 class BusinessModerationLogAdmin(admin.ModelAdmin):
     """Browse-only view of the audit trail.
 
-    No add, no change, no delete — including for superusers. If a moderation
-    log can be edited from the admin it stops being evidence, and the whole
-    reason this table exists separately from LogEntry is that it has to answer
-    "who decided this, and why" long after the fact.
+    No add, no change, and no deleting a log on its own — including for
+    superusers. If a moderation log can be edited or removed from the admin it
+    stops being evidence, and the whole reason this table exists separately
+    from LogEntry is that it has to answer "who decided this, and why" long
+    after the fact.
+
+    Cascading with the business it describes is the one exception; see
+    has_delete_permission.
     """
 
     list_display = ('created_jalali', 'business_link', 'transition', 'actor', 'short_note')
@@ -492,7 +496,30 @@ class BusinessModerationLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        """Block deleting a log directly; allow it to cascade with its business.
+
+        Returning a flat False here is what made *businesses* undeletable for
+        everyone, superusers included. Django's delete-confirmation page walks
+        every object that would cascade and asks that object's own ModelAdmin
+        for delete permission (admin.utils.get_deleted_objects); a refusal adds
+        the model to `perms_needed`, producing "شناسه شما اجازه حذف اینگونه از
+        موجودیت‌ها را ندارد: business moderation log". Since every business
+        accumulates a log on its first moderation decision, that silently
+        locked deletion for the entire table.
+
+        A log is evidence *about a business*. Once the business itself is being
+        deleted the log has no subject left, so letting it cascade is not an
+        audit hole — whereas deleting a log while its business lives on is
+        exactly the tampering this admin exists to prevent. We tell the two
+        apart by which admin is handling the request: anything routed to this
+        model's own admin views (changelist, change, delete, and the
+        "delete selected" action posted back to the changelist) stays refused.
+        """
+        match = request.resolver_match
+        if match is None or not match.url_name:
+            return False
+        own_views = f'{self.opts.app_label}_{self.opts.model_name}_'
+        return not match.url_name.startswith(own_views)
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('business', 'actor')
