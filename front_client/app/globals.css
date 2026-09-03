@@ -916,6 +916,38 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 }
 .biz-hero::after { content: none; }
 
+/* ── Theme colour propagation ────────────────────────────────────
+   A business page sets --hero-color once (from Business.theme_color) and
+   .themed re-points the primary tokens at it, so buttons, selected time
+   slots, day pills, stat icons and links all pick up the same colour the
+   header derived from the logo.
+
+   Scoped to a class rather than :root so it cannot leak onto pages that
+   have no business context (the customer's own appointment list, login).
+
+   The Noobatyar promo banner deliberately opts out via .app-banner's own
+   fixed gradient below — that block advertises *our* product, and tinting
+   it with the salon's colour would make it read as part of the salon.
+   Same for .biz-action.call, which is semantically green (a phone call),
+   not decorative. */
+.themed {
+  --color-primary: var(--hero-color);
+  --color-primary-dark: color-mix(in srgb, var(--hero-color) 82%, black);
+  --color-primary-light: color-mix(in srgb, var(--hero-color) 75%, white);
+  --color-primary-shadow: color-mix(in srgb, var(--hero-color) 38%, transparent);
+  --color-primary-tint: color-mix(in srgb, var(--hero-color) 12%, white);
+}
+/* The tint is a *surface* in light mode but has to stay dark in dark mode,
+   or every chip and icon ground turns into a pale block on a dark page. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .themed {
+    --color-primary-tint: color-mix(in srgb, var(--hero-color) 22%, transparent);
+  }
+}
+:root[data-theme="dark"] .themed {
+  --color-primary-tint: color-mix(in srgb, var(--hero-color) 22%, transparent);
+}
+
 /* Category line-art. Sits behind everything (.biz-hero > * is z-index 1),
    large and low-opacity so it reads as a watermark rather than an icon. */
 .biz-hero-art {
@@ -933,6 +965,9 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 
 /* ── App banner (home) ───────────────────────────────────────── */
 .app-banner {
+  /* Hard-coded, not var(--color-primary): inside a .themed business page the
+     primary tokens are the *business's* colour, and this banner is Noobatyar's
+     own advertisement. It must not look like it belongs to the salon. */
   position: relative;
   overflow: hidden;
   width: 100%;
@@ -1024,7 +1059,9 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   padding: 6px 13px;
   border-radius: 999px;
   background: #fff;
-  color: var(--color-primary-dark);
+  /* Literal, not var(--color-primary-dark): inside .themed that token is the
+     business's own colour, and this pill sits on Noobatyar's purple banner. */
+  color: #6d28d9;
   font-size: 11.5px;
   font-weight: 700;
 }

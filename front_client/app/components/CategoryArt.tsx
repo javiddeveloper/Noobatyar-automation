@@ -232,6 +232,28 @@ const ART: Record<ArtKey, React.ReactNode> = {
   ),
 };
 
+/**
+ * Per-mark scale, applied about the canvas centre.
+ *
+ * The drawings do not all occupy the same share of the 100×100 canvas: the
+ * scissors and the scales run edge to edge, while the dumbbell is a thin
+ * band through the middle. Rendered at one size they therefore read as wildly
+ * different weights — the scissors in particular swamped the salon header.
+ * Scaling here rather than redrawing each path keeps every mark's geometry
+ * (and stroke width) intact while evening out how large they *look*.
+ */
+const ART_SCALE: Partial<Record<ArtKey, number>> = {
+  scissors: 0.72,
+  scales: 0.80,
+  eye: 0.78,
+  paw: 0.84,
+  car: 0.86,
+  tooth: 0.88,
+  camera: 0.88,
+  flask: 0.90,
+  nails: 0.90,
+};
+
 export function artKeyForCategory(category: string): ArtKey {
   return ART_FOR_CATEGORY[category] ?? 'sparkle';
 }
@@ -248,6 +270,9 @@ export default function CategoryArt({
   category: string;
   className?: string;
 }) {
+  const key = artKeyForCategory(category);
+  const scale = ART_SCALE[key] ?? 1;
+
   return (
     <svg
       className={className}
@@ -260,7 +285,10 @@ export default function CategoryArt({
       aria-hidden="true"
       focusable="false"
     >
-      {ART[artKeyForCategory(category)]}
+      {/* Scaled about the centre (50,50) so a mark stays put as it shrinks. */}
+      <g transform={scale === 1 ? undefined : `translate(50 50) scale(${scale}) translate(-50 -50)`}>
+        {ART[key]}
+      </g>
     </svg>
   );
 }

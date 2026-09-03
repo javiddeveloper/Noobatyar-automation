@@ -72,13 +72,17 @@ export default function BusinessProfileClient({ business, slug }: Props) {
         : 'creditCard';
 
   return (
-    <div className="page-content">
+    // .themed re-points the primary tokens at this business's colour for the
+    // whole page — buttons, stat icons, the address pin — so the header is not
+    // the only part that reflects their brand. The Noobatyar promo banner
+    // inside opts out; see .app-banner in globals.css.
+    <div
+      className="page-content themed"
+      style={{ ['--hero-color' as string]: heroColor }}
+    >
 
       {/* ── Hero ── */}
-      <div
-        className="biz-hero"
-        style={{ ['--hero-color' as string]: heroColor }}
-      >
+      <div className="biz-hero">
         {/* Category line-art, in place of the decorative blobs this used to
             draw: it says what the business actually does. */}
         <CategoryArt category={business.category} className="biz-hero-art" />

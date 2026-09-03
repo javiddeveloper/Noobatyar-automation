@@ -342,7 +342,14 @@ export default function BookingPage({ params }: Props) {
   };
 
   return (
-    <div className="page-content">
+    // Time slots, day pills and the confirm button take the business's own
+    // colour, matching the header on the profile page the client just came
+    // from. Only this branch is themed: the loading and booking-disabled
+    // returns above render before `business` is known.
+    <div
+      className="page-content themed"
+      style={{ ['--hero-color' as string]: business.theme_color || '#8b5cf6' }}
+    >
 
       <Toolbar
         title="انتخاب زمان نوبت"
