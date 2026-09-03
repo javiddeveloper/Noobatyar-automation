@@ -2,6 +2,13 @@
 const nextConfig = {
   output: 'standalone',
 
+  // CategoryArt imports icons by name from a ~12,000-icon barrel. Without this
+  // the whole set is walked on every dev compile and risks being bundled;
+  // listed here, only the icons actually referenced are pulled in.
+  experimental: {
+    optimizePackageImports: ['@tabler/icons-react'],
+  },
+
   // Django's URLconf expects the trailing slash. Without this, Next answers
   // /api/client/business/ with a 308 to the slash-less path before the rewrite
   // below ever runs, and the proxied call never reaches the backend.

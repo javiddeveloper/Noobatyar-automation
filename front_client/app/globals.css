@@ -960,15 +960,19 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 
 /* Category line-art. Sits behind everything (.biz-hero > * is z-index 1),
    large and low-opacity so it reads as a watermark rather than an icon. */
+/* Sits fully inside the header rather than bleeding off the edge. It used to
+   hang half off-canvas, which was tolerable for a vague blob-like shape but
+   not for a real icon: a stethoscope cropped down the middle reads as a stray
+   squiggle. Smaller as a result, so it stays clear of the centred title. */
 .biz-hero-art {
   position: absolute;
-  width: 190px;
-  height: 190px;
+  width: 132px;
+  height: 132px;
   top: 50%;
-  inset-inline-end: -34px;
-  transform: translateY(-50%) rotate(-8deg);
+  inset-inline-end: 16px;
+  transform: translateY(-50%) rotate(-6deg);
   color: #fff;
-  opacity: 0.16;
+  opacity: 0.2;
   pointer-events: none;
   animation: floatY 9s ease-in-out infinite;
 }
