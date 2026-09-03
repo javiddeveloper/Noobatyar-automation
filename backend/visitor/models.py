@@ -38,6 +38,32 @@ class Visitor(models.Model):
         db_table = 'visitor'
         ordering = ['-created_at']
 
+    @classmethod
+    def readable_by(cls, user):
+        """Visitors ``user`` (a business owner) may see and book appointments for.
+
+        Either the owner curated this contact themselves (``user`` set, which
+        only VisitorView.post does), or the person booked online and has an
+        appointment at one of the owner's businesses. Most self-booked visitors
+        never have ``user`` set at all, so an owner-only filter hides nearly
+        every online booking from the very business it belongs to.
+
+        A classmethod because this rule has to be identical everywhere: it was
+        already written out by hand in visitor/views.py for reading, while the
+        owner's appointment-create path kept its own stricter ``user=owner``
+        lookup — so an owner could see a web-booked customer in their list and
+        then be told "مراجعه‌کننده یافت نشد" when booking for them.
+
+        Read/associate level only. Editing the shared Visitor row still needs
+        get_owned_visitor(): phone_number is unique platform-wide, so one row is
+        shared by every business the person books at, and "has an appointment
+        with me" must not grant the right to rename or re-number them for
+        everyone else.
+        """
+        return cls.objects.filter(
+            models.Q(user=user) | models.Q(appointments__business__user=user)
+        ).distinct()
+
     def __str__(self):
         return f"{self.full_name} ({self.phone_number})"
 

@@ -36,11 +36,7 @@ async def get_readable_visitor(visitor_id, user):
     editing/deleting still requires direct ownership.
     """
     try:
-        return await sync_to_async(
-            Visitor.objects.filter(
-                Q(user=user) | Q(appointments__business__user=user)
-            ).distinct().get
-        )(id=visitor_id)
+        return await sync_to_async(Visitor.readable_by(user).get)(id=visitor_id)
     except Visitor.DoesNotExist:
         return None
 
@@ -108,9 +104,8 @@ class VisitorView(APIView):
             # their list only — the row itself is untouched and still visible to
             # every other business the person books at.
             visitors = [
-                b async for b in Visitor.objects.filter(
-                    Q(user=user) | Q(appointments__business__user=user)
-                ).exclude(archives__owner=user).distinct().order_by('-created_at')
+                b async for b in Visitor.readable_by(user)
+                .exclude(archives__owner=user).order_by('-created_at')
             ]
 
             # Paginate

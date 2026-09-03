@@ -353,8 +353,13 @@ class AppointmentView(APIView):
             return None, None, APIResponse.error('کسب‌وکار یافت نشد', code=status.HTTP_404_NOT_FOUND)
 
         try:
-            visitor = Visitor.objects.select_related('user').get(
-                id=visitor_id, user=user
+            # readable_by(), not user=user: a customer who booked through the
+            # client web app has no `user` link to this owner (usually none at
+            # all), so the stricter filter refused to book a repeat appointment
+            # for someone the owner could already see in their own visitor
+            # list — "مراجعه‌کننده یافت نشد" for an existing customer.
+            visitor = Visitor.readable_by(user).select_related('user').get(
+                id=visitor_id
             )
         except Visitor.DoesNotExist:
             logger.warning(
