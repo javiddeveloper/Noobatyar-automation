@@ -37,6 +37,7 @@
   --color-on-primary:    #ffffff;
   --color-primary-tint:  #f5f3ff;   /* subtle purple hover ground */
   --color-primary-shadow: rgba(139, 92, 246, 0.35);
+  --color-focus-ring:     rgba(139, 92, 246, 0.18);
   /* Deep violet used by the promo banner (was undefined → transparent) */
   --color-purple:        #7c3aed;
   --color-purple-dark:   #5b21b6;
@@ -480,7 +481,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
 .form-input::placeholder { color: var(--color-faint); }
 .form-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 /* Input for phone number (LTR, centered) */
@@ -936,6 +937,15 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   --color-primary-light: color-mix(in srgb, var(--hero-color) 75%, white);
   --color-primary-shadow: color-mix(in srgb, var(--hero-color) 38%, transparent);
   --color-primary-tint: color-mix(in srgb, var(--hero-color) 12%, white);
+  --color-focus-ring: color-mix(in srgb, var(--hero-color) 18%, transparent);
+  /* Restated, not inherited. --shadow-btn is declared on :root as
+     `0 4px 14px var(--color-primary-shadow)`, and a custom property's nested
+     var() is resolved on the element where the property is *declared* — so
+     :root baked the purple into it before .themed existed, and overriding
+     --color-primary-shadow here alone left every button glowing purple under
+     a themed background. Any composed token that references another token has
+     to be redeclared at the same level as its inputs. */
+  --shadow-btn: 0 4px 14px var(--color-primary-shadow);
 }
 /* The tint is a *surface* in light mode but has to stay dark in dark mode,
    or every chip and icon ground turns into a pale block on a dark page. */

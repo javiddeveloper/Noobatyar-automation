@@ -93,8 +93,11 @@ export default function TextField({
       // Leave room for the leading icon and the trailing status glyph.
       paddingInlineStart: icon ? 44 : 16,
       paddingInlineEnd: validate ? 40 : 16,
+      // The valid-state ring reads --color-focus-ring rather than a literal so
+      // it follows the business theme colour; the error ring stays red, since
+      // "this field is wrong" must not be repainted into the brand palette.
       boxShadow: focused
-        ? `0 0 0 3px ${visibleError ? 'rgba(220,38,38,0.15)' : 'rgba(139,92,246,0.18)'}`
+        ? `0 0 0 3px ${visibleError ? 'rgba(220,38,38,0.15)' : 'var(--color-focus-ring)'}`
         : 'none',
     } as React.CSSProperties,
   };
