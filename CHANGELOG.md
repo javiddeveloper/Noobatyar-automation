@@ -10,6 +10,27 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
+## v1.6.0 — 2026-09-03
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- رفع اشکال: ثبت نوبت جدید برای مشتری‌ای که قبلاً از طریق وب نوبت گرفته بود با پیام «مشتری یافت نشد» رد می‌شد.
+- تقویم حالا یک ماه قبل و یک ماه بعد را هم نشان می‌دهد؛ قبلاً فقط ماه جاری قابل مشاهده بود و نوبت‌گیری برای ماه بعد ممکن نبود.
+- صفحه‌ی اصلی اپ بازطراحی شد: دسترسی سریع‌تر به تقویم و لینک نوبت‌گیری، و نمودار روند نوبت‌ها با دو حالت هفتگی/ماهانه.
+- رفع اشکال نمایش نوار پایین صفحه در تم روشن.
+<!-- fa:end -->
+
+### mobile_owner
+- Calendar day strip now spans a month behind and a month ahead of today (`DateTimeUtils.getDayWindow`), replacing `getNextDays`, which ignored its argument and returned only the current Jalali month — also fixing a latent bug where day 30 of a leap-year Esfand was silently dropped.
+- Home screen rebuilt around a collapsing header (calendar + booking-link actions promoted above the fold) and a weekly/monthly line-chart trend card, replacing the old six-section stack and its bar-per-day month view.
+- Bottom navigation bar given its own on-brand colour and a real border, fixing near-invisibility in the light theme; added `LocalIsDarkTheme` so components no longer guess dark/light from surface luminance.
+
+### backend
+- `Visitor.readable_by()` — the same "owner-created or has an appointment with this owner" rule visitor/views.py already used for reads, now shared with the appointment-create path, which had its own stricter `user=owner` filter and rejected booking for any customer who had signed up through the client web app.
+- `daily-counts` gained a `days_ahead` parameter so the home screen's month card can report bookings that have not happened yet, not just past days.
+
+Full commit range: [`v1.5.0...v1.6.0`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.5.0...v1.6.0)
+
 ## v1.5.0 — 2026-09-03
 
 <!-- fa:start -->
