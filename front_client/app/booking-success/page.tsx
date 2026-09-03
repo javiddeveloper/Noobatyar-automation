@@ -6,6 +6,7 @@ import { getAppointment, type Appointment } from '@/lib/api';
 import { STATUS_LABELS, formatDate } from '@/lib/format';
 import { BusinessAvatar } from '@/app/components/AppointmentCard';
 import Icon from '@/app/components/Icon';
+import AppBanner from '@/app/components/AppBanner';
 
 /** Colours for the confetti burst. Brand purple + the success greens. */
 const CONFETTI_COLORS = ['#8b5cf6', '#a78bfa', '#34d399', '#10b981', '#fbbf24'];
@@ -139,6 +140,14 @@ function BookingSuccess() {
           صفحهٔ اصلی
         </button>
       </div>
+
+      {/* ── Noobatyar Promo ──
+          The "owner" pitch, not the consumer one: whoever is reading this has
+          just watched the product work end to end for someone else's business,
+          which is the moment it is worth asking whether they run one too.
+          Last in the stagger so it arrives after the confirmation has landed —
+          the booking is the point of this screen, the advert is not. */}
+      <AppBanner variant="owner" className="success-banner" />
     </div>
   );
 }

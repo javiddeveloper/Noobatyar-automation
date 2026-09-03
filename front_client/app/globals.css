@@ -973,11 +973,10 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   animation: floatY 9s ease-in-out infinite;
 }
 
-/* ── App banner (home) ───────────────────────────────────────── */
+/* ── App banner ──────────────────────────────────────────────── */
 .app-banner {
-  /* Hard-coded, not var(--color-primary): inside a .themed business page the
-     primary tokens are the *business's* colour, and this banner is Noobatyar's
-     own advertisement. It must not look like it belongs to the salon. */
+  /* Noobatyar purple on Noobatyar's own screens. Inside a business page it is
+     overridden to the business colour — see `.themed .app-banner` below. */
   position: relative;
   overflow: hidden;
   width: 100%;
@@ -996,6 +995,30 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   transition: transform 0.16s ease;
 }
 .app-banner:active { transform: scale(0.985); }
+
+/* Inside a business page the banner takes that business's colour.
+   It used to stay purple deliberately, to keep Noobatyar's advert from looking
+   like it belonged to the salon — but on a red or olive page it was the only
+   purple object on screen and read as a bug, not as a brand. The logo and the
+   wording carry the identity; the gradient never did.
+
+   Mirrors the stop structure of the default gradient rather than inventing a
+   new one, so both versions animate identically under auroraShift. The theme
+   colour is guaranteed ≥4.5:1 against white by backend/business/theme_color.py,
+   so the white text stays legible whatever the logo happened to be. */
+.themed .app-banner {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--hero-color) 78%, white) 0%,
+    var(--hero-color) 35%,
+    color-mix(in srgb, var(--hero-color) 76%, black) 65%,
+    var(--hero-color) 100%);
+  background-size: 320% 320%;
+  box-shadow: 0 12px 30px var(--color-primary-shadow);
+}
+/* The white CTA pill sits on that gradient, so its text follows too. */
+.themed .app-banner-cta {
+  color: color-mix(in srgb, var(--hero-color) 76%, black);
+}
 
 /* The gleam. A separate element so it can be clipped by the banner's
    own overflow without affecting the gradient underneath. */
@@ -1069,8 +1092,6 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   padding: 6px 13px;
   border-radius: 999px;
   background: #fff;
-  /* Literal, not var(--color-primary-dark): inside .themed that token is the
-     business's own colour, and this pill sits on Noobatyar's purple banner. */
   color: #6d28d9;
   font-size: 11.5px;
   font-weight: 700;
@@ -1481,6 +1502,15 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   gap: 10px;
   animation: riseIn 0.4s 0.66s ease both;
 }
+/* Matches the card and actions above it, and continues their stagger so the
+   advert is the last thing to arrive rather than competing with the tick. */
+.success-banner {
+  width: 100%;
+  max-width: 330px;
+  margin-top: 28px;
+  animation: riseIn 0.4s 0.82s ease both,
+             auroraShift 14s ease-in-out 0.82s infinite;
+}
 
 .confetti-piece {
   position: absolute;
@@ -1513,6 +1543,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   .success-sub,
   .success-card,
   .success-actions,
+  .success-banner,
   .confetti-piece,
   .field-error,
   .field-status,
@@ -1526,6 +1557,7 @@ p  { font-size: 13px; color: var(--color-muted); line-height: 1.7; }
   .success-title,
   .success-sub,
   .success-card,
-  .success-actions { opacity: 1; transform: none; }
+  .success-actions,
+  .success-banner { opacity: 1; transform: none; }
 }
 

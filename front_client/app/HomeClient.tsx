@@ -6,6 +6,7 @@ import { getMyAppointments, type Appointment } from '@/lib/api';
 import SupportLinks from '@/app/components/SupportLinks';
 import AppointmentCard from '@/app/components/AppointmentCard';
 import Icon from '@/app/components/Icon';
+import AppBanner from '@/app/components/AppBanner';
 
 /** Statuses that are over and done with — never "upcoming". */
 const CLOSED = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
@@ -79,29 +80,7 @@ export default function HomeClient() {
 
       {/* ── App banner ── */}
       <div className="section" style={{ paddingTop: 4, paddingBottom: 8 }}>
-        <a
-          className="app-banner"
-          href="https://noobatyar.ir"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span className="app-banner-blob one" aria-hidden="true" />
-          <span className="app-banner-blob two" aria-hidden="true" />
-
-          <span className="app-banner-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element -- local static brand mark */}
-            <img src="/icons/icon-192.png" alt="" width={58} height={58} />
-          </span>
-
-          <span className="app-banner-body">
-            <h2>اپلیکیشن نوبت‌یار</h2>
-            <p>نوبت کسب‌وکارهای مورد علاقه‌تان را در چند ثانیه رزرو کنید</p>
-            <span className="app-banner-cta">
-              مشاهده در noobatyar.ir
-              <Icon name="chevronLeft" size={14} />
-            </span>
-          </span>
-        </a>
+        <AppBanner variant="consumer" />
       </div>
 
       {/* ── My appointments ── */}

@@ -6,6 +6,7 @@ import { getMyAppointments, type Appointment } from '@/lib/api';
 import Toolbar from '@/app/components/Toolbar';
 import AppointmentCard from '@/app/components/AppointmentCard';
 import Icon from '@/app/components/Icon';
+import AppBanner from '@/app/components/AppBanner';
 
 type Tab = 'UPCOMING' | 'PAST' | 'CANCELED';
 
@@ -151,6 +152,13 @@ export default function AppointmentsPage() {
         {filtered.map((appt) => (
           <AppointmentCard key={appt.id} appt={appt} />
         ))}
+
+        {/* ── Noobatyar Promo ──
+            After the list, not above it: this is the screen people come back to
+            in order to check a booking, and an advert between them and that
+            answer is the fastest way to make it resented. Shown once the fetch
+            settles so it never appears above a skeleton. */}
+        {!loading && !error && <AppBanner variant="owner" style={{ marginTop: 18 }} />}
       </div>
     </div>
   );

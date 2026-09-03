@@ -6,6 +6,7 @@ import { businessCategoryLabel, type Business } from '@/lib/api';
 import BusinessNotice from '@/app/components/BusinessNotice';
 import Icon, { CATEGORY_ICON, type IconName } from '@/app/components/Icon';
 import CategoryArt from '@/app/components/CategoryArt';
+import AppBanner from '@/app/components/AppBanner';
 import { toPersianDigits as toFa } from '@/lib/validation';
 
 interface Props {
@@ -73,9 +74,8 @@ export default function BusinessProfileClient({ business, slug }: Props) {
 
   return (
     // .themed re-points the primary tokens at this business's colour for the
-    // whole page — buttons, stat icons, the address pin — so the header is not
-    // the only part that reflects their brand. The Noobatyar promo banner
-    // inside opts out; see .app-banner in globals.css.
+    // whole page — buttons, stat icons, the address pin, and the promo banner
+    // — so the header is not the only part that reflects their brand.
     <div
       className="page-content themed"
       style={{ ['--hero-color' as string]: heroColor }}
@@ -182,32 +182,10 @@ export default function BusinessProfileClient({ business, slug }: Props) {
       )}
 
       {/* ── Noobatyar Promo ──
-          Same animated banner the home screen uses, so the product pitch looks
-          like one thing across the app rather than two near-identical cards. */}
+          Takes this business's colour rather than Noobatyar purple: the page is
+          .themed, and see `.themed .app-banner` in globals.css. */}
       <div className="section" style={{ paddingTop: 8, paddingBottom: 8 }}>
-        <a
-          className="app-banner"
-          href="https://noobatyar.ir"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span className="app-banner-blob one" aria-hidden="true" />
-          <span className="app-banner-blob two" aria-hidden="true" />
-
-          <span className="app-banner-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element -- local static brand mark */}
-            <img src="/icons/icon-192.png" alt="" width={58} height={58} />
-          </span>
-
-          <span className="app-banner-body">
-            <h2>صاحب کسب‌وکار هستید؟</h2>
-            <p>نوبت‌دهی آنلاین با نوبت‌یار برای کسب‌وکار شما</p>
-            <span className="app-banner-cta">
-              شروع رایگان در noobatyar.ir
-              <Icon name="chevronLeft" size={14} />
-            </span>
-          </span>
-        </a>
+        <AppBanner variant="owner" />
       </div>
 
       {/* ── Fixed Bottom Button ── */}
