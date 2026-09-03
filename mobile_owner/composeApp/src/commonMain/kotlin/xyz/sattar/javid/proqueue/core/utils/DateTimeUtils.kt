@@ -24,25 +24,113 @@ object DateTimeUtils {
         return tomorrowStart.toEpochMilliseconds() - 1
     }
 
-    fun getNextDays(count: Int): List<Long> {
-        // Return days of current month
-        val now = Clock.System.now()
-        val timeZone = TimeZone.currentSystemDefault()
-        val today = now.toLocalDateTime(timeZone)
-        
+    /** Shift a Jalali (year, month) by whole months. Months are 1..12. */
+    private fun shiftJalaliMonth(year: Int, month: Int, delta: Int): PersianDate {
+        val monthIndex = year * 12 + (month - 1) + delta
+        return PersianDate(monthIndex / 12, (monthIndex % 12) + 1, 1)
+    }
+
+    /**
+     * A Jalali year+month collapsed to one comparable integer.
+     *
+     * Bucketing days into "last month / this month / next month" needs a single
+     * value that keeps ordering across a year boundary — comparing month
+     * numbers alone makes اسفند (12) look later than فروردین (1) of the year
+     * after it.
+     */
+    fun jalaliMonthIndex(millis: Long): Int {
+        val date = getJalaliDateParts(millis)
+        return date.year * 12 + (date.month - 1)
+    }
+
+    /** [jalaliMonthIndex] for today. */
+    fun currentJalaliMonthIndex(timeZone: TimeZone = TimeZone.currentSystemDefault()): Int {
+        val today = Clock.System.now().toLocalDateTime(timeZone)
+        val jalali = gregorianToJalali(today.year, today.monthNumber, today.dayOfMonth)
+        return jalali.year * 12 + (jalali.month - 1)
+    }
+
+    /** Persian name of the month a [jalaliMonthIndex] refers to. */
+    fun jalaliMonthName(monthIndex: Int): String = when ((monthIndex % 12) + 1) {
+        1 -> "فروردین"
+        2 -> "اردیبهشت"
+        3 -> "خرداد"
+        4 -> "تیر"
+        5 -> "مرداد"
+        6 -> "شهریور"
+        7 -> "مهر"
+        8 -> "آبان"
+        9 -> "آذر"
+        10 -> "دی"
+        11 -> "بهمن"
+        12 -> "اسفند"
+        else -> ""
+    }
+
+    /**
+     * How many days back and forward cover a whole Jalali month either side of
+     * today, as `(daysBack, daysAhead)` for the daily-counts endpoint.
+     *
+     * `daysBack` is inclusive of today (matching the endpoint's `days`), so the
+     * pair can be handed straight to it.
+     */
+    fun monthWindowDayOffsets(
+        timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    ): Pair<Int, Int> {
+        val today = Clock.System.now().toLocalDateTime(timeZone)
         val jalaliToday = gregorianToJalali(today.year, today.monthNumber, today.dayOfMonth)
-        val daysInMonth = if (jalaliToday.month <= 6) 31 else if (jalaliToday.month < 12) 30 else 29 // Leap year check needed for Esfand but 29 is safe minimum
-        
+
+        val prevMonth = shiftJalaliMonth(jalaliToday.year, jalaliToday.month, -1)
+        val monthAfterNext = shiftJalaliMonth(jalaliToday.year, jalaliToday.month, 2)
+
+        val startMillis = jalaliToGregorian(prevMonth.year, prevMonth.month, 1)
+        val endExclusiveMillis = jalaliToGregorian(monthAfterNext.year, monthAfterNext.month, 1)
+        val todayMillis = startOfTodayMillis(timeZone)
+
+        val dayMillis = 24L * 60 * 60 * 1000
+        val daysBack = ((todayMillis - startMillis) / dayMillis).toInt() + 1
+        val daysAhead = ((endExclusiveMillis - todayMillis) / dayMillis).toInt() - 1
+        return daysBack to daysAhead
+    }
+
+    /**
+     * Every day from the start of the Jalali month [monthsBefore] back to the
+     * end of the month [monthsAfter] ahead, as start-of-day epoch millis.
+     *
+     * Replaces getNextDays(count), which ignored its argument entirely and
+     * returned only the *current* Jalali month. That had two consequences: an
+     * owner standing on the 30th could not book into next month at all, since
+     * no later day existed in the strip; and past days were unreachable, so a
+     * finished appointment could never be looked up.
+     *
+     * Month boundaries are derived by converting the first day of each Jalali
+     * month through [jalaliToGregorian] and walking days between them, rather
+     * than from a table of month lengths. The old code hardcoded Esfand at 29
+     * "as a safe minimum", which silently dropped the 30th of every leap-year
+     * Esfand — a day the business could be open on and never see.
+     */
+    fun getDayWindow(
+        monthsBefore: Int = 1,
+        monthsAfter: Int = 1,
+        timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    ): List<Long> {
+        val today = Clock.System.now().toLocalDateTime(timeZone)
+        val jalaliToday = gregorianToJalali(today.year, today.monthNumber, today.dayOfMonth)
+
+        val first = shiftJalaliMonth(jalaliToday.year, jalaliToday.month, -monthsBefore)
+        // Exclusive upper bound: the first day of the month *after* the last
+        // one we want, so the final month's real length needs no special case.
+        val endExclusive = shiftJalaliMonth(jalaliToday.year, jalaliToday.month, monthsAfter + 1)
+
+        val startMillis = jalaliToGregorian(first.year, first.month, 1)
+        val endMillis = jalaliToGregorian(endExclusive.year, endExclusive.month, 1)
+
         val days = mutableListOf<Long>()
-        
-        // Find start of month in Gregorian
-        val startOfMonthGregorian = jalaliToGregorian(jalaliToday.year, jalaliToday.month, 1)
-        val startInstant = Instant.fromEpochMilliseconds(startOfMonthGregorian)
-        
-        for (i in 0 until daysInMonth) {
-            days.add(startInstant.plus(i, DateTimeUnit.DAY, timeZone).toEpochMilliseconds())
+        var cursor = Instant.fromEpochMilliseconds(startMillis)
+        while (cursor.toEpochMilliseconds() < endMillis) {
+            days.add(cursor.toEpochMilliseconds())
+            cursor = cursor.plus(1, DateTimeUnit.DAY, timeZone)
         }
-        
         return days
     }
 
@@ -326,6 +414,28 @@ object DateTimeUtils {
             kotlinx.datetime.Instant.parse(isoString).toEpochMilliseconds()
         } catch (e: Exception) {
             0L
+        }
+    }
+
+    /**
+     * Start-of-day millis for a bare `YYYY-MM-DD`, or null if unparseable.
+     *
+     * Separate from [parseIsoToEpochMillis], which needs a full timestamp:
+     * handing it a date-only string throws and it returns 0L — an epoch date
+     * that would quietly bucket into the wrong month rather than being
+     * recognised as bad input. The daily-counts endpoint returns exactly this
+     * bare-date shape.
+     */
+    fun parseIsoDateToEpochMillis(
+        dateString: String,
+        timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    ): Long? {
+        return try {
+            kotlinx.datetime.LocalDate.parse(dateString)
+                .atStartOfDayIn(timeZone)
+                .toEpochMilliseconds()
+        } catch (e: Exception) {
+            null
         }
     }
 

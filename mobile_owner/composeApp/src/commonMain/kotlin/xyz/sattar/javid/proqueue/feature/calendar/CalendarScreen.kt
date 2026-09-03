@@ -172,22 +172,31 @@ fun DaysHeader(
     selectedDate: Long,
     onDateSelected: (Long) -> Unit
 ) {
+    // A month back and a month forward, not just the current month: booking on
+    // the 30th used to have nowhere to go, and past days were unreachable.
     val days = remember {
-        DateTimeUtils.getNextDays(30)
+        DateTimeUtils.getDayWindow(monthsBefore = 1, monthsAfter = 1)
     }
-    
+
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
+    // Keyed on selectedDate, not Unit: the window now spans three months, so
+    // landing on the right day matters, and picking a date elsewhere (the
+    // date sheet, a notification) has to bring the strip with it.
+    LaunchedEffect(selectedDate) {
         val selectedDateFormatted = DateTimeUtils.formatDate(selectedDate)
         val index = days.indexOfFirst { DateTimeUtils.formatDate(it) == selectedDateFormatted }
         if (index >= 0) {
-            listState.scrollToItem(index)
+            // Offset so the selected day sits a little in from the edge with
+            // its neighbours visible, instead of flush against the side.
+            listState.scrollToItem(index, scrollOffset = 0)
         }
     }
-    
-    val firstDay = days.firstOrNull() ?: DateTimeUtils.systemCurrentMilliseconds()
-    val persianDate = DateTimeUtils.getJalaliDateParts(firstDay)
+
+    // The *selected* day's month, not the first day in the list. With a
+    // three-month window a fixed "first day" header would label مهر as شهریور
+    // for two thirds of the strip.
+    val persianDate = DateTimeUtils.getJalaliDateParts(selectedDate)
     val monthName = when(persianDate.month) {
         1 -> "فروردین"
         2 -> "اردیبهشت"
