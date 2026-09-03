@@ -10,6 +10,33 @@
   per-package, technical) is for developers/agents and isn't shown to users.
 -->
 
+## v1.5.0 — 2026-09-03
+
+<!-- fa:start -->
+تغییرات این نسخه:
+- دسته‌بندی مشاغل کامل‌تر و دقیق‌تر شد (آرایشگاه زنانه/مردانه و رشته‌های پزشکی از هم تفکیک شدند)، و افزودن دسته‌های جدید در آینده دیگر نیازی به آپدیت اپ ندارد.
+- رنگ صفحه‌ی عمومی کسب‌وکار حالا خودکار از روی لوگوی شما انتخاب می‌شود و نماد مرتبط با نوع شغلتان در صفحه نمایش داده می‌شود.
+- امکان ارسال پیام تبلیغاتی هدفمند از سمت نوبت‌یار به مشتریان یا صاحبان کسب‌وکار.
+- رفع اشکال: کسب‌وکارهایی که سابقه‌ی بررسی داشتند از پنل مدیریت قابل حذف نبودند.
+- چند رفع اشکال جزئی در نمایش رنگ‌ها و بنر صفحه‌ی وب.
+<!-- fa:end -->
+
+### mobile_owner
+- Category picker now fetches the live vocabulary from `GET business/categories/` and falls back to a bundled list only when the server is unreachable — adding a category on the backend no longer requires an app release.
+
+### backend
+- Business categories expanded from 37 to 68 and regrouped for precision (salon vs. barbershop, medical specialties split out individually).
+- `Business.theme_color` derived from the logo at save time (WCAG-contrast-aware against white), replacing the fixed purple business header; `category_display` and the new `GET business/categories/` endpoint let clients read the vocabulary and its Persian labels without hardcoding either.
+- Promotional push campaign system: a shared `PushCampaign` definition for admin-initiated, segmented pushes to customers or business owners, with optional image/link/deep-link.
+- Fixed: a business with any moderation history — every business past its first review decision — could not be deleted from the admin, because the audit-log admin's blanket delete refusal was also consulted for the cascade and blocked it for the business itself, not just the log.
+
+### front_client
+- Business hero background colour follows `theme_color`; buttons, focus rings, and shadows across the themed page now derive from it instead of a hardcoded purple.
+- Category-specific icon art (Tabler icon set) drawn in the hero, sized and positioned fully inside the header.
+- Noobatyar promo banner recoloured to match the business's theme on business pages, and added to the booking-success and appointments screens (previously home + business page only).
+
+Full commit range: [`v1.4.0...v1.5.0`](https://github.com/javiddeveloper/Noobatyar-automation/compare/v1.4.0...v1.5.0)
+
 ## v1.4.0 — 2026-09-01
 
 <!-- fa:start -->
